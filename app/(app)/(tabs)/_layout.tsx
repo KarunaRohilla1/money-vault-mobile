@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter, type Href } from "expo-router";
 import { StyleSheet, type ColorValue, View } from "react-native";
 
 import { FAB } from "@/components/ui";
@@ -21,8 +21,13 @@ const tabBarStyles = StyleSheet.create({
     pointerEvents: "box-none",
     position: "absolute",
     right: 0
+  },
+  centerSlot: {
+    width: 72
   }
 });
+
+const newTransactionRoute = "/transaction/new" as Href;
 
 function tabOptions(name: TabName) {
   return {
@@ -34,6 +39,8 @@ function tabOptions(name: TabName) {
 }
 
 export default function TabLayout() {
+  const router = useRouter();
+
   return (
     <View className="flex-1 bg-background">
       <Tabs
@@ -50,11 +57,19 @@ export default function TabLayout() {
       >
         <Tabs.Screen name="index" options={tabOptions("index")} />
         <Tabs.Screen name="accounts" options={tabOptions("accounts")} />
+        <Tabs.Screen
+          name="add"
+          options={{
+            href: null,
+            tabBarButton: () => <View style={tabBarStyles.centerSlot} />,
+            title: ""
+          }}
+        />
         <Tabs.Screen name="planning" options={tabOptions("planning")} />
         <Tabs.Screen name="more" options={tabOptions("more")} />
       </Tabs>
       <View pointerEvents="box-none" style={tabBarStyles.fab}>
-        <FAB accessibilityLabel="Add financial item" />
+        <FAB accessibilityLabel="Add transaction" onPress={() => router.push(newTransactionRoute)} />
       </View>
     </View>
   );

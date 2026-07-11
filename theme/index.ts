@@ -1,6 +1,1 @@
-import rawTokens = require("./tokens");
-
-export const theme = rawTokens;
-
-export type Theme = typeof theme;
-export type ThemeColor = keyof typeof theme.colors;
+export { theme, type Theme, type ThemeColor } from "./tokens";

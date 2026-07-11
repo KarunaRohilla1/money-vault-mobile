@@ -1,4 +1,6 @@
-const { colors, radius, spacing, typography, shadows } = require("./theme/tokens");
+require("ts-node/register/transpile-only");
+
+const { colors, radius, spacing, typography, shadows } = require("./theme/tokens.ts");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

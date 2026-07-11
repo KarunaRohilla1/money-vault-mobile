@@ -1,4 +1,4 @@
-const colors = {
+export const colors = {
   background: {
     DEFAULT: "#08060D",
     elevated: "#100B19",
@@ -36,9 +36,9 @@ const colors = {
     info: "#38BDF8"
   },
   transparent: "transparent"
-};
+} as const;
 
-const spacing = {
+export const spacing = {
   0: "0",
   1: "4px",
   2: "8px",
@@ -51,9 +51,9 @@ const spacing = {
   12: "48px",
   16: "64px",
   20: "80px"
-};
+} as const;
 
-const radius = {
+export const radius = {
   none: "0",
   sm: "4px",
   DEFAULT: "8px",
@@ -61,9 +61,9 @@ const radius = {
   lg: "14px",
   xl: "18px",
   full: "999px"
-};
+} as const;
 
-const typography = {
+export const typography = {
   fontFamily: {
     sans: ["System"]
   },
@@ -75,34 +75,34 @@ const typography = {
     xl: ["22px", { lineHeight: "30px" }],
     "2xl": ["28px", { lineHeight: "36px" }]
   }
-};
+} as const;
 
-const shadows = {
+export const shadows = {
   glow: "0 0 24px rgba(139, 92, 246, 0.28)",
   card: "0 18px 48px rgba(0, 0, 0, 0.32)"
-};
+} as const;
 
-const elevation = {
+export const elevation = {
   none: 0,
   sm: 2,
   md: 6,
   lg: 12
-};
+} as const;
 
-const animation = {
+export const animation = {
   fast: 160,
   base: 240,
   slow: 360
-};
+} as const;
 
-const icons = {
+export const icons = {
   xs: 14,
   sm: 18,
   md: 22,
   lg: 28
-};
+} as const;
 
-module.exports = {
+export const theme = {
   animation,
   colors,
   elevation,
@@ -111,4 +111,7 @@ module.exports = {
   shadows,
   spacing,
   typography
-};
+} as const;
+
+export type Theme = typeof theme;
+export type ThemeColor = keyof typeof colors;
