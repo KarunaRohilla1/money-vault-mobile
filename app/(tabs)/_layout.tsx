@@ -1,0 +1,61 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { StyleSheet, type ColorValue, View } from "react-native";
+
+import { FAB } from "@/components/ui";
+import { tabs, type TabName } from "@/constants/navigation";
+import { theme } from "@/theme";
+
+const tabBarStyles = StyleSheet.create({
+  bar: {
+    backgroundColor: theme.colors.background.elevated,
+    borderTopColor: theme.colors.surface.border,
+    height: 76,
+    paddingBottom: 14,
+    paddingTop: 10
+  },
+  fab: {
+    alignItems: "center",
+    bottom: 28,
+    left: 0,
+    pointerEvents: "box-none",
+    position: "absolute",
+    right: 0
+  }
+});
+
+function tabOptions(name: TabName) {
+  return {
+    title: tabs[name].label,
+    tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => (
+      <MaterialCommunityIcons name={tabs[name].icon} color={String(color)} size={size} />
+    )
+  };
+}
+
+export default function TabLayout() {
+  return (
+    <View className="flex-1 bg-background">
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: theme.colors.brand.soft,
+          tabBarInactiveTintColor: theme.colors.text.subtle,
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: "600"
+          },
+          tabBarStyle: tabBarStyles.bar
+        }}
+      >
+        <Tabs.Screen name="index" options={tabOptions("index")} />
+        <Tabs.Screen name="accounts" options={tabOptions("accounts")} />
+        <Tabs.Screen name="planning" options={tabOptions("planning")} />
+        <Tabs.Screen name="more" options={tabOptions("more")} />
+      </Tabs>
+      <View pointerEvents="box-none" style={tabBarStyles.fab}>
+        <FAB accessibilityLabel="Add financial item" />
+      </View>
+    </View>
+  );
+}
