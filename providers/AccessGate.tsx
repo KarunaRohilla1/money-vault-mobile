@@ -30,8 +30,9 @@ export function AccessGate() {
       return;
     }
 
-    const routeGroup = segments[0];
-    const routeName = segments[1];
+    const routeSegments: readonly string[] = segments;
+    const routeGroup = routeSegments[0];
+    const routeName = routeSegments[1];
     const inAuthGroup = routeGroup === "(auth)";
     const inAppGroup = routeGroup === "(app)";
     const alreadySignedOut = inAuthGroup && routeName === "sign-in";
