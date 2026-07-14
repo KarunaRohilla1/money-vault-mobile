@@ -1,13 +1,12 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { Text, TextInput, View } from "react-native";
 import { z } from "zod";
 
 import { Screen } from "@/components/layout/Screen";
-import { PrimaryButton } from "@/components/ui";
-import { queryKeys } from "@/lib/queryKeys";
+import { PrimaryButton, SecondaryButton } from "@/components/ui";
 import { ApiClientError } from "@/services/api/client";
-import { loginWithVaultCredentials } from "@/services/api/session";
+import { loginWithVaultCredentials, restoreBackendSession } from "@/services/api/session";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
@@ -19,7 +18,6 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function SignInRoute() {
-  const queryClient = useQueryClient();
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const setError = useAuthStore((state) => state.setError);
   const {
@@ -49,11 +47,25 @@ export default function SignInRoute() {
     },
     onSuccess: async (response) => {
       setAuthenticated(response.token, response.vault);
-      queryClient.removeQueries({ queryKey: queryKeys.dashboard.root });
     }
   });
 
   const authError = useAuthStore((state) => state.errorMessage);
+  const restoreMutation = useMutation({
+    mutationFn: restoreBackendSession,
+    onMutate: () => {
+      setError(null);
+    },
+    onError: () => {
+      setError("Unable to restore backend session. Check your connection and try again.");
+    },
+    onSuccess: (session) => {
+      if (session) {
+        setAuthenticated(session.token, session.vault);
+      }
+    }
+  });
+  const canRetryRestore = authError?.startsWith("Unable to restore backend session") ?? false;
   const submitLogin = (values: LoginFormValues) => {
     const parsed = loginSchema.safeParse(values);
 
@@ -122,6 +134,11 @@ export default function SignInRoute() {
         </View>
 
         {authError ? <Text className="font-sans text-sm text-state-danger">{authError}</Text> : null}
+        {canRetryRestore ? (
+          <SecondaryButton disabled={restoreMutation.isPending} onPress={() => restoreMutation.mutate()}>
+            Retry session
+          </SecondaryButton>
+        ) : null}
 
         <PrimaryButton loading={loginMutation.isPending} disabled={loginMutation.isPending} onPress={handleSubmit(submitLogin)}>
           Unlock

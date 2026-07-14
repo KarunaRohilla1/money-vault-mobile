@@ -12,7 +12,7 @@ The mobile app must not query Supabase financial tables directly and must never 
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Set the backend API URL.
+3. Set the backend API URL. Use `http://10.0.2.2:8001` for the Android emulator, or your computer LAN IP for a physical device.
 4. Start Expo with `npm start`.
 
 ## Environment Variables
@@ -33,7 +33,7 @@ Do not commit `.env` or secrets. This value points to the Money Vault backend AP
 - `stores/` contains small Zustand stores. The backend token is kept in memory and persisted only through Expo Secure Store.
 - `theme/` contains typed design tokens consumed by app code and NativeWind/Tailwind.
 - `components/` contains reusable UI, layout, card, chart, and form primitives.
-- `features/` contains feature-owned placeholder surfaces only.
+- `features/` contains feature-owned surfaces. The first implemented slice is the authenticated Dashboard.
 
 ## Backend Auth Model
 
@@ -60,7 +60,7 @@ Current typed client functions:
 - `POST /api/login`
 - `GET /api/dashboard`
 
-Dashboard UI is intentionally not implemented in this repository yet.
+The Dashboard screen renders the backend response contract: `generatedAt`, `vault`, and nested `data` fields for cycle, Safe to Spend, financial snapshot, recent activity, and spending by category.
 
 ## Commands
 

@@ -5,11 +5,11 @@ import { queryKeys } from "@/lib/queryKeys";
 import { apiClient } from "@/services/api/client";
 import type { DashboardApiResponse } from "@/services/api/types";
 
-export function useDashboardQuery(token: string | null) {
+export function useDashboardQuery(token: string | null, vaultId: string | null) {
   return useQuery({
-    enabled: Boolean(token),
+    enabled: Boolean(token && vaultId),
     queryFn: async () => adaptDashboardResponse(await apiClient.getDashboard(token ?? "")),
-    queryKey: queryKeys.dashboard.current
+    queryKey: queryKeys.dashboard.current(vaultId)
   });
 }
 

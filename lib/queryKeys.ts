@@ -3,7 +3,7 @@ export const queryKeys = {
     session: ["auth", "session"] as const
   },
   dashboard: {
-    current: ["dashboard", "current"] as const,
+    current: (vaultId: string | null) => ["dashboard", "current", vaultId ?? "anonymous"] as const,
     root: ["dashboard"] as const
   },
   settings: {

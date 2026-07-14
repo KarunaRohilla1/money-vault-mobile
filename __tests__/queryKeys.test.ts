@@ -8,6 +8,10 @@ describe("queryKeys", () => {
 
   it("defines a stable dashboard API query key", () => {
     expect(queryKeys.dashboard.root).toEqual(["dashboard"]);
-    expect(queryKeys.dashboard.current).toEqual(["dashboard", "current"]);
+    expect(queryKeys.dashboard.current("vault_1")).toEqual(["dashboard", "current", "vault_1"]);
+  });
+
+  it("scopes dashboard API query keys by vault", () => {
+    expect(queryKeys.dashboard.current("vault_1")).not.toEqual(queryKeys.dashboard.current("vault_2"));
   });
 });

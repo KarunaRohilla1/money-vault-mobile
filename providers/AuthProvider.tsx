@@ -1,7 +1,7 @@
 import { type PropsWithChildren, useEffect } from "react";
 
 import { ApiClientError } from "@/services/api/client";
-import { restoreBackendSession } from "@/services/api/session";
+import { clearBackendSession, restoreBackendSession } from "@/services/api/session";
 import { useAuthStore } from "@/stores/authStore";
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -34,11 +34,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         if (error instanceof ApiClientError && error.status === 401) {
-          setError(null);
+          void clearBackendSession();
+          setSignedOut();
         } else {
-          setError("Unable to restore backend session.");
+          setSignedOut("Unable to restore backend session. Check your connection and try again.");
         }
-        setSignedOut();
       });
 
     return () => {

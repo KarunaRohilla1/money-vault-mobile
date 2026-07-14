@@ -1,7 +1,9 @@
 import * as SecureStore from "expo-secure-store";
 
+import { queryClient } from "@/lib/queryClient";
+import { queryKeys } from "@/lib/queryKeys";
 import { apiClient, ApiClientError } from "@/services/api/client";
-import { loginWithVaultCredentials, restoreBackendSession } from "@/services/api/session";
+import { clearBackendSession, loginWithVaultCredentials, restoreBackendSession } from "@/services/api/session";
 
 const vault = {
   id: "1",
@@ -13,6 +15,7 @@ const vault = {
 describe("backend session", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
   });
 
   it("stores the backend JWT in Secure Store after successful login", async () => {
@@ -25,6 +28,18 @@ describe("backend session", () => {
 
     expect(response.token).toBe("jwt-token");
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money-vault:backend-auth-token", "jwt-token");
+  });
+
+  it("removes stale Dashboard cache when logging into a vault", async () => {
+    queryClient.setQueryData(queryKeys.dashboard.current("old-vault"), { stale: true });
+    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
+      token: "jwt-token",
+      vault
+    });
+
+    await loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+
+    expect(queryClient.getQueryData(queryKeys.dashboard.current("old-vault"))).toBeUndefined();
   });
 
   it("does not store a token after failed login", async () => {
@@ -96,6 +111,7 @@ describe("backend session", () => {
   });
 
   it("clears a stored token when dashboard validation returns 401", async () => {
+    queryClient.setQueryData(queryKeys.dashboard.current("1"), { stale: true });
     jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
     jest.spyOn(apiClient, "getDashboard").mockRejectedValueOnce(
       new ApiClientError("Invalid authentication token.", {
@@ -106,5 +122,41 @@ describe("backend session", () => {
 
     await expect(restoreBackendSession()).resolves.toBeNull();
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money-vault:backend-auth-token");
+    expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
+  });
+
+  it("preserves a stored token when restore fails due to network error", async () => {
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
+    jest.spyOn(apiClient, "getDashboard").mockRejectedValueOnce(
+      new ApiClientError("Network unavailable.", {
+        isNetworkError: true,
+        status: null
+      })
+    );
+
+    await expect(restoreBackendSession()).rejects.toThrow("Network unavailable.");
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+  });
+
+  it("preserves a stored token when restore fails with a 5xx response", async () => {
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
+    jest.spyOn(apiClient, "getDashboard").mockRejectedValueOnce(
+      new ApiClientError("Server unavailable.", {
+        isNetworkError: false,
+        status: 503
+      })
+    );
+
+    await expect(restoreBackendSession()).rejects.toThrow("Server unavailable.");
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+  });
+
+  it("clears token and Dashboard cache when signing out", async () => {
+    queryClient.setQueryData(queryKeys.dashboard.current("1"), { stale: true });
+
+    await clearBackendSession();
+
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money-vault:backend-auth-token");
+    expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
   });
 });

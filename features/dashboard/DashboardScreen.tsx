@@ -12,7 +12,7 @@ import { useDashboardQuery } from "@/features/dashboard/api";
 import type { DashboardViewModel } from "@/features/dashboard/types";
 import { formatCurrency } from "@/lib/format";
 import { ApiClientError } from "@/services/api/client";
-import { clearStoredAuthToken } from "@/services/api/tokenStorage";
+import { clearBackendSession } from "@/services/api/session";
 import type { CategorySpendApi, RecentActivityApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -258,12 +258,13 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
 
 export function DashboardScreen() {
   const token = useAuthStore((state) => state.token);
+  const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const setSignedOut = useAuthStore((state) => state.setSignedOut);
-  const query = useDashboardQuery(token);
+  const query = useDashboardQuery(token, vaultId);
 
   useEffect(() => {
     if (query.error instanceof ApiClientError && query.error.status === 401) {
-      void clearStoredAuthToken().finally(setSignedOut);
+      void clearBackendSession().finally(() => setSignedOut());
     }
   }, [query.error, setSignedOut]);
 
