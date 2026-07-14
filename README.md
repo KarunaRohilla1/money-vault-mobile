@@ -1,55 +1,66 @@
 # Money Vault 2.0 Mobile
 
-Production React Native foundation for Money Vault 2.0. This repository currently contains application infrastructure only, not Dashboard, Accounts, Transactions, or other business features.
+Production React Native foundation for Money Vault 2.0. The mobile app is an API client only:
+
+```text
+React Native mobile app -> FastAPI backend -> Supabase/PostgreSQL
+```
+
+The mobile app must not query Supabase financial tables directly and must never contain a Supabase service-role key.
 
 ## Setup
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Fill in the existing Supabase project URL and anon key.
+3. Set the backend API URL.
 4. Start Expo with `npm start`.
 
 ## Environment Variables
 
 ```text
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_API_BASE_URL=
 ```
 
-Do not commit `.env` or secrets. Supabase session persistence is handled by Supabase Auth using Expo Secure Store.
+Do not commit `.env` or secrets. This value points to the Money Vault backend API, not Supabase.
 
 ## Architecture
 
-- `app/(auth)` contains unauthenticated and vault-lock routes such as sign-in and PIN unlock.
-- `app/(app)` contains authenticated app routes, vault selection, transaction route placeholders, and nested tabs.
+- `app/(auth)` contains the backend vault login route placeholder.
+- `app/(app)` contains authenticated app routes, transaction route placeholders, and nested tabs.
 - `app/(app)/(tabs)` contains the authenticated bottom navigation shell.
-- `providers/` composes auth, bootstrap/access state, React Query, native connectivity integration, and global error handling.
-- `stores/` contains small Zustand stores. Only safe local primitives are persisted.
-- `services/supabase/` contains the typed Supabase client.
+- `providers/` composes backend session restoration, bootstrap/access state, React Query, native connectivity integration, and global error handling.
+- `services/api/` contains the typed backend API client and Secure Store token persistence.
+- `stores/` contains small Zustand stores. The backend token is kept in memory and persisted only through Expo Secure Store.
 - `theme/` contains typed design tokens consumed by app code and NativeWind/Tailwind.
 - `components/` contains reusable UI, layout, card, chart, and form primitives.
 - `features/` contains feature-owned placeholder surfaces only.
 
-## Auth Versus Vault Unlock
+## Backend Auth Model
 
-Supabase authentication answers who the user is. Vault PIN unlock answers whether the selected local vault can be opened on this device.
+The backend owns vault PIN authentication, authorization, financial calculations, Safe to Spend, cycle logic, and shared settlement logic.
+
+Mobile authentication flow:
+
+1. Mobile will submit vault name and PIN to `POST /api/login`.
+2. The backend validates the PIN against the existing Money Vault behavior.
+3. The backend returns a bearer token and safe vault metadata.
+4. Mobile stores only the bearer token in Expo Secure Store.
+5. Mobile sends `Authorization: Bearer <token>` on API requests.
 
 The centralized app access state is:
 
 - `booting`
 - `signed-out`
-- `selecting-vault`
-- `vault-locked`
 - `ready`
 
-Supabase session objects are kept in memory by `authStore` and persisted only through Supabase Auth storage. The app separately persists safe local values:
+## API Boundary
 
-- `currentVaultId`
-- `currencyCode`
-- `locale`
-- `biometricUnlockEnabled`
+Current typed client functions:
 
-Defaults are `INR` and `en-IN` until vault settings override them in a future feature sprint.
+- `POST /api/login`
+- `GET /api/dashboard`
+
+Dashboard UI is intentionally not implemented in this repository yet.
 
 ## Commands
 
@@ -82,6 +93,7 @@ features/
   settings/
 providers/
 services/
+  api/
 stores/
 hooks/
 lib/

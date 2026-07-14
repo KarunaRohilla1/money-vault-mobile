@@ -26,8 +26,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "supabaseUrl": "$EXPO_PUBLIC_SUPABASE_URL",
-      "supabaseAnonKey": "$EXPO_PUBLIC_SUPABASE_ANON_KEY"
+      "apiBaseUrl": "$EXPO_PUBLIC_API_BASE_URL"
     }
   }
 }

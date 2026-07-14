@@ -8,12 +8,12 @@ export default function VaultSelectionRoute() {
       <ScreenHeader
         eyebrow="Vault"
         title="Select vault"
-        description="Authenticated users choose their active vault before app tabs become available."
+        description="Backend sessions include the active vault for the current mobile session."
       />
       <EmptyState
         icon="safe-square-outline"
-        title="Vault selection placeholder"
-        message="This route will list real vaults after Supabase database types are generated."
+        title="Legacy route placeholder"
+        message="A later backend endpoint can support vault switching without direct database access."
       />
     </Screen>
   );

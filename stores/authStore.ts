@@ -1,30 +1,41 @@
-import type { Session, User } from "@supabase/supabase-js";
 import { create } from "zustand";
 
-type AuthStatus = "idle" | "loading" | "authenticated" | "anonymous";
+import type { AuthenticatedVault } from "@/types/domain";
+
+type AuthStatus = "booting" | "authenticated" | "signed-out";
 
 interface AuthState {
   errorMessage: string | null;
-  session: Session | null;
-  user: User | null;
+  token: string | null;
   status: AuthStatus;
+  vault: AuthenticatedVault | null;
   setError: (message: string | null) => void;
-  setSession: (session: Session | null) => void;
+  setAuthenticated: (token: string, vault: AuthenticatedVault | null) => void;
+  setBooting: () => void;
+  setSignedOut: () => void;
   setStatus: (status: AuthStatus) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   errorMessage: null,
-  session: null,
-  user: null,
-  status: "idle",
+  status: "booting",
+  token: null,
+  vault: null,
   setError: (errorMessage) => set({ errorMessage }),
-  setSession: (session) =>
+  setAuthenticated: (token, vault) =>
     set({
       errorMessage: null,
-      session,
-      user: session?.user ?? null,
-      status: session ? "authenticated" : "anonymous"
+      status: "authenticated",
+      token,
+      vault
+    }),
+  setBooting: () => set({ errorMessage: null, status: "booting" }),
+  setSignedOut: () =>
+    set({
+      errorMessage: null,
+      status: "signed-out",
+      token: null,
+      vault: null
     }),
   setStatus: (status) => set({ status })
 }));

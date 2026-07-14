@@ -1,5 +1,5 @@
-import { DashboardPlaceholder } from "@/features/dashboard/DashboardPlaceholder";
+import { DashboardScreen } from "@/features/dashboard/DashboardScreen";
 
 export default function DashboardRoute() {
-  return <DashboardPlaceholder />;
+  return <DashboardScreen />;
 }

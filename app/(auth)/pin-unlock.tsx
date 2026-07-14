@@ -8,12 +8,12 @@ export default function PinUnlockRoute() {
       <ScreenHeader
         eyebrow="Vault lock"
         title="PIN unlock"
-        description="Vault PIN unlock is intentionally separate from Supabase authentication."
+        description="Vault PIN checks are owned by the Money Vault backend API."
       />
       <EmptyState
         icon="lock-outline"
-        title="PIN unlock placeholder"
-        message="A later sprint will validate the local vault unlock secret here."
+        title="Legacy route placeholder"
+        message="The active access gate no longer routes here while backend login owns PIN authentication."
       />
     </Screen>
   );
