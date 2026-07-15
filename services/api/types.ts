@@ -85,3 +85,115 @@ export interface DashboardApiResponse {
   generatedAt: string;
   vault: AuthenticatedVault;
 }
+
+export interface SuccessApiResponse {
+  status: string;
+}
+
+export interface AccountApi {
+  balance?: number | null;
+  id: number;
+  isPrimary: boolean;
+  name: string;
+  openingBalance: number;
+  type: string;
+}
+
+export interface AccountPayloadApi {
+  isPrimary?: boolean;
+  name: string;
+  openingBalance: number;
+  type: string;
+}
+
+export interface CategoryApi {
+  categoryType: string;
+  emoji: string;
+  id: number;
+  isSystem: boolean;
+  name: string;
+  parentCategory?: string | null;
+  transactionCount?: number | null;
+}
+
+export interface CategoryPayloadApi {
+  categoryType: string;
+  emoji: string;
+  name: string;
+}
+
+export interface TransactionApi {
+  accountName?: string | null;
+  amount: number;
+  categoryName: string;
+  date: string;
+  id: number;
+  notes?: string | null;
+  transactionType: string;
+  transferGroupId?: string | null;
+}
+
+export interface TransactionDetailApi {
+  accountId: number;
+  allocationMethod?: string | null;
+  amount: number;
+  beneficiaryVaultId?: number | null;
+  categoryId: number;
+  date: string;
+  id: number;
+  notes?: string | null;
+  transactionType: string;
+}
+
+export interface TransactionPayloadApi {
+  accountId: number;
+  allocationMethod?: string | null;
+  amount: number;
+  amountAllocations?: Record<string, number> | null;
+  beneficiaryVaultId?: number | null;
+  categoryId: number;
+  date: string;
+  notes?: string;
+  participantVaults?: number[] | null;
+  percentageAllocations?: Record<string, number> | null;
+  transactionType: string;
+}
+
+export interface TransactionFiltersApi {
+  account?: string;
+  category?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  month?: string;
+  search?: string;
+  sortBy?: string;
+}
+
+export interface TransferApi {
+  amount: number;
+  date: string;
+  fromAccountId: number;
+  fromAccountName: string;
+  notes?: string | null;
+  toAccountId: number;
+  toAccountName: string;
+  transferGroupId: string;
+}
+
+export interface TransferDetailApi {
+  amount: number;
+  date: string;
+  fromAccountId: number;
+  notes?: string | null;
+  toAccountId: number;
+  transferGroupId: string;
+  vaultId: number;
+}
+
+export interface TransferPayloadApi {
+  amount: number;
+  date: string;
+  fromAccountId: number;
+  notes?: string;
+  toAccountId: number;
+}

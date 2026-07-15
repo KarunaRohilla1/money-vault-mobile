@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Screen } from "@/components/layout/Screen";
 import { PrimaryButton, SecondaryButton } from "@/components/ui";
 import { ApiClientError } from "@/services/api/client";
-import { loginWithVaultCredentials, restoreBackendSession } from "@/services/api/session";
+import { LoginFlowError, loginWithVaultCredentials, restoreBackendSession } from "@/services/api/session";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
@@ -16,6 +16,41 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+function getSafeLoginError(error: unknown): { code: string; message: string } {
+  if (error instanceof ApiClientError && error.status === 401) {
+    return {
+      code: error.code ?? "INVALID_CREDENTIALS",
+      message: "Invalid vault credentials."
+    };
+  }
+
+  if (error instanceof ApiClientError) {
+    if (error.code === "LOGIN_RESPONSE_INVALID") {
+      return {
+        code: error.code,
+        message: "Login succeeded, but the app could not read the session response."
+      };
+    }
+
+    return {
+      code: error.code ?? (error.status ? `HTTP_${error.status}` : "API_CLIENT_ERROR"),
+      message: "Money Vault API is unavailable. Try again."
+    };
+  }
+
+  if (error instanceof LoginFlowError) {
+    return {
+      code: error.code,
+      message: "Login succeeded, but the app could not save the session."
+    };
+  }
+
+  return {
+    code: "LOGIN_FLOW_ERROR",
+    message: "Login could not be completed. Try again."
+  };
+}
 
 export default function SignInRoute() {
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
@@ -38,15 +73,22 @@ export default function SignInRoute() {
       setError(null);
     },
     onError: (error: unknown) => {
-      if (error instanceof ApiClientError && error.status === 401) {
-        setError("Invalid vault credentials.");
-        return;
-      }
-
-      setError("Money Vault API is unavailable. Try again.");
+      const safeError = getSafeLoginError(error);
+      setError(__DEV__ ? `${safeError.message} (${safeError.code})` : safeError.message);
     },
     onSuccess: async (response) => {
-      setAuthenticated(response.token, response.vault);
+      try {
+        setAuthenticated(response.token, response.vault);
+      } catch (error) {
+        const safeError = getSafeLoginError(
+          new LoginFlowError("Unable to update authentication state.", {
+            cause: error,
+            code: "AUTH_STORE_UPDATE_FAILED",
+            stage: "AUTH_STORE_UPDATED"
+          })
+        );
+        setError(__DEV__ ? `${safeError.message} (${safeError.code})` : safeError.message);
+      }
     }
   });
 

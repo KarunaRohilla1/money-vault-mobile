@@ -1,20 +1,48 @@
-import { EmptyState, SecondaryButton } from "@/components/ui";
+import { useRouter } from "expo-router";
+import { Text, View } from "react-native";
+
+import { SecondaryButton } from "@/components/ui";
 import { Screen } from "@/components/layout/Screen";
 import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { Section } from "@/components/layout/Section";
 
 export function MorePlaceholder() {
+  const router = useRouter();
+
   return (
     <Screen>
-      <ScreenHeader title="More" description="Settings, reports, vault controls, and profile actions will live here." />
-      <Section title="Application foundation">
-        <EmptyState
-          icon="dots-horizontal-circle-outline"
-          title="More tools are pending"
-          message="Shared settings and theme stores are already available for future flows."
-          action={<SecondaryButton icon="shield-check-outline">Foundation ready</SecondaryButton>}
-        />
+      <ScreenHeader title="More" description="Tools and configuration for your current vault." />
+      <Section title="Money tools">
+        <View className="gap-3">
+          <MoreAction title="Transactions" subtitle="Search and review vault activity." onPress={() => router.push("/transactions" as never)} />
+          <MoreAction title="Transfers" subtitle="Review account-to-account movements." onPress={() => router.push("/transfers" as never)} />
+          <MoreAction title="Categories" subtitle="Review system and custom categories." onPress={() => router.push("/categories" as never)} />
+        </View>
+      </Section>
+      <Section title="Settings">
+        <View className="gap-3 rounded-lg border border-surface-border bg-surface p-4">
+          <Text className="font-sans text-base font-semibold text-text">Vault settings</Text>
+          <Text className="font-sans text-sm text-text-muted">PIN changes, vault switching, and shared-vault administration require the next settings API slice.</Text>
+        </View>
       </Section>
     </Screen>
+  );
+}
+
+interface MoreActionProps {
+  onPress: () => void;
+  subtitle: string;
+  title: string;
+}
+
+function MoreAction({ onPress, subtitle, title }: MoreActionProps) {
+  return (
+    <View className="gap-3 rounded-lg border border-surface-border bg-surface p-4">
+      <View>
+        <Text className="font-sans text-base font-semibold text-text">{title}</Text>
+        <Text className="font-sans text-sm text-text-muted">{subtitle}</Text>
+      </View>
+      <SecondaryButton onPress={onPress}>Open</SecondaryButton>
+    </View>
   );
 }

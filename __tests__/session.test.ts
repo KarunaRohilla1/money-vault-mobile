@@ -27,7 +27,7 @@ describe("backend session", () => {
     const response = await loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
 
     expect(response.token).toBe("jwt-token");
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money-vault:backend-auth-token", "jwt-token");
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "jwt-token");
   });
 
   it("removes stale Dashboard cache when logging into a vault", async () => {
@@ -52,6 +52,63 @@ describe("backend session", () => {
     );
 
     await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" })).rejects.toThrow("Invalid vault credentials.");
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  it("does not store a token when a 200 login response is incomplete", async () => {
+    jest.spyOn(apiClient, "login").mockRejectedValueOnce(
+      new ApiClientError("The login response was incomplete.", {
+        code: "LOGIN_RESPONSE_INVALID",
+        isNetworkError: false,
+        status: null
+      })
+    );
+
+    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" })).rejects.toThrow("The login response was incomplete.");
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  it("reports the token validation stage when a normalized login response has no token", async () => {
+    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
+      token: "",
+      vault
+    });
+
+    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" })).rejects.toMatchObject({
+      code: "TOKEN_MISSING",
+      stage: "TOKEN_VALIDATED"
+    });
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  it("reports the Secure Store stage when token persistence fails after login", async () => {
+    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
+      token: "jwt-token",
+      vault
+    });
+    jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("Secure Store unavailable"));
+
+    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+
+    await expect(promise).rejects.toMatchObject({
+      code: "SECURE_STORE_WRITE_FAILED",
+      stage: "SECURE_STORE_WRITE_STARTED"
+    });
+  });
+
+  it("reports Secure Store unavailable distinctly when the runtime does not provide it", async () => {
+    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
+      token: "jwt-token",
+      vault
+    });
+    jest.mocked(SecureStore.isAvailableAsync).mockResolvedValueOnce(false);
+
+    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+
+    await expect(promise).rejects.toMatchObject({
+      code: "SECURE_STORE_UNAVAILABLE",
+      stage: "SECURE_STORE_WRITE_STARTED"
+    });
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
@@ -121,7 +178,7 @@ describe("backend session", () => {
     );
 
     await expect(restoreBackendSession()).resolves.toBeNull();
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money-vault:backend-auth-token");
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token");
     expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
   });
 
@@ -156,7 +213,7 @@ describe("backend session", () => {
 
     await clearBackendSession();
 
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money-vault:backend-auth-token");
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token");
     expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
   });
 });

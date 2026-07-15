@@ -1,5 +1,21 @@
 import { env } from "@/lib/env";
-import type { DashboardApiResponse, LoginRequest, LoginResponse } from "@/services/api/types";
+import type {
+  AccountApi,
+  AccountPayloadApi,
+  CategoryApi,
+  CategoryPayloadApi,
+  DashboardApiResponse,
+  LoginRequest,
+  LoginResponse,
+  SuccessApiResponse,
+  TransactionApi,
+  TransactionDetailApi,
+  TransactionFiltersApi,
+  TransactionPayloadApi,
+  TransferApi,
+  TransferDetailApi,
+  TransferPayloadApi
+} from "@/services/api/types";
 import type { JsonValue } from "@/types/domain";
 
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -50,6 +66,19 @@ function buildUrl(path: string) {
   return `${normalizedBaseUrl}${normalizedPath}`;
 }
 
+function buildQuery(params: [string, string | number | undefined][]) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of params) {
+    if (value !== undefined && value !== "") {
+      query.set(key, String(value));
+    }
+  }
+
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -68,6 +97,96 @@ function readErrorBody(value: unknown): ApiErrorBody {
   }
 
   return { code, detail, message };
+}
+
+function readStringField(record: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      return String(value);
+    }
+  }
+
+  return undefined;
+}
+
+function readBooleanField(record: Record<string, unknown>, keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      return value !== 0;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeLoginResponse(value: unknown): LoginResponse {
+  if (!isRecord(value)) {
+    throw new ApiClientError("The login response was incomplete.", {
+      code: "LOGIN_RESPONSE_INVALID",
+      details: { reason: "not_object" },
+      isNetworkError: false,
+      status: null
+    });
+  }
+
+  const token = readStringField(value, ["token", "access_token"]);
+  const vault = value.vault;
+
+  if (!token || !isRecord(vault)) {
+    throw new ApiClientError("The login response was incomplete.", {
+      code: "LOGIN_RESPONSE_INVALID",
+      details: {
+        hasToken: Boolean(token),
+        hasVault: isRecord(vault)
+      },
+      isNetworkError: false,
+      status: null
+    });
+  }
+
+  const id = readStringField(vault, ["id"]);
+  const name = readStringField(vault, ["name"]);
+  const isAdmin = readBooleanField(vault, ["isAdmin", "is_admin"]);
+  const vaultType = readStringField(vault, ["vaultType", "vault_type"]);
+
+  if (!id || !name || isAdmin === undefined || !vaultType) {
+    throw new ApiClientError("The login response was incomplete.", {
+      code: "LOGIN_RESPONSE_INVALID",
+      details: {
+        hasId: Boolean(id),
+        hasIsAdmin: isAdmin !== undefined,
+        hasName: Boolean(name),
+        hasVaultType: Boolean(vaultType)
+      },
+      isNetworkError: false,
+      status: null
+    });
+  }
+
+  const expiresAt = readStringField(value, ["expiresAt", "expires_at"]);
+
+  return {
+    ...(expiresAt ? { expiresAt } : {}),
+    token,
+    vault: {
+      id,
+      isAdmin,
+      name,
+      vaultType
+    }
+  };
 }
 
 function normalizeUnknownError(error: unknown): ApiClientError {
@@ -171,11 +290,11 @@ export async function request<TResponse, TBody extends object | undefined = unde
 }
 
 export function login(body: LoginRequest) {
-  return request<LoginResponse, LoginRequest>({
+  return request<unknown, LoginRequest>({
     body,
     method: "POST",
     path: "/api/login"
-  });
+  }).then(normalizeLoginResponse);
 }
 
 export function getDashboard(token: string) {
@@ -185,8 +304,173 @@ export function getDashboard(token: string) {
   });
 }
 
+export function getAccounts(token: string) {
+  return request<AccountApi[]>({
+    path: "/api/accounts",
+    token
+  });
+}
+
+export function createAccount(token: string, body: AccountPayloadApi) {
+  return request<SuccessApiResponse, AccountPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/accounts",
+    token
+  });
+}
+
+export function updateAccount(token: string, accountId: number, body: AccountPayloadApi) {
+  return request<AccountApi, AccountPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/accounts/${accountId}`,
+    token
+  });
+}
+
+export function deleteAccount(token: string, accountId: number) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/accounts/${accountId}`,
+    token
+  });
+}
+
+export function setPrimaryAccount(token: string, accountId: number) {
+  return request<SuccessApiResponse>({
+    method: "POST",
+    path: `/api/accounts/${accountId}/primary`,
+    token
+  });
+}
+
+export function getCategories(token: string) {
+  return request<CategoryApi[]>({
+    path: "/api/categories",
+    token
+  });
+}
+
+export function createCategory(token: string, body: CategoryPayloadApi) {
+  return request<SuccessApiResponse, CategoryPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/categories",
+    token
+  });
+}
+
+export function updateCategory(token: string, categoryId: number, body: CategoryPayloadApi) {
+  return request<SuccessApiResponse, CategoryPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/categories/${categoryId}`,
+    token
+  });
+}
+
+export function deleteCategory(token: string, categoryId: number) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/categories/${categoryId}`,
+    token
+  });
+}
+
+export function getTransactions(token: string, filters: TransactionFiltersApi = {}) {
+  return request<TransactionApi[]>({
+    path: `/api/transactions${buildQuery([
+      ["account", filters.account],
+      ["category", filters.category],
+      ["dateFrom", filters.dateFrom],
+      ["dateTo", filters.dateTo],
+      ["month", filters.month],
+      ["search", filters.search],
+      ["sortBy", filters.sortBy]
+    ])}`,
+    token
+  });
+}
+
+export function createTransaction(token: string, body: TransactionPayloadApi) {
+  return request<TransactionDetailApi, TransactionPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/transactions",
+    token
+  });
+}
+
+export function updateTransaction(token: string, transactionId: number, body: TransactionPayloadApi) {
+  return request<TransactionDetailApi, TransactionPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/transactions/${transactionId}`,
+    token
+  });
+}
+
+export function deleteTransaction(token: string, transactionId: number) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/transactions/${transactionId}`,
+    token
+  });
+}
+
+export function getTransfers(token: string) {
+  return request<TransferApi[]>({
+    path: "/api/transfers",
+    token
+  });
+}
+
+export function createTransfer(token: string, body: TransferPayloadApi) {
+  return request<TransferDetailApi, TransferPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/transfers",
+    token
+  });
+}
+
+export function updateTransfer(token: string, transferGroupId: string, body: TransferPayloadApi) {
+  return request<TransferDetailApi, TransferPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/transfers/${transferGroupId}`,
+    token
+  });
+}
+
+export function deleteTransfer(token: string, transferGroupId: string) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/transfers/${transferGroupId}`,
+    token
+  });
+}
+
 export const apiClient = {
+  createAccount,
+  createCategory,
+  createTransaction,
+  createTransfer,
+  deleteAccount,
+  deleteCategory,
+  deleteTransaction,
+  deleteTransfer,
+  getAccounts,
+  getCategories,
   getDashboard,
+  getTransactions,
+  getTransfers,
   login,
-  request
+  request,
+  setPrimaryAccount,
+  updateAccount,
+  updateCategory,
+  updateTransaction,
+  updateTransfer
 };

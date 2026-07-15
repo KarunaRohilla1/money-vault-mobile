@@ -68,6 +68,63 @@ describe("apiClient", () => {
     );
   });
 
+  it("accepts access_token and snake_case vault metadata from login responses", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    globalThis.fetch = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          access_token: "jwt-token",
+          expires_at: "2026-07-15T00:00:00Z",
+          vault: {
+            id: 7,
+            is_admin: 1,
+            name: "Karuna",
+            vault_type: "Individual"
+          }
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 }
+      )
+    );
+
+    const { apiClient } = await import("@/services/api/client");
+    const response = await apiClient.login({ pin: "1234", vaultName: "Karuna" });
+
+    expect(response).toEqual({
+      expiresAt: "2026-07-15T00:00:00Z",
+      token: "jwt-token",
+      vault: {
+        id: "7",
+        isAdmin: true,
+        name: "Karuna",
+        vaultType: "Individual"
+      }
+    });
+  });
+
+  it("rejects incomplete 200 login responses before token storage", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    globalThis.fetch = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          vault: {
+            id: "1",
+            isAdmin: true,
+            name: "Karuna",
+            vaultType: "Individual"
+          }
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 }
+      )
+    );
+
+    const { apiClient } = await import("@/services/api/client");
+
+    await expect(apiClient.login({ pin: "1234", vaultName: "Karuna" })).rejects.toMatchObject({
+      code: "LOGIN_RESPONSE_INVALID",
+      message: "The login response was incomplete."
+    });
+  });
+
   it("adds bearer authorization for dashboard requests", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test/";
     const fetchMock = jest.fn(async () =>
@@ -115,5 +172,43 @@ describe("apiClient", () => {
       status: 401
     });
     await expect(apiClient.login({ pin: "0000", vaultName: "Karuna" })).rejects.toBeInstanceOf(ApiClientError);
+  });
+
+  it("loads accounts with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getAccounts("jwt-token");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/accounts",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        })
+      })
+    );
+  });
+
+  it("serializes transaction filters without logging financial payloads", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getTransactions("jwt-token", {
+      category: "Food",
+      search: "coffee",
+      sortBy: "Amount High"
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/transactions?category=Food&search=coffee&sortBy=Amount+High",
+      expect.objectContaining({
+        method: "GET"
+      })
+    );
   });
 });
