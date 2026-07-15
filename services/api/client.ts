@@ -7,6 +7,9 @@ import type {
   DashboardApiResponse,
   LoginRequest,
   LoginResponse,
+  PlanningApiResponse,
+  PlanningItemPayloadApi,
+  PlanningStatusPayloadApi,
   SuccessApiResponse,
   TransactionApi,
   TransactionDetailApi,
@@ -452,25 +455,120 @@ export function deleteTransfer(token: string, transferGroupId: string) {
   });
 }
 
+export function getPlanning(token: string) {
+  return request<PlanningApiResponse>({
+    path: "/api/planning",
+    token
+  });
+}
+
+export function createCommitment(token: string, body: PlanningItemPayloadApi) {
+  return request<SuccessApiResponse, PlanningItemPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/planning/commitments",
+    token
+  });
+}
+
+export function updateCommitment(token: string, commitmentId: number, body: PlanningItemPayloadApi) {
+  return request<SuccessApiResponse, PlanningItemPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/planning/commitments/${commitmentId}`,
+    token
+  });
+}
+
+export function deleteCommitment(token: string, commitmentId: number) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/planning/commitments/${commitmentId}`,
+    token
+  });
+}
+
+export function setCommitmentStatus(token: string, commitmentId: number, body: PlanningStatusPayloadApi) {
+  return request<SuccessApiResponse, PlanningStatusPayloadApi>({
+    body,
+    method: "POST",
+    path: `/api/planning/commitments/${commitmentId}/status`,
+    token
+  });
+}
+
+export function createIncomeTemplate(token: string, body: PlanningItemPayloadApi) {
+  return request<SuccessApiResponse, PlanningItemPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/planning/income-templates",
+    token
+  });
+}
+
+export function updateIncomeTemplate(token: string, templateId: number, body: PlanningItemPayloadApi) {
+  return request<SuccessApiResponse, PlanningItemPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/planning/income-templates/${templateId}`,
+    token
+  });
+}
+
+export function deleteIncomeTemplate(token: string, templateId: number) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/planning/income-templates/${templateId}`,
+    token
+  });
+}
+
+export function setIncomeStatus(token: string, templateId: number, body: PlanningStatusPayloadApi) {
+  return request<SuccessApiResponse, PlanningStatusPayloadApi>({
+    body,
+    method: "POST",
+    path: `/api/planning/income-templates/${templateId}/status`,
+    token
+  });
+}
+
+export function closeActivePlanningCycle(token: string) {
+  return request<PlanningApiResponse["cycle"]>({
+    method: "POST",
+    path: "/api/planning/cycles/close-active",
+    token
+  });
+}
+
 export const apiClient = {
+  closeActivePlanningCycle,
   createAccount,
   createCategory,
+  createCommitment,
+  createIncomeTemplate,
   createTransaction,
   createTransfer,
   deleteAccount,
   deleteCategory,
+  deleteCommitment,
+  deleteIncomeTemplate,
   deleteTransaction,
   deleteTransfer,
   getAccounts,
   getCategories,
   getDashboard,
+  getPlanning,
   getTransactions,
   getTransfers,
   login,
   request,
   setPrimaryAccount,
+  setCommitmentStatus,
+  setIncomeStatus,
   updateAccount,
   updateCategory,
+  updateCommitment,
+  updateIncomeTemplate,
   updateTransaction,
   updateTransfer
 };

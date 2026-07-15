@@ -1,5 +1,5 @@
-import { PlanningPlaceholder } from "@/features/planning/PlanningPlaceholder";
+import { PlanningScreen } from "@/features/planning/PlanningScreen";
 
 export default function PlanningRoute() {
-  return <PlanningPlaceholder />;
+  return <PlanningScreen />;
 }

@@ -14,6 +14,10 @@ export const queryKeys = {
     current: (vaultId: string | null) => ["dashboard", "current", vaultId ?? "anonymous"] as const,
     root: ["dashboard"] as const
   },
+  planning: {
+    current: (vaultId: string | null) => ["planning", "current", vaultId ?? "anonymous"] as const,
+    root: ["planning"] as const
+  },
   settings: {
     effective: (vaultId: string | null) => ["settings", "effective", vaultId ?? "local-defaults"] as const
   },

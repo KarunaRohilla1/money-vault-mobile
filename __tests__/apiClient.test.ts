@@ -211,4 +211,78 @@ describe("apiClient", () => {
       })
     );
   });
+
+  it("loads planning with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          commitments: [],
+          cycle: {
+            endDate: "2026-07-31",
+            id: 1,
+            startDate: "2026-07-01",
+            startMonth: 7,
+            startYear: 2026,
+            status: "CURRENT",
+            vaultId: 1
+          },
+          incomeTemplates: [],
+          totals: {
+            commitmentsCompleted: 0,
+            commitmentsPlanned: 0,
+            expenses: 0,
+            income: 0,
+            incomePlanned: 0,
+            incomeReceived: 0,
+            plannedCommitments: 0,
+            projectedSavings: 0,
+            remainingCommitments: 0,
+            savingsGoal: 0
+          }
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getPlanning("jwt-token");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/planning",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        })
+      })
+    );
+  });
+
+  it("writes planning status through the backend API", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify({ status: "ok" }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.setCommitmentStatus("jwt-token", 12, {
+      actualAmount: 500,
+      month: 7,
+      status: "PAID",
+      year: 2026
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/planning/commitments/12/status",
+      expect.objectContaining({
+        body: JSON.stringify({
+          actualAmount: 500,
+          month: 7,
+          status: "PAID",
+          year: 2026
+        }),
+        method: "POST"
+      })
+    );
+  });
 });
