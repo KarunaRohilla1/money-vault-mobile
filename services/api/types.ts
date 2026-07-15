@@ -302,3 +302,11 @@ export interface WishlistItemPayloadApi {
   savedAmount?: number;
   targetDate?: string | null;
 }
+
+export interface ReportsApiResponse {
+  categoryBreakdown: JsonObject[];
+  generatedAt: string;
+  monthlyTrend: JsonObject[];
+  period: JsonObject;
+  summary: JsonObject;
+}

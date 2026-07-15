@@ -10,6 +10,7 @@ import type {
   PlanningApiResponse,
   PlanningItemPayloadApi,
   PlanningStatusPayloadApi,
+  ReportsApiResponse,
   SuccessApiResponse,
   TransactionApi,
   TransactionDetailApi,
@@ -549,6 +550,13 @@ export function getWishlist(token: string) {
   });
 }
 
+export function getReports(token: string) {
+  return request<ReportsApiResponse>({
+    path: "/api/reports",
+    token
+  });
+}
+
 export function createWishlistItem(token: string, body: WishlistItemPayloadApi) {
   return request<SuccessApiResponse, WishlistItemPayloadApi>({
     body,
@@ -595,6 +603,7 @@ export const apiClient = {
   getCategories,
   getDashboard,
   getPlanning,
+  getReports,
   getTransactions,
   getTransfers,
   getWishlist,
