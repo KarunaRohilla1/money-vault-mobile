@@ -285,4 +285,36 @@ describe("apiClient", () => {
       })
     );
   });
+
+  it("loads wishlist with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          categories: [],
+          items: [],
+          summary: {
+            progress: 0,
+            totalCost: 0,
+            totalItems: 0,
+            totalSaved: 0
+          }
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getWishlist("jwt-token");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/wishlist",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        })
+      })
+    );
+  });
 });

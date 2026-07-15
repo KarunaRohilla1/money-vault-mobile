@@ -17,6 +17,7 @@ export function MorePlaceholder() {
           <MoreAction title="Transactions" subtitle="Search and review vault activity." onPress={() => router.push("/transactions" as never)} />
           <MoreAction title="Transfers" subtitle="Review account-to-account movements." onPress={() => router.push("/transfers" as never)} />
           <MoreAction title="Categories" subtitle="Review system and custom categories." onPress={() => router.push("/categories" as never)} />
+          <MoreAction title="Wishlist" subtitle="Track savings toward planned purchases." onPress={() => router.push("/wishlist" as never)} />
         </View>
       </Section>
       <Section title="Settings">

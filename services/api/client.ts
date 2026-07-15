@@ -17,7 +17,9 @@ import type {
   TransactionPayloadApi,
   TransferApi,
   TransferDetailApi,
-  TransferPayloadApi
+  TransferPayloadApi,
+  WishlistApiResponse,
+  WishlistItemPayloadApi
 } from "@/services/api/types";
 import type { JsonValue } from "@/types/domain";
 
@@ -540,6 +542,39 @@ export function closeActivePlanningCycle(token: string) {
   });
 }
 
+export function getWishlist(token: string) {
+  return request<WishlistApiResponse>({
+    path: "/api/wishlist",
+    token
+  });
+}
+
+export function createWishlistItem(token: string, body: WishlistItemPayloadApi) {
+  return request<SuccessApiResponse, WishlistItemPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/wishlist/items",
+    token
+  });
+}
+
+export function updateWishlistItem(token: string, itemId: number, body: WishlistItemPayloadApi) {
+  return request<SuccessApiResponse, WishlistItemPayloadApi>({
+    body,
+    method: "PUT",
+    path: `/api/wishlist/items/${itemId}`,
+    token
+  });
+}
+
+export function deleteWishlistItem(token: string, itemId: number) {
+  return request<SuccessApiResponse>({
+    method: "DELETE",
+    path: `/api/wishlist/items/${itemId}`,
+    token
+  });
+}
+
 export const apiClient = {
   closeActivePlanningCycle,
   createAccount,
@@ -548,18 +583,21 @@ export const apiClient = {
   createIncomeTemplate,
   createTransaction,
   createTransfer,
+  createWishlistItem,
   deleteAccount,
   deleteCategory,
   deleteCommitment,
   deleteIncomeTemplate,
   deleteTransaction,
   deleteTransfer,
+  deleteWishlistItem,
   getAccounts,
   getCategories,
   getDashboard,
   getPlanning,
   getTransactions,
   getTransfers,
+  getWishlist,
   login,
   request,
   setPrimaryAccount,
@@ -570,5 +608,6 @@ export const apiClient = {
   updateCommitment,
   updateIncomeTemplate,
   updateTransaction,
-  updateTransfer
+  updateTransfer,
+  updateWishlistItem
 };

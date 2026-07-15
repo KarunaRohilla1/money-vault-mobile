@@ -32,5 +32,9 @@ export const queryKeys = {
   vaults: {
     all: ["vaults"] as const,
     detail: (vaultId: string) => ["vaults", "detail", vaultId] as const
+  },
+  wishlist: {
+    current: (vaultId: string | null) => ["wishlist", "current", vaultId ?? "anonymous"] as const,
+    root: ["wishlist"] as const
   }
 } as const;

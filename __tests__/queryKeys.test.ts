@@ -21,5 +21,6 @@ describe("queryKeys", () => {
     expect(queryKeys.planning.current("vault_1")).not.toEqual(queryKeys.planning.current("vault_2"));
     expect(queryKeys.transactions.list("vault_1", "filters")).not.toEqual(queryKeys.transactions.list("vault_2", "filters"));
     expect(queryKeys.transfers.byVault("vault_1")).not.toEqual(queryKeys.transfers.byVault("vault_2"));
+    expect(queryKeys.wishlist.current("vault_1")).not.toEqual(queryKeys.wishlist.current("vault_2"));
   });
 });
