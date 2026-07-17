@@ -15,6 +15,8 @@ import type {
   SharedBillsApiResponse,
   SharedExpensesApiResponse,
   SharedPageApiResponse,
+  SharedSettlementPayloadApi,
+  SharedSettlementsApiResponse,
   SuccessApiResponse,
   TransactionApi,
   TransactionDetailApi,
@@ -589,6 +591,22 @@ export function getSharedBills(token: string, sharedVaultId?: number) {
   });
 }
 
+export function getSharedSettlements(token: string) {
+  return request<SharedPageApiResponse<SharedSettlementsApiResponse>>({
+    path: "/api/shared/settlements",
+    token
+  });
+}
+
+export function markSharedSettlement(token: string, body: SharedSettlementPayloadApi) {
+  return request<SuccessApiResponse, SharedSettlementPayloadApi>({
+    body,
+    method: "POST",
+    path: "/api/shared/settlements",
+    token
+  });
+}
+
 export function markSharedBillPaid(token: string, instanceId: number, payerVaultId: number, paymentDate: string) {
   return request<SuccessApiResponse, { payerVaultId: number; paymentDate: string }>({
     body: {
@@ -659,12 +677,14 @@ export const apiClient = {
   getSettings,
   getSharedBills,
   getSharedExpenses,
+  getSharedSettlements,
   getTransaction,
   getTransactions,
   getTransfers,
   getWishlist,
   login,
   markSharedBillPaid,
+  markSharedSettlement,
   request,
   setPrimaryAccount,
   setCommitmentStatus,

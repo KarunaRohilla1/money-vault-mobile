@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { ScreenHeader } from "@/components/layout/ScreenHeader";
@@ -6,12 +7,23 @@ import { Section } from "@/components/layout/Section";
 import { CurrencyText, EmptyState, ErrorView, LoadingSkeleton, SecondaryButton, Tag } from "@/components/ui";
 import {
   useMarkSharedBillPaidMutation,
+  useMarkSharedSettlementMutation,
   useSharedBillsQuery,
   useSharedExpensesQuery,
+  useSharedSettlementsQuery,
   useSkipSharedBillMutation
 } from "@/features/shared/api";
+import type { SharedSettlementAccountApi, SharedSettlementItemApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { theme } from "@/theme";
+
+interface SettlementFormState {
+  amount: string;
+  fromAccountId: number | null;
+  settlementDate: string;
+  toAccountId: number | null;
+}
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -26,6 +38,23 @@ function currentVaultNumber(vaultId: string | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function settlementKey(item: SharedSettlementItemApi) {
+  return `${item.shared_vault_id}-${item.from_vault_id}-${item.to_vault_id}`;
+}
+
+function settlementDefaults(item: SharedSettlementItemApi): SettlementFormState {
+  return {
+    amount: String(item.amount),
+    fromAccountId: item.from_accounts[0]?.id ?? null,
+    settlementDate: todayIso(),
+    toAccountId: item.to_accounts[0]?.id ?? null
+  };
+}
+
+function selectedSettlementForm(item: SharedSettlementItemApi, forms: Record<string, SettlementFormState>) {
+  return forms[settlementKey(item)] ?? settlementDefaults(item);
+}
+
 export function SharedScreen() {
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
@@ -33,19 +62,54 @@ export function SharedScreen() {
   const locale = useSettingsStore((state) => state.locale);
   const expensesQuery = useSharedExpensesQuery(token, vaultId);
   const billsQuery = useSharedBillsQuery(token, vaultId);
+  const settlementsQuery = useSharedSettlementsQuery(token, vaultId);
   const markPaid = useMarkSharedBillPaidMutation(token, vaultId);
+  const markSettlement = useMarkSharedSettlementMutation(token, vaultId);
   const skipBill = useSkipSharedBillMutation(token, vaultId);
   const currentVaultId = currentVaultNumber(vaultId);
+  const [settlementForms, setSettlementForms] = useState<Record<string, SettlementFormState>>({});
 
   const data = expensesQuery.data?.data;
   const bills = billsQuery.data?.data;
+  const settlements = settlementsQuery.data?.data;
+
+  const updateSettlementForm = (item: SharedSettlementItemApi, partial: Partial<SettlementFormState>) => {
+    const key = settlementKey(item);
+    setSettlementForms((current) => ({
+      ...current,
+      [key]: {
+        ...selectedSettlementForm(item, current),
+        ...partial
+      }
+    }));
+  };
+
+  const markItemSettled = (item: SharedSettlementItemApi) => {
+    const form = selectedSettlementForm(item, settlementForms);
+    const amount = Number(form.amount);
+
+    if (!form.fromAccountId || !form.toAccountId || !Number.isFinite(amount) || amount <= 0 || !form.settlementDate.trim()) {
+      return;
+    }
+
+    markSettlement.mutate({
+      amount,
+      fromAccountId: form.fromAccountId,
+      fromVaultId: item.from_vault_id,
+      settlementDate: form.settlementDate.trim(),
+      sharedVaultId: item.shared_vault_id,
+      toAccountId: form.toAccountId,
+      toVaultId: item.to_vault_id
+    });
+  };
 
   return (
     <Screen>
       <ScreenHeader title="Shared" description="Shared expenses and bills from the connected Money Vault." />
-      {expensesQuery.isLoading || billsQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
+      {expensesQuery.isLoading || billsQuery.isLoading || settlementsQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
       {expensesQuery.isError ? <ErrorView message="Shared expenses could not be loaded." onRetry={() => expensesQuery.refetch()} /> : null}
       {billsQuery.isError ? <ErrorView message="Shared bills could not be loaded." onRetry={() => billsQuery.refetch()} /> : null}
+      {settlementsQuery.isError ? <ErrorView message="Shared settlements could not be loaded." onRetry={() => settlementsQuery.refetch()} /> : null}
 
       {data ? (
         <Section title="Shared spending">
@@ -65,6 +129,84 @@ export function SharedScreen() {
               <Tag label={`Paid by others ${formatShortMoney(data.summary.paid_by_other, currencyCode, locale)}`} tone="warning" />
             </View>
           </View>
+        </Section>
+      ) : null}
+
+      {settlements ? (
+        <Section title="Settlements">
+          {settlements.items.length === 0 ? (
+            <EmptyState icon="check-circle-outline" title="All settled" message="Outstanding shared settlements will appear here." />
+          ) : (
+            <View className="gap-3">
+              <View className="gap-2 rounded-lg border border-surface-border bg-surface p-4">
+                <Text className="font-sans text-xs font-semibold uppercase text-accent-gold">{settlements.label}</Text>
+                <CurrencyText value={settlements.amount} currencyCode={currencyCode} locale={locale} className="text-xl font-bold" />
+              </View>
+              {settlements.items.map((item) => {
+                const form = selectedSettlementForm(item, settlementForms);
+                const amount = Number(form.amount);
+                const cannotSettle =
+                  !form.fromAccountId ||
+                  !form.toAccountId ||
+                  !Number.isFinite(amount) ||
+                  amount <= 0 ||
+                  amount > item.amount ||
+                  !form.settlementDate.trim();
+
+                return (
+                  <View key={settlementKey(item)} className="gap-4 rounded-lg border border-surface-border bg-surface p-4">
+                    <View className="flex-row justify-between gap-3">
+                      <View className="flex-1">
+                        <Text className="font-sans text-base font-semibold text-text">
+                          {item.from_name} pays {item.to_name}
+                        </Text>
+                        <Text className="font-sans text-xs text-text-muted">{item.shared_vault_name}</Text>
+                      </View>
+                      <CurrencyText value={item.amount} currencyCode={currencyCode} locale={locale} className="text-sm font-semibold" />
+                    </View>
+                    <SettlementAccountPicker
+                      accounts={item.from_accounts}
+                      label="Paying account"
+                      selectedId={form.fromAccountId}
+                      onSelect={(fromAccountId) => updateSettlementForm(item, { fromAccountId })}
+                    />
+                    <SettlementAccountPicker
+                      accounts={item.to_accounts}
+                      label="Receiving account"
+                      selectedId={form.toAccountId}
+                      onSelect={(toAccountId) => updateSettlementForm(item, { toAccountId })}
+                    />
+                    <View className="flex-row gap-3">
+                      <View className="flex-1">
+                        <Text className="mb-2 font-sans text-xs font-semibold uppercase text-text-muted">Amount</Text>
+                        <TextInput
+                          className="h-12 rounded-md border border-surface-border bg-background px-4 font-sans text-base text-text"
+                          inputMode="decimal"
+                          onChangeText={(amountText) => updateSettlementForm(item, { amount: amountText })}
+                          placeholder="0"
+                          placeholderTextColor={theme.colors.text.muted}
+                          value={form.amount}
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="mb-2 font-sans text-xs font-semibold uppercase text-text-muted">Date</Text>
+                        <TextInput
+                          className="h-12 rounded-md border border-surface-border bg-background px-4 font-sans text-base text-text"
+                          onChangeText={(settlementDate) => updateSettlementForm(item, { settlementDate })}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={theme.colors.text.muted}
+                          value={form.settlementDate}
+                        />
+                      </View>
+                    </View>
+                    <SecondaryButton disabled={cannotSettle || markSettlement.isPending} onPress={() => markItemSettled(item)}>
+                      Mark settled
+                    </SecondaryButton>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </Section>
       ) : null}
 
@@ -170,4 +312,37 @@ function formatShortMoney(value: number, currencyCode: string, locale: string) {
     maximumFractionDigits: 0,
     style: "currency"
   }).format(value);
+}
+
+function SettlementAccountPicker({
+  accounts,
+  label,
+  onSelect,
+  selectedId
+}: {
+  accounts: SharedSettlementAccountApi[];
+  label: string;
+  onSelect: (accountId: number) => void;
+  selectedId: number | null;
+}) {
+  return (
+    <View className="gap-2">
+      <Text className="font-sans text-xs font-semibold uppercase text-text-muted">{label}</Text>
+      {accounts.length === 0 ? (
+        <Text className="font-sans text-xs text-state-danger">No active accounts available.</Text>
+      ) : (
+        <View className="flex-row flex-wrap gap-2">
+          {accounts.map((account) => (
+            <SecondaryButton
+              key={account.id}
+              className={selectedId === account.id ? "border-brand-soft" : undefined}
+              onPress={() => onSelect(account.id)}
+            >
+              {account.name}
+            </SecondaryButton>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 }

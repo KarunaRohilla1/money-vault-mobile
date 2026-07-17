@@ -438,6 +438,50 @@ export interface SharedBillsApiResponse {
   summary: SharedBillsSummaryApi;
 }
 
+export interface SharedSettlementAccountApi {
+  balance?: number | null;
+  id: number;
+  is_primary: boolean;
+  name: string;
+  type: string;
+}
+
+export interface SharedSettlementItemApi {
+  amount: number;
+  counterparty_name: string;
+  counterparty_vault_id: number;
+  direction: string;
+  from_accounts: SharedSettlementAccountApi[];
+  from_name: string;
+  from_vault_id: number;
+  label: string;
+  shared_vault_id: number;
+  shared_vault_name: string;
+  to_accounts: SharedSettlementAccountApi[];
+  to_name: string;
+  to_vault_id: number;
+}
+
+export interface SharedSettlementsApiResponse {
+  amount: number;
+  direction: string;
+  items: SharedSettlementItemApi[];
+  label: string;
+  net: number;
+  payable: number;
+  receivable: number;
+}
+
+export interface SharedSettlementPayloadApi {
+  amount: number;
+  fromAccountId: number;
+  fromVaultId: number;
+  settlementDate: string;
+  sharedVaultId: number;
+  toAccountId: number;
+  toVaultId: number;
+}
+
 export interface SharedPageApiResponse<TData> {
   data: TData;
 }
