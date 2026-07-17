@@ -32,6 +32,14 @@ export function useTransactionsQuery(token: string | null, vaultId: string | nul
   });
 }
 
+export function useTransactionDetailQuery(token: string | null, vaultId: string | null, transactionId: number | null) {
+  return useQuery({
+    enabled: Boolean(token && vaultId && transactionId),
+    queryFn: async () => apiClient.getTransaction(token ?? "", transactionId ?? 0),
+    queryKey: queryKeys.transactions.detail(vaultId, transactionId ?? "new")
+  });
+}
+
 export function useCreateTransactionMutation(token: string | null, vaultId: string | null) {
   return useMutation({
     mutationFn: async (body: TransactionPayloadApi) => apiClient.createTransaction(token ?? "", body),

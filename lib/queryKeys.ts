@@ -33,6 +33,8 @@ export const queryKeys = {
     root: ["shared"] as const
   },
   transactions: {
+    detail: (vaultId: string | null, transactionId: number | string) =>
+      ["transactions", "detail", vaultId ?? "anonymous", String(transactionId)] as const,
     list: (vaultId: string | null, filtersKey = "default") => ["transactions", "list", vaultId ?? "anonymous", filtersKey] as const,
     root: ["transactions"] as const
   },

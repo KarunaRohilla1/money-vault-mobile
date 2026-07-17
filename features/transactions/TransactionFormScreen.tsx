@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { z } from "zod";
@@ -12,7 +13,11 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
 import { useAccountsQuery } from "@/features/accounts/api";
 import { useCategoriesQuery } from "@/features/categories/api";
-import { useCreateTransactionMutation } from "@/features/transactions/api";
+import {
+  useCreateTransactionMutation,
+  useTransactionDetailQuery,
+  useUpdateTransactionMutation
+} from "@/features/transactions/api";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
@@ -31,17 +36,24 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function TransactionFormScreen() {
+interface TransactionFormScreenProps {
+  transactionId?: number | null;
+}
+
+export function TransactionFormScreen({ transactionId = null }: TransactionFormScreenProps) {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const accountsQuery = useAccountsQuery(token, vaultId);
   const categoriesQuery = useCategoriesQuery(token, vaultId);
+  const transactionQuery = useTransactionDetailQuery(token, vaultId, transactionId);
   const createTransaction = useCreateTransactionMutation(token, vaultId);
+  const updateTransaction = useUpdateTransactionMutation(token, vaultId);
   const {
     control,
     formState: { errors },
     handleSubmit,
+    reset,
     setError,
     setValue
   } = useForm<TransactionFormValues>({
@@ -60,6 +72,23 @@ export function TransactionFormScreen() {
   const categoryOptions = (categoriesQuery.data ?? []).filter((category) =>
     selectedType === "Income" ? category.categoryType === "Income" : category.categoryType !== "Income"
   );
+  const isEditing = transactionId !== null;
+  const isSaving = createTransaction.isPending || updateTransaction.isPending;
+
+  useEffect(() => {
+    if (!transactionQuery.data) {
+      return;
+    }
+
+    reset({
+      accountId: transactionQuery.data.accountId,
+      amount: String(transactionQuery.data.amount),
+      categoryId: transactionQuery.data.categoryId,
+      date: transactionQuery.data.date,
+      notes: transactionQuery.data.notes ?? "",
+      transactionType: transactionQuery.data.transactionType === "Income" ? "Income" : "Expense"
+    });
+  }, [reset, transactionQuery.data]);
 
   const submit = (values: TransactionFormValues) => {
     const parsed = transactionSchema.safeParse(values);
@@ -74,15 +103,30 @@ export function TransactionFormScreen() {
       return;
     }
 
-    createTransaction.mutate(
-      {
+    const body = {
         accountId: parsed.data.accountId,
         amount: Number(parsed.data.amount),
         categoryId: parsed.data.categoryId,
         date: parsed.data.date,
         notes: parsed.data.notes,
         transactionType: parsed.data.transactionType
-      },
+    };
+
+    if (transactionId) {
+      updateTransaction.mutate(
+        {
+          body,
+          transactionId
+        },
+        {
+          onSuccess: () => router.back()
+        }
+      );
+      return;
+    }
+
+    createTransaction.mutate(
+      body,
       {
         onSuccess: () => router.back()
       }
@@ -91,15 +135,19 @@ export function TransactionFormScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Add transaction" description="Create an income or expense in the current vault." />
+      <ScreenHeader
+        title={isEditing ? "Edit transaction" : "Add transaction"}
+        description={isEditing ? "Update an income or expense in the current vault." : "Create an income or expense in the current vault."}
+      />
 
-      {accountsQuery.isLoading || categoriesQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
-      {accountsQuery.isError || categoriesQuery.isError ? (
+      {accountsQuery.isLoading || categoriesQuery.isLoading || transactionQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
+      {accountsQuery.isError || categoriesQuery.isError || transactionQuery.isError ? (
         <ErrorView
           message="Form data could not be loaded."
           onRetry={() => {
             accountsQuery.refetch();
             categoriesQuery.refetch();
+            transactionQuery.refetch();
           }}
         />
       ) : null}
@@ -188,9 +236,11 @@ export function TransactionFormScreen() {
           />
         </Field>
 
-        {createTransaction.isError ? <Text className="font-sans text-sm text-state-danger">Transaction could not be saved.</Text> : null}
-        <PrimaryButton loading={createTransaction.isPending} disabled={createTransaction.isPending} onPress={handleSubmit(submit)}>
-          Save transaction
+        {createTransaction.isError || updateTransaction.isError ? (
+          <Text className="font-sans text-sm text-state-danger">Transaction could not be saved.</Text>
+        ) : null}
+        <PrimaryButton loading={isSaving} disabled={isSaving} onPress={handleSubmit(submit)}>
+          {isEditing ? "Save transaction" : "Add transaction"}
         </PrimaryButton>
         <SecondaryButton onPress={() => router.back()}>Cancel</SecondaryButton>
       </View>

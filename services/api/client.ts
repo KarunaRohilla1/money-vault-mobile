@@ -403,6 +403,13 @@ export function getTransactions(token: string, filters: TransactionFiltersApi = 
   });
 }
 
+export function getTransaction(token: string, transactionId: number) {
+  return request<TransactionDetailApi>({
+    path: `/api/transactions/${transactionId}`,
+    token
+  });
+}
+
 export function createTransaction(token: string, body: TransactionPayloadApi) {
   return request<TransactionDetailApi, TransactionPayloadApi>({
     body,
@@ -652,6 +659,7 @@ export const apiClient = {
   getSettings,
   getSharedBills,
   getSharedExpenses,
+  getTransaction,
   getTransactions,
   getTransfers,
   getWishlist,

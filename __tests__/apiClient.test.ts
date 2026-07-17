@@ -212,6 +212,38 @@ describe("apiClient", () => {
     );
   });
 
+  it("loads a transaction detail with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          accountId: 1,
+          amount: 250,
+          categoryId: 2,
+          date: "2026-07-17",
+          id: 12,
+          notes: "Coffee",
+          transactionType: "Expense"
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getTransaction("jwt-token", 12);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/transactions/12",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        }),
+        method: "GET"
+      })
+    );
+  });
+
   it("loads planning with bearer authorization", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     const fetchMock = jest.fn(async () =>
