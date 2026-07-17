@@ -32,7 +32,7 @@ Do not commit `.env` or secrets. This value points to the Money Vault backend AP
 - `services/api/core/` contains request transport, timeout, bearer header, query string, JSON parsing, and normalized API errors.
 - `services/api/*.ts` contains domain API modules such as auth, dashboard, accounts, transactions, planning, shared, reports, and onboarding.
 - `services/api/*.types.ts` keeps backend DTOs beside their domain modules. `services/api/types.ts` is only a compatibility barrel plus shared primitives.
-- `stores/` contains small Zustand stores. The backend token is kept in memory and persisted only through Expo Secure Store. Onboarding stores draft form values only.
+- `stores/` contains small Zustand stores. The backend token is kept in memory and persisted only through Expo Secure Store. Onboarding stores safe local draft values and mobile setup completion while backend setup endpoints are pending.
 - `theme/` contains typed design tokens consumed by app code and NativeWind/Tailwind.
 - `components/` contains reusable UI, layout, card, chart, and form primitives.
 - `features/` contains feature-owned surfaces. Dashboard and supporting authenticated pages consume backend APIs; financial calculations stay on the backend.
@@ -57,13 +57,13 @@ The centralized app access state is:
 - `onboarding`
 - `ready`
 
-Setup completion is backend-owned. The app does not persist an onboarding-complete flag locally. It stores only safe draft values so setup can resume later, and it reloads setup status from the backend before entering the ready app.
+Backend setup status is preferred when available. While backend onboarding endpoints are pending, the mobile app stores safe local onboarding completion so first-run setup remains seamless and does not block the user on unavailable endpoints.
 
 ## Onboarding Model
 
 Money Vault has exactly one Personal Vault per user. First-time setup automatically works against that Personal Vault and does not ask the user to choose Personal versus Shared. Shared Vaults are added later from the authenticated experience.
 
-The current mobile onboarding flow is intentionally persistence-first:
+The current mobile onboarding flow is local-draft first and backend-compatible:
 
 - Welcome
 - Vault name
@@ -74,7 +74,7 @@ The current mobile onboarding flow is intentionally persistence-first:
 - Notifications
 - Finish
 
-Placeholder onboarding service methods throw `OnboardingApiNotImplementedError` until backend endpoints exist. The app must not mark setup complete unless the backend confirms persistence.
+Intermediate onboarding steps save locally and advance without showing backend placeholder errors. Personal Vault provisioning still requires an authenticated Personal/Individual vault from login; Shared Vault setup is blocked from the first-run flow.
 
 ## API Boundary
 

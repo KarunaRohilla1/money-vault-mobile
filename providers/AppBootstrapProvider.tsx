@@ -39,6 +39,7 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const onboardingHydrated = useOnboardingStore((state) => state.hasHydrated);
+  const localOnboardingComplete = useOnboardingStore((state) => (vaultId ? state.vaults[vaultId]?.completed === true : false));
   const settingsHydrated = useSettingsStore((state) => state.hasHydrated);
   const setAccessState = useAccessStore((state) => state.setAccessState);
   const [setupStatus, setSetupStatus] = useState<{
@@ -111,11 +112,11 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
         authStatus,
         onboardingHydrated,
         setupCheckComplete: setupStatus.done && setupStatus.checkedVaultId === vaultId,
-        setupComplete: setupStatus.complete,
+        setupComplete: setupStatus.complete || localOnboardingComplete,
         settingsHydrated
       })
     );
-  }, [authStatus, onboardingHydrated, setAccessState, settingsHydrated, setupStatus, vaultId]);
+  }, [authStatus, localOnboardingComplete, onboardingHydrated, setAccessState, settingsHydrated, setupStatus, vaultId]);
 
   return <>{children}</>;
 }

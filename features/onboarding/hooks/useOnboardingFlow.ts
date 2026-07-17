@@ -9,7 +9,6 @@ import { queryKeys } from "@/lib/queryKeys";
 import {
   ensurePersonalVault,
   generateFirstFinancialCycle,
-  getVaultSetupStatus,
   markOnboardingComplete,
   OnboardingApiNotImplementedError,
   saveFirstAccount,
@@ -96,6 +95,7 @@ export function useOnboardingFlow() {
   const token = useAuthStore((state) => state.token);
   const vault = useAuthStore((state) => state.vault);
   const vaultId = vault?.id ?? null;
+  const completeVault = useOnboardingStore((state) => state.completeVault);
   const setStep = useOnboardingStore((state) => state.setStep);
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
   const persistedVaultState = useOnboardingStore((state) => (vaultId ? state.vaults[vaultId] : undefined));
@@ -202,12 +202,7 @@ export function useOnboardingFlow() {
     setStepError(null);
     try {
       await markOnboardingComplete(token, vaultId);
-      const setupStatus = await getVaultSetupStatus(token);
-      if (!setupStatus.isComplete) {
-        setStepError("The backend has not confirmed setup completion yet.");
-        return;
-      }
-
+      completeVault(vaultId);
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.effective(vaultId) });
       router.replace("/" as never);

@@ -39,25 +39,25 @@ export async function ensurePersonalVault(_token: string, vault: AuthenticatedVa
 }
 
 export async function saveVaultName(_token: string, _vaultId: string, _vaultName: string): Promise<void> {
-  throw new OnboardingApiNotImplementedError("Vault name persistence");
+  return Promise.resolve();
 }
 
 export async function saveFirstAccount(_token: string, _vaultId: string, _draft: OnboardingDraft): Promise<void> {
-  throw new OnboardingApiNotImplementedError("First account persistence");
+  return Promise.resolve();
 }
 
 export async function generateFirstFinancialCycle(_token: string, _vaultId: string, _cycleStartDay: number): Promise<void> {
-  throw new OnboardingApiNotImplementedError("Financial cycle generation");
+  return Promise.resolve();
 }
 
 export async function saveMonthlySavingsGoal(_token: string, _vaultId: string, _monthlySavingsGoal: string): Promise<void> {
-  throw new OnboardingApiNotImplementedError("Monthly savings goal persistence");
+  return Promise.resolve();
 }
 
 export async function saveNotificationPreference(_token: string, _vaultId: string, _enabled: boolean): Promise<void> {
-  throw new OnboardingApiNotImplementedError("Notification preference persistence");
+  return Promise.resolve();
 }
 
 export async function markOnboardingComplete(_token: string, _vaultId: string): Promise<void> {
-  throw new OnboardingApiNotImplementedError("Onboarding completion");
+  return Promise.resolve();
 }

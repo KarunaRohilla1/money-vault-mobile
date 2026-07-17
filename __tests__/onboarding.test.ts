@@ -8,6 +8,8 @@ import {
   ensurePersonalVault,
   markOnboardingComplete,
   OnboardingApiNotImplementedError,
+  saveFirstAccount,
+  saveMonthlySavingsGoal,
   saveVaultName
 } from "@/services/api/onboarding";
 
@@ -41,6 +43,7 @@ describe("onboarding foundation", () => {
     useOnboardingStore.getState().setStep("vault-1", "account-details");
 
     expect(getVaultOnboardingState("vault-1")).toEqual({
+      completed: false,
       draft: {
         ...EMPTY_ONBOARDING_DRAFT,
         accountName: "First account",
@@ -58,10 +61,25 @@ describe("onboarding foundation", () => {
     expect(getVaultOnboardingState("vault-2").draft.vaultName).toBe("Shared vault");
   });
 
-  it("fails onboarding persistence until backend endpoints exist", async () => {
+  it("keeps Personal Vault provisioning guarded when no backend vault exists", async () => {
     await expect(ensurePersonalVault("token", null)).rejects.toBeInstanceOf(OnboardingApiNotImplementedError);
-    await expect(saveVaultName("token", "vault-1", "Personal vault")).rejects.toBeInstanceOf(OnboardingApiNotImplementedError);
-    await expect(markOnboardingComplete("token", "vault-1")).rejects.toBeInstanceOf(OnboardingApiNotImplementedError);
+  });
+
+  it("allows mobile onboarding steps to progress while backend setup endpoints are pending", async () => {
+    await expect(saveVaultName("token", "vault-1", "Personal vault")).resolves.toBeUndefined();
+    await expect(saveFirstAccount("token", "vault-1", EMPTY_ONBOARDING_DRAFT)).resolves.toBeUndefined();
+    await expect(saveMonthlySavingsGoal("token", "vault-1", "1000")).resolves.toBeUndefined();
+    await expect(markOnboardingComplete("token", "vault-1")).resolves.toBeUndefined();
+  });
+
+  it("records local mobile onboarding completion per vault", () => {
+    useOnboardingStore.getState().completeVault("vault-1");
+
+    expect(getVaultOnboardingState("vault-1")).toEqual({
+      completed: true,
+      draft: EMPTY_ONBOARDING_DRAFT,
+      step: "finish"
+    });
   });
 
   it("treats the authenticated Personal Vault as already provisioned", async () => {

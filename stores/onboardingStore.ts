@@ -27,6 +27,7 @@ export interface OnboardingDraft {
 }
 
 interface VaultOnboardingState {
+  completed: boolean;
   draft: OnboardingDraft;
   step: OnboardingStep;
 }
@@ -34,6 +35,7 @@ interface VaultOnboardingState {
 interface OnboardingState {
   hasHydrated: boolean;
   vaults: Record<string, VaultOnboardingState>;
+  completeVault: (vaultId: string) => void;
   resetVault: (vaultId: string) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
   setStep: (vaultId: string, step: OnboardingStep) => void;
@@ -64,6 +66,7 @@ export const EMPTY_ONBOARDING_DRAFT: OnboardingDraft = {
 
 function emptyVaultState(): VaultOnboardingState {
   return {
+    completed: false,
     draft: EMPTY_ONBOARDING_DRAFT,
     step: "welcome"
   };
@@ -79,6 +82,20 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set) => ({
       hasHydrated: false,
       vaults: {},
+      completeVault: (vaultId) =>
+        set((state) => {
+          const current = stateFor(state.vaults, vaultId);
+          return {
+            vaults: {
+              ...state.vaults,
+              [vaultId]: {
+                ...current,
+                completed: true,
+                step: "finish"
+              }
+            }
+          };
+        }),
       resetVault: (vaultId) =>
         set((state) => ({
           vaults: {
