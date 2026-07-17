@@ -1,4 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
+import { useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, TextInput, View } from "react-native";
 import { z } from "zod";
@@ -53,19 +55,27 @@ function getSafeLoginError(error: unknown): { code: string; message: string } {
 }
 
 export default function SignInRoute() {
+  const params = useLocalSearchParams<{ vaultName?: string }>();
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const setError = useAuthStore((state) => state.setError);
   const {
     control,
     formState: { errors },
     handleSubmit,
-    setError: setFormError
+    setError: setFormError,
+    setValue
   } = useForm<LoginFormValues>({
     defaultValues: {
       pin: "",
-      vaultName: ""
+      vaultName: typeof params.vaultName === "string" ? params.vaultName : ""
     }
   });
+
+  useEffect(() => {
+    if (typeof params.vaultName === "string") {
+      setValue("vaultName", params.vaultName);
+    }
+  }, [params.vaultName, setValue]);
 
   const loginMutation = useMutation({
     mutationFn: async (values: LoginFormValues) => loginWithVaultCredentials(values),

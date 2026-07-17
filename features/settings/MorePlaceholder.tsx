@@ -26,6 +26,17 @@ export function MorePlaceholder() {
     setSignedOut();
     router.replace("/sign-in");
   };
+  const switchVault = async (vaultName: string) => {
+    await clearBackendSession();
+    queryClient.clear();
+    setSignedOut();
+    router.replace({
+      pathname: "/sign-in",
+      params: {
+        vaultName
+      }
+    } as never);
+  };
 
   return (
     <Screen>
@@ -72,12 +83,18 @@ export function MorePlaceholder() {
         <Section title="Vault switching">
           <View className="gap-3">
             {settingsQuery.data.accessibleVaults.map((vault) => (
-              <View key={vault.id} className="rounded-lg border border-surface-border bg-surface p-4">
-                <Text className="font-sans text-base font-semibold text-text">{vault.name}</Text>
-                <Text className="font-sans text-sm text-text-muted">{vault.vaultType}</Text>
+              <View key={vault.id} className="gap-3 rounded-lg border border-surface-border bg-surface p-4">
+                <View>
+                  <Text className="font-sans text-base font-semibold text-text">{vault.name}</Text>
+                  <Text className="font-sans text-sm text-text-muted">
+                    {vault.vaultType}
+                    {String(vault.id) === vaultId ? " - Current" : ""}
+                  </Text>
+                </View>
+                {String(vault.id) !== vaultId ? <SecondaryButton onPress={() => switchVault(vault.name)}>Unlock this vault</SecondaryButton> : null}
               </View>
             ))}
-            <Text className="font-sans text-sm text-text-muted">To switch vaults, log out and unlock the target vault with its PIN.</Text>
+            <Text className="font-sans text-sm text-text-muted">Switching vaults requires entering the target vault PIN.</Text>
           </View>
         </Section>
       ) : null}
