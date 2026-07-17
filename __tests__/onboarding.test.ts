@@ -4,8 +4,10 @@ import {
   ONBOARDING_STEPS,
   useOnboardingStore
 } from "@/stores/onboardingStore";
+import { apiClient } from "@/services/api/client";
 import {
   ensurePersonalVault,
+  generateFirstFinancialCycle,
   markOnboardingComplete,
   OnboardingApiNotImplementedError,
   saveFirstAccount,
@@ -15,6 +17,7 @@ import {
 
 describe("onboarding foundation", () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     useOnboardingStore.setState({
       hasHydrated: true,
       vaults: {}
@@ -65,11 +68,81 @@ describe("onboarding foundation", () => {
     await expect(ensurePersonalVault("token", null)).rejects.toBeInstanceOf(OnboardingApiNotImplementedError);
   });
 
-  it("allows mobile onboarding steps to progress while backend setup endpoints are pending", async () => {
+  it("persists vault name, cycle, and savings goal through backend settings", async () => {
+    const updateSettings = jest.spyOn(apiClient, "updateSettings").mockResolvedValue({
+      accessibleVaults: [],
+      currentVault: {
+        id: 1,
+        isAdmin: true,
+        name: "Personal vault",
+        vaultType: "Individual"
+      },
+      cycleStartDay: 10,
+      monthlySavingsGoal: 1000
+    });
+
     await expect(saveVaultName("token", "vault-1", "Personal vault")).resolves.toBeUndefined();
-    await expect(saveFirstAccount("token", "vault-1", EMPTY_ONBOARDING_DRAFT)).resolves.toBeUndefined();
+    await expect(generateFirstFinancialCycle("token", "vault-1", 10)).resolves.toBeUndefined();
     await expect(saveMonthlySavingsGoal("token", "vault-1", "1000")).resolves.toBeUndefined();
     await expect(markOnboardingComplete("token", "vault-1")).resolves.toBeUndefined();
+
+    expect(updateSettings).toHaveBeenCalledWith("token", { vaultName: "Personal vault" });
+    expect(updateSettings).toHaveBeenCalledWith("token", { cycleStartDay: 10 });
+    expect(updateSettings).toHaveBeenCalledWith("token", { monthlySavingsGoal: 1000 });
+  });
+
+  it("creates the first account through the backend", async () => {
+    jest.spyOn(apiClient, "getAccounts").mockResolvedValue([]);
+    const createAccount = jest.spyOn(apiClient, "createAccount").mockResolvedValue({ status: "ok" });
+
+    await expect(
+      saveFirstAccount("token", "vault-1", {
+        ...EMPTY_ONBOARDING_DRAFT,
+        accountKind: "Salary Account",
+        accountName: "Salary Account",
+        openingBalance: "500"
+      })
+    ).resolves.toBeUndefined();
+
+    expect(createAccount).toHaveBeenCalledWith("token", {
+      isPrimary: true,
+      name: "Salary Account",
+      openingBalance: 500,
+      type: "Bank"
+    });
+  });
+
+  it("updates an existing first account instead of duplicating it", async () => {
+    jest.spyOn(apiClient, "getAccounts").mockResolvedValue([
+      {
+        id: 7,
+        isPrimary: true,
+        name: "Salary Account",
+        openingBalance: 100,
+        type: "Bank"
+      }
+    ]);
+    const updateAccount = jest.spyOn(apiClient, "updateAccount").mockResolvedValue({
+      id: 7,
+      isPrimary: true,
+      name: "Salary Account",
+      openingBalance: 500,
+      type: "Bank"
+    });
+
+    await saveFirstAccount("token", "vault-1", {
+      ...EMPTY_ONBOARDING_DRAFT,
+      accountKind: "Salary Account",
+      accountName: "Salary Account",
+      openingBalance: "500"
+    });
+
+    expect(updateAccount).toHaveBeenCalledWith("token", 7, {
+      isPrimary: true,
+      name: "Salary Account",
+      openingBalance: 500,
+      type: "Bank"
+    });
   });
 
   it("records local mobile onboarding completion per vault", () => {

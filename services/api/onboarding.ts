@@ -1,5 +1,5 @@
 import { apiClient } from "@/services/api/client";
-import type { OnboardingDraft } from "@/stores/onboardingStore";
+import type { OnboardingAccountKind, OnboardingDraft } from "@/stores/onboardingStore";
 import type { AuthenticatedVault } from "@/types/domain";
 
 export interface VaultSetupStatus {
@@ -39,19 +39,62 @@ export async function ensurePersonalVault(_token: string, vault: AuthenticatedVa
 }
 
 export async function saveVaultName(_token: string, _vaultId: string, _vaultName: string): Promise<void> {
-  return Promise.resolve();
+  await apiClient.updateSettings(_token, {
+    vaultName: _vaultName
+  });
 }
 
-export async function saveFirstAccount(_token: string, _vaultId: string, _draft: OnboardingDraft): Promise<void> {
-  return Promise.resolve();
+function accountTypeFor(kind: OnboardingAccountKind | null) {
+  switch (kind) {
+    case "Credit Card":
+      return "Credit Card";
+    case "Cash":
+      return "Cash";
+    case "Salary Account":
+    case "Savings Account":
+    case "Other":
+    case null:
+      return "Bank";
+  }
 }
 
-export async function generateFirstFinancialCycle(_token: string, _vaultId: string, _cycleStartDay: number): Promise<void> {
-  return Promise.resolve();
+function openingBalanceFor(value: string) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export async function saveMonthlySavingsGoal(_token: string, _vaultId: string, _monthlySavingsGoal: string): Promise<void> {
-  return Promise.resolve();
+export async function saveFirstAccount(token: string, _vaultId: string, draft: OnboardingDraft): Promise<void> {
+  const payload = {
+    isPrimary: true,
+    name: draft.accountName.trim(),
+    openingBalance: openingBalanceFor(draft.openingBalance),
+    type: accountTypeFor(draft.accountKind)
+  };
+  const accounts = await apiClient.getAccounts(token);
+  const existing = accounts.find((account) => account.name.trim().toLowerCase() === payload.name.toLowerCase());
+
+  if (existing) {
+    await apiClient.updateAccount(token, existing.id, payload);
+    return;
+  }
+
+  await apiClient.createAccount(token, payload);
+}
+
+export async function generateFirstFinancialCycle(token: string, _vaultId: string, cycleStartDay: number): Promise<void> {
+  await apiClient.updateSettings(token, {
+    cycleStartDay
+  });
+}
+
+export async function saveMonthlySavingsGoal(token: string, _vaultId: string, monthlySavingsGoal: string): Promise<void> {
+  if (!monthlySavingsGoal.trim()) {
+    return;
+  }
+
+  await apiClient.updateSettings(token, {
+    monthlySavingsGoal: Number(monthlySavingsGoal)
+  });
 }
 
 export async function saveNotificationPreference(_token: string, _vaultId: string, _enabled: boolean): Promise<void> {
