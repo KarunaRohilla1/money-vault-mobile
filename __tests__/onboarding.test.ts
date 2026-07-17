@@ -63,4 +63,26 @@ describe("onboarding foundation", () => {
     await expect(saveVaultName("token", "vault-1", "Personal vault")).rejects.toBeInstanceOf(OnboardingApiNotImplementedError);
     await expect(markOnboardingComplete("token", "vault-1")).rejects.toBeInstanceOf(OnboardingApiNotImplementedError);
   });
+
+  it("treats the authenticated Personal Vault as already provisioned", async () => {
+    await expect(
+      ensurePersonalVault("token", {
+        id: "vault-1",
+        isAdmin: true,
+        name: "Personal vault",
+        vaultType: "Individual"
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it("does not allow first-time setup to run against a Shared Vault", async () => {
+    await expect(
+      ensurePersonalVault("token", {
+        id: "shared-1",
+        isAdmin: false,
+        name: "Shared vault",
+        vaultType: "Shared"
+      })
+    ).rejects.toThrow("First-time setup must be completed from your Personal Vault.");
+  });
 });

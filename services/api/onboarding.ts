@@ -21,7 +21,20 @@ export class OnboardingApiNotImplementedError extends Error {
   }
 }
 
-export async function ensurePersonalVault(_token: string, _vault: AuthenticatedVault | null): Promise<void> {
+function isPersonalVault(vault: AuthenticatedVault) {
+  const normalizedType = vault.vaultType.trim().toLowerCase();
+  return normalizedType === "individual" || normalizedType === "personal" || normalizedType === "personal vault";
+}
+
+export async function ensurePersonalVault(_token: string, vault: AuthenticatedVault | null): Promise<void> {
+  if (vault?.id && isPersonalVault(vault)) {
+    return;
+  }
+
+  if (vault?.vaultType.trim().toLowerCase() === "shared") {
+    throw new Error("First-time setup must be completed from your Personal Vault.");
+  }
+
   throw new OnboardingApiNotImplementedError("Personal Vault provisioning");
 }
 
