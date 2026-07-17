@@ -43,9 +43,39 @@ export function useCreateCommitmentMutation(token: string | null, vaultId: strin
   });
 }
 
+export function useUpdateCommitmentMutation(token: string | null, vaultId: string | null) {
+  return useMutation({
+    mutationFn: async ({ body, commitmentId }: { body: PlanningItemPayloadApi; commitmentId: number }) =>
+      apiClient.updateCommitment(token ?? "", commitmentId, body),
+    onSuccess: () => invalidatePlanningDependents(vaultId)
+  });
+}
+
+export function useDeleteCommitmentMutation(token: string | null, vaultId: string | null) {
+  return useMutation({
+    mutationFn: async (commitmentId: number) => apiClient.deleteCommitment(token ?? "", commitmentId),
+    onSuccess: () => invalidatePlanningDependents(vaultId)
+  });
+}
+
 export function useCreateIncomeTemplateMutation(token: string | null, vaultId: string | null) {
   return useMutation({
     mutationFn: async (body: PlanningItemPayloadApi) => apiClient.createIncomeTemplate(token ?? "", body),
+    onSuccess: () => invalidatePlanningDependents(vaultId)
+  });
+}
+
+export function useUpdateIncomeTemplateMutation(token: string | null, vaultId: string | null) {
+  return useMutation({
+    mutationFn: async ({ body, templateId }: { body: PlanningItemPayloadApi; templateId: number }) =>
+      apiClient.updateIncomeTemplate(token ?? "", templateId, body),
+    onSuccess: () => invalidatePlanningDependents(vaultId)
+  });
+}
+
+export function useDeleteIncomeTemplateMutation(token: string | null, vaultId: string | null) {
+  return useMutation({
+    mutationFn: async (templateId: number) => apiClient.deleteIncomeTemplate(token ?? "", templateId),
     onSuccess: () => invalidatePlanningDependents(vaultId)
   });
 }
