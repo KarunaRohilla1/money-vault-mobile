@@ -4,6 +4,8 @@ export function targetRouteForAccessState(accessState: AppAccessState) {
   switch (accessState) {
     case "signed-out":
       return "/sign-in";
+    case "onboarding":
+      return "/onboarding";
     case "ready":
       return "/";
     case "booting":

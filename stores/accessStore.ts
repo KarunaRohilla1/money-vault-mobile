@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppAccessState = "booting" | "signed-out" | "ready";
+export type AppAccessState = "booting" | "signed-out" | "onboarding" | "ready";
 
 interface AccessState {
   accessState: AppAccessState;

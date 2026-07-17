@@ -22,10 +22,12 @@ export function AccessGate() {
     const inAuthGroup = routeGroup === "(auth)";
     const inAppGroup = routeGroup === "(app)";
     const alreadySignedOut = inAuthGroup && routeName === "sign-in";
-    const alreadyReady = inAppGroup;
+    const alreadyOnboarding = inAppGroup && routeName === "onboarding";
+    const alreadyReady = inAppGroup && routeName !== "onboarding";
 
     if (
       (accessState === "signed-out" && alreadySignedOut) ||
+      (accessState === "onboarding" && alreadyOnboarding) ||
       (accessState === "ready" && alreadyReady)
     ) {
       return;

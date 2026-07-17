@@ -11,6 +11,19 @@ import { queryClient } from "@/lib/queryClient";
 import { clearBackendSession } from "@/services/api/session";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import type { VaultSummaryApi } from "@/services/api/types";
+
+function isSharedVault(vault: VaultSummaryApi) {
+  return vault.vaultType === "Shared";
+}
+
+function personalVaultFor(currentVault: VaultSummaryApi, accessibleVaults: VaultSummaryApi[]) {
+  if (!isSharedVault(currentVault)) {
+    return currentVault;
+  }
+
+  return accessibleVaults.find((vault) => !isSharedVault(vault)) ?? null;
+}
 
 export function MorePlaceholder() {
   const router = useRouter();
@@ -26,17 +39,23 @@ export function MorePlaceholder() {
     setSignedOut();
     router.replace("/sign-in");
   };
-  const switchVault = async (vaultName: string) => {
+  const switchVault = async (vault: VaultSummaryApi) => {
+    if (!isSharedVault(vault) && String(vault.id) !== personalVault?.id.toString()) {
+      return;
+    }
+
     await clearBackendSession();
     queryClient.clear();
     setSignedOut();
     router.replace({
       pathname: "/sign-in",
       params: {
-        vaultName
+        vaultName: vault.name
       }
     } as never);
   };
+  const personalVault = settingsQuery.data ? personalVaultFor(settingsQuery.data.currentVault, settingsQuery.data.accessibleVaults) : null;
+  const sharedVaults = settingsQuery.data ? settingsQuery.data.accessibleVaults.filter(isSharedVault) : [];
 
   return (
     <Screen>
@@ -80,18 +99,42 @@ export function MorePlaceholder() {
         </Section>
       ) : null}
       {settingsQuery.data ? (
-        <Section title="Vault switching">
+        <Section title="Personal Vault">
           <View className="gap-3">
-            {settingsQuery.data.accessibleVaults.map((vault) => (
+            {personalVault ? (
+              <View className="gap-3 rounded-lg border border-surface-border bg-surface p-4">
+                <View>
+                  <Text className="font-sans text-base font-semibold text-text">{personalVault.name}</Text>
+                  <Text className="font-sans text-sm text-text-muted">
+                    Personal Vault
+                    {String(personalVault.id) === vaultId ? " - Current" : ""}
+                  </Text>
+                </View>
+                {String(personalVault.id) !== vaultId ? <SecondaryButton onPress={() => switchVault(personalVault)}>Unlock Personal Vault</SecondaryButton> : null}
+              </View>
+            ) : (
+              <Text className="font-sans text-sm text-text-muted">Your Personal Vault will be created during onboarding.</Text>
+            )}
+            <Text className="font-sans text-sm text-text-muted">Money Vault supports exactly one Personal Vault for you.</Text>
+          </View>
+        </Section>
+      ) : null}
+      {settingsQuery.data ? (
+        <Section title="Shared Vaults">
+          <View className="gap-3">
+            {sharedVaults.length === 0 ? (
+              <Text className="font-sans text-sm text-text-muted">No Shared Vaults are connected yet. Only Shared Vaults can be added later.</Text>
+            ) : null}
+            {sharedVaults.map((vault) => (
               <View key={vault.id} className="gap-3 rounded-lg border border-surface-border bg-surface p-4">
                 <View>
                   <Text className="font-sans text-base font-semibold text-text">{vault.name}</Text>
                   <Text className="font-sans text-sm text-text-muted">
-                    {vault.vaultType}
+                    Shared Vault
                     {String(vault.id) === vaultId ? " - Current" : ""}
                   </Text>
                 </View>
-                {String(vault.id) !== vaultId ? <SecondaryButton onPress={() => switchVault(vault.name)}>Unlock this vault</SecondaryButton> : null}
+                {String(vault.id) !== vaultId ? <SecondaryButton onPress={() => switchVault(vault)}>Unlock this shared vault</SecondaryButton> : null}
               </View>
             ))}
             <Text className="font-sans text-sm text-text-muted">Switching vaults requires entering the target vault PIN.</Text>
