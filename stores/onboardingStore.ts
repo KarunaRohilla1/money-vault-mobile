@@ -15,7 +15,6 @@ export type OnboardingStep =
 export type OnboardingAccountKind = "Salary Account" | "Savings Account" | "Credit Card" | "Cash" | "Other";
 
 export interface OnboardingDraft {
-  accountBank: string;
   accountKind: OnboardingAccountKind | null;
   accountName: string;
   cycleStartDay: number | null;
@@ -51,7 +50,6 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 ];
 
 export const EMPTY_ONBOARDING_DRAFT: OnboardingDraft = {
-  accountBank: "",
   accountKind: null,
   accountName: "",
   cycleStartDay: null,

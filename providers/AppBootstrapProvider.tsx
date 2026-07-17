@@ -118,7 +118,7 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
         authStatus,
         onboardingHydrated,
         setupCheckComplete: setupStatus.done && setupStatus.checkedVaultId === vaultId,
-        setupComplete: setupStatus.source === "backend" ? setupStatus.complete : localOnboardingComplete,
+        setupComplete: setupStatus.complete || localOnboardingComplete,
         settingsHydrated
       })
     );

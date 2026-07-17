@@ -26,22 +26,6 @@ export function AccountDetailsStep({ control, patchField, values }: OnboardingSt
           )}
         />
       </FormField>
-      <FormField label="Bank or provider">
-        <Controller
-          control={control}
-          name="accountBank"
-          render={({ field: { onBlur, value } }) => (
-            <TextInput
-              className="h-12 rounded-md border border-surface-border bg-background px-4 font-sans text-base text-text"
-              onBlur={onBlur}
-              onChangeText={(text) => patchField("accountBank", text)}
-              placeholder="Bank or provider"
-              placeholderTextColor={theme.colors.text.muted}
-              value={value}
-            />
-          )}
-        />
-      </FormField>
       <FormField label="Opening balance (optional)">
         <Controller
           control={control}

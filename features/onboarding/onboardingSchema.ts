@@ -12,7 +12,6 @@ const firstAccountSchema = z.object({
 });
 
 const accountDetailsSchema = z.object({
-  accountBank: z.string().trim().min(1, "Bank or provider is required."),
   accountName: z.string().trim().min(1, "Account name is required."),
   openingBalance: z.string().refine((value) => value.trim() === "" || Number(value) >= 0, "Opening balance cannot be negative.")
 });

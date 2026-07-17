@@ -2,7 +2,7 @@ import type { IconName } from "@/constants/navigation";
 import type { OnboardingAccountKind } from "@/stores/onboardingStore";
 
 export const accountOptions: OnboardingAccountKind[] = ["Salary Account", "Savings Account", "Credit Card", "Cash", "Other"];
-export const cycleDays = [1, 5, 10, 15, 20, 25];
+export const cycleDays = Array.from({ length: 31 }, (_, index) => index + 1);
 
 export const accountOptionMeta: Record<OnboardingAccountKind, { icon: IconName; subtitle: string }> = {
   "Salary Account": {

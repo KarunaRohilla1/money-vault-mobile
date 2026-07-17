@@ -81,12 +81,12 @@ describe("onboarding foundation", () => {
     });
 
     await expect(saveVaultName("token", "vault-1", "Personal vault")).resolves.toBeUndefined();
-    await expect(generateFirstFinancialCycle("token", "vault-1", 10)).resolves.toBeUndefined();
+    await expect(generateFirstFinancialCycle("token", "vault-1", 31)).resolves.toBeUndefined();
     await expect(saveMonthlySavingsGoal("token", "vault-1", "1000")).resolves.toBeUndefined();
     await expect(markOnboardingComplete("token", "vault-1")).resolves.toBeUndefined();
 
     expect(updateSettings).toHaveBeenCalledWith("token", { vaultName: "Personal vault" });
-    expect(updateSettings).toHaveBeenCalledWith("token", { cycleStartDay: 10 });
+    expect(updateSettings).toHaveBeenCalledWith("token", { cycleStartDay: 31 });
     expect(updateSettings).toHaveBeenCalledWith("token", { monthlySavingsGoal: 1000 });
   });
 
