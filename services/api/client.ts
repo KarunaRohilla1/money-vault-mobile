@@ -12,6 +12,9 @@ import type {
   PlanningStatusPayloadApi,
   ReportsApiResponse,
   SettingsApiResponse,
+  SharedBillsApiResponse,
+  SharedExpensesApiResponse,
+  SharedPageApiResponse,
   SuccessApiResponse,
   TransactionApi,
   TransactionDetailApi,
@@ -565,6 +568,40 @@ export function getSettings(token: string) {
   });
 }
 
+export function getSharedExpenses(token: string, sharedVaultId?: number) {
+  return request<SharedPageApiResponse<SharedExpensesApiResponse>>({
+    path: `/api/shared/expenses${buildQuery([["sharedVaultId", sharedVaultId]])}`,
+    token
+  });
+}
+
+export function getSharedBills(token: string, sharedVaultId?: number) {
+  return request<SharedPageApiResponse<SharedBillsApiResponse>>({
+    path: `/api/shared/bills${buildQuery([["sharedVaultId", sharedVaultId]])}`,
+    token
+  });
+}
+
+export function markSharedBillPaid(token: string, instanceId: number, payerVaultId: number, paymentDate: string) {
+  return request<SuccessApiResponse, { payerVaultId: number; paymentDate: string }>({
+    body: {
+      payerVaultId,
+      paymentDate
+    },
+    method: "POST",
+    path: `/api/shared/bills/instances/${instanceId}/paid`,
+    token
+  });
+}
+
+export function skipSharedBill(token: string, instanceId: number) {
+  return request<SuccessApiResponse>({
+    method: "POST",
+    path: `/api/shared/bills/instances/${instanceId}/skip`,
+    token
+  });
+}
+
 export function createWishlistItem(token: string, body: WishlistItemPayloadApi) {
   return request<SuccessApiResponse, WishlistItemPayloadApi>({
     body,
@@ -613,14 +650,18 @@ export const apiClient = {
   getPlanning,
   getReports,
   getSettings,
+  getSharedBills,
+  getSharedExpenses,
   getTransactions,
   getTransfers,
   getWishlist,
   login,
+  markSharedBillPaid,
   request,
   setPrimaryAccount,
   setCommitmentStatus,
   setIncomeStatus,
+  skipSharedBill,
   updateAccount,
   updateCategory,
   updateCommitment,

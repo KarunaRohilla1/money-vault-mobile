@@ -25,6 +25,13 @@ export const queryKeys = {
   settings: {
     effective: (vaultId: string | null) => ["settings", "effective", vaultId ?? "local-defaults"] as const
   },
+  shared: {
+    bills: (vaultId: string | null, sharedVaultId: number | null = null) =>
+      ["shared", "bills", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
+    expenses: (vaultId: string | null, sharedVaultId: number | null = null) =>
+      ["shared", "expenses", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
+    root: ["shared"] as const
+  },
   transactions: {
     list: (vaultId: string | null, filtersKey = "default") => ["transactions", "list", vaultId ?? "anonymous", filtersKey] as const,
     root: ["transactions"] as const

@@ -346,4 +346,74 @@ describe("apiClient", () => {
       })
     );
   });
+
+  it("loads shared expenses and bills with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            completed_bills: [],
+            expenses: [],
+            pending_bills: [],
+            summary: {}
+          }
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getSharedExpenses("jwt-token", 40);
+    await apiClient.getSharedBills("jwt-token", 40);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.money-vault.test/api/shared/expenses?sharedVaultId=40",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        })
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.money-vault.test/api/shared/bills?sharedVaultId=40",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        })
+      })
+    );
+  });
+
+  it("posts shared bill actions through the backend API", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify({ status: "ok" }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.markSharedBillPaid("jwt-token", 12, 4, "2026-07-17");
+    await apiClient.skipSharedBill("jwt-token", 13);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.money-vault.test/api/shared/bills/instances/12/paid",
+      expect.objectContaining({
+        body: JSON.stringify({
+          payerVaultId: 4,
+          paymentDate: "2026-07-17"
+        }),
+        method: "POST"
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.money-vault.test/api/shared/bills/instances/13/skip",
+      expect.objectContaining({
+        method: "POST"
+      })
+    );
+  });
 });
