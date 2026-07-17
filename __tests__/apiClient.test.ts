@@ -17,7 +17,7 @@ describe("apiClient", () => {
           vault: {
             id: "1",
             isAdmin: true,
-            name: "Karuna",
+            name: "Vault Under Test",
             vaultType: "Individual"
           }
         }),
@@ -27,13 +27,13 @@ describe("apiClient", () => {
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
-    const response = await apiClient.login({ pin: "1234", vaultName: "Karuna" });
+    const response = await apiClient.login({ pin: "1234", vaultName: "Vault Under Test" });
 
     expect(response.token).toBe("jwt-token");
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.money-vault.test/api/login",
       expect.objectContaining({
-        body: JSON.stringify({ pin: "1234", vaultName: "Karuna" }),
+        body: JSON.stringify({ pin: "1234", vaultName: "Vault Under Test" }),
         method: "POST"
       })
     );
@@ -48,7 +48,7 @@ describe("apiClient", () => {
           vault: {
             id: "1",
             isAdmin: true,
-            name: "Karuna Rohilla",
+            name: "Vault Owner",
             vaultType: "Individual"
           }
         }),
@@ -58,12 +58,12 @@ describe("apiClient", () => {
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
-    await apiClient.login({ pin: "0012", vaultName: "Karuna Rohilla" });
+    await apiClient.login({ pin: "0012", vaultName: "Vault Owner" });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.money-vault.test/api/login",
       expect.objectContaining({
-        body: JSON.stringify({ pin: "0012", vaultName: "Karuna Rohilla" })
+        body: JSON.stringify({ pin: "0012", vaultName: "Vault Owner" })
       })
     );
   });
@@ -78,7 +78,7 @@ describe("apiClient", () => {
           vault: {
             id: 7,
             is_admin: 1,
-            name: "Karuna",
+            name: "Vault Under Test",
             vault_type: "Individual"
           }
         }),
@@ -87,7 +87,7 @@ describe("apiClient", () => {
     );
 
     const { apiClient } = await import("@/services/api/client");
-    const response = await apiClient.login({ pin: "1234", vaultName: "Karuna" });
+    const response = await apiClient.login({ pin: "1234", vaultName: "Vault Under Test" });
 
     expect(response).toEqual({
       expiresAt: "2026-07-15T00:00:00Z",
@@ -95,7 +95,7 @@ describe("apiClient", () => {
       vault: {
         id: "7",
         isAdmin: true,
-        name: "Karuna",
+        name: "Vault Under Test",
         vaultType: "Individual"
       }
     });
@@ -109,7 +109,7 @@ describe("apiClient", () => {
           vault: {
             id: "1",
             isAdmin: true,
-            name: "Karuna",
+            name: "Vault Under Test",
             vaultType: "Individual"
           }
         }),
@@ -119,7 +119,7 @@ describe("apiClient", () => {
 
     const { apiClient } = await import("@/services/api/client");
 
-    await expect(apiClient.login({ pin: "1234", vaultName: "Karuna" })).rejects.toMatchObject({
+    await expect(apiClient.login({ pin: "1234", vaultName: "Vault Under Test" })).rejects.toMatchObject({
       code: "LOGIN_RESPONSE_INVALID",
       message: "The login response was incomplete."
     });
@@ -135,7 +135,7 @@ describe("apiClient", () => {
           vault: {
             id: "1",
             isAdmin: false,
-            name: "Karuna",
+            name: "Vault Under Test",
             vaultType: "Individual"
           }
         }),
@@ -166,12 +166,12 @@ describe("apiClient", () => {
 
     const { ApiClientError, apiClient } = await import("@/services/api/client");
 
-    await expect(apiClient.login({ pin: "0000", vaultName: "Karuna" })).rejects.toMatchObject({
+    await expect(apiClient.login({ pin: "0000", vaultName: "Vault Under Test" })).rejects.toMatchObject({
       code: "INVALID_PIN",
       message: "Incorrect PIN.",
       status: 401
     });
-    await expect(apiClient.login({ pin: "0000", vaultName: "Karuna" })).rejects.toBeInstanceOf(ApiClientError);
+    await expect(apiClient.login({ pin: "0000", vaultName: "Vault Under Test" })).rejects.toBeInstanceOf(ApiClientError);
   });
 
   it("loads accounts with bearer authorization", async () => {

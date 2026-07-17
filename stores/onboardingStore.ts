@@ -13,9 +13,7 @@ export type OnboardingStep =
   | "notifications"
   | "finish";
 
-export type OnboardingVaultType = "Personal Vault" | "Shared Vault";
 export type OnboardingAccountKind = "Salary Account" | "Savings Account" | "Credit Card" | "Cash" | "Other";
-const PERSONAL_VAULT: OnboardingVaultType = "Personal Vault";
 
 export interface OnboardingDraft {
   accountBank: string;
@@ -26,11 +24,9 @@ export interface OnboardingDraft {
   notificationsEnabled: boolean | null;
   openingBalance: string;
   vaultName: string;
-  vaultType: OnboardingVaultType | null;
 }
 
 interface VaultOnboardingState {
-  completed: boolean;
   draft: OnboardingDraft;
   step: OnboardingStep;
 }
@@ -38,7 +34,6 @@ interface VaultOnboardingState {
 interface OnboardingState {
   hasHydrated: boolean;
   vaults: Record<string, VaultOnboardingState>;
-  completeVault: (vaultId: string) => void;
   resetVault: (vaultId: string) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
   setStep: (vaultId: string, step: OnboardingStep) => void;
@@ -64,13 +59,11 @@ export const EMPTY_ONBOARDING_DRAFT: OnboardingDraft = {
   monthlySavingsGoal: "",
   notificationsEnabled: null,
   openingBalance: "",
-  vaultName: "",
-  vaultType: PERSONAL_VAULT
+  vaultName: ""
 };
 
 function emptyVaultState(): VaultOnboardingState {
   return {
-    completed: false,
     draft: EMPTY_ONBOARDING_DRAFT,
     step: "welcome"
   };
@@ -78,16 +71,7 @@ function emptyVaultState(): VaultOnboardingState {
 
 function stateFor(vaults: Record<string, VaultOnboardingState>, vaultId: string) {
   const current = vaults[vaultId] ?? emptyVaultState();
-  const step = String(current.step) === "vault-type" ? "vault-name" : current.step;
-
-  return {
-    ...current,
-    draft: {
-      ...current.draft,
-      vaultType: PERSONAL_VAULT
-    },
-    step
-  };
+  return current;
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
@@ -95,20 +79,6 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set) => ({
       hasHydrated: false,
       vaults: {},
-      completeVault: (vaultId) =>
-        set((state) => {
-          const current = stateFor(state.vaults, vaultId);
-          return {
-            vaults: {
-              ...state.vaults,
-              [vaultId]: {
-                ...current,
-                completed: true,
-                step: "finish"
-              }
-            }
-          };
-        }),
       resetVault: (vaultId) =>
         set((state) => ({
           vaults: {

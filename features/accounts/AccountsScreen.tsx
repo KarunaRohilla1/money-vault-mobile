@@ -129,7 +129,7 @@ export function AccountsScreen() {
             <TextInput
               className="h-12 rounded-md border border-surface-border bg-background px-4 font-sans text-base text-text"
               onChangeText={(name) => setForm((current) => ({ ...current, name }))}
-              placeholder="HDFC Bank"
+              placeholder="Account name"
               placeholderTextColor={theme.colors.text.muted}
               value={form.name}
             />

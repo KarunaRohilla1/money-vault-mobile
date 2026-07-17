@@ -18,7 +18,7 @@ const baseResponse: DashboardApiResponse = {
     expensesThisCycle: 500,
     primaryAccount: {
       balance: 900,
-      name: "HDFC Bank"
+      name: "Primary account"
     },
     recentActivity: [
       { amount: 1, categoryName: "A", date: "2026-07-01", id: 1, transactionType: "Expense" },
@@ -58,7 +58,7 @@ const baseResponse: DashboardApiResponse = {
   vault: {
     id: "1",
     isAdmin: true,
-    name: "Karuna",
+    name: "Vault Under Test",
     vaultType: "Individual"
   }
 };
@@ -75,7 +75,7 @@ describe("dashboard adapter", () => {
   it("maps primary account and safe-to-spend metrics", () => {
     const viewModel = adaptDashboardResponse(baseResponse);
 
-    expect(viewModel.primaryAccountName).toBe("HDFC Bank");
+    expect(viewModel.primaryAccountName).toBe("Primary account");
     expect(viewModel.primaryAccountBalance).toBe(900);
     expect(viewModel.safeToSpend).toBe(300);
   });

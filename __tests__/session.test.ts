@@ -8,7 +8,7 @@ import { clearBackendSession, loginWithVaultCredentials, restoreBackendSession }
 const vault = {
   id: "1",
   isAdmin: true,
-  name: "Karuna",
+  name: "Vault Under Test",
   vaultType: "Individual"
 };
 
@@ -24,7 +24,7 @@ describe("backend session", () => {
       vault
     });
 
-    const response = await loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+    const response = await loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
 
     expect(response.token).toBe("jwt-token");
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "jwt-token");
@@ -37,7 +37,7 @@ describe("backend session", () => {
       vault
     });
 
-    await loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+    await loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
 
     expect(queryClient.getQueryData(queryKeys.dashboard.current("old-vault"))).toBeUndefined();
   });
@@ -51,7 +51,7 @@ describe("backend session", () => {
       })
     );
 
-    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" })).rejects.toThrow("Invalid vault credentials.");
+    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" })).rejects.toThrow("Invalid vault credentials.");
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
@@ -64,7 +64,7 @@ describe("backend session", () => {
       })
     );
 
-    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" })).rejects.toThrow("The login response was incomplete.");
+    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" })).rejects.toThrow("The login response was incomplete.");
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
@@ -74,7 +74,7 @@ describe("backend session", () => {
       vault
     });
 
-    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" })).rejects.toMatchObject({
+    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" })).rejects.toMatchObject({
       code: "TOKEN_MISSING",
       stage: "TOKEN_VALIDATED"
     });
@@ -88,7 +88,7 @@ describe("backend session", () => {
     });
     jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("Secure Store unavailable"));
 
-    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
 
     await expect(promise).rejects.toMatchObject({
       code: "SECURE_STORE_WRITE_FAILED",
@@ -103,7 +103,7 @@ describe("backend session", () => {
     });
     jest.mocked(SecureStore.isAvailableAsync).mockResolvedValueOnce(false);
 
-    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Karuna" });
+    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
 
     await expect(promise).rejects.toMatchObject({
       code: "SECURE_STORE_UNAVAILABLE",

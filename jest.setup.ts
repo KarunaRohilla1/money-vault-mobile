@@ -17,3 +17,17 @@ jest.mock("expo-secure-store", () => ({
   isAvailableAsync: jest.fn(async () => true),
   setItemAsync: jest.fn(async () => undefined)
 }));
+
+jest.mock("@react-native-async-storage/async-storage", () => {
+  const storage = new Map<string, string>();
+
+  return {
+    getItem: jest.fn(async (key: string) => storage.get(key) ?? null),
+    removeItem: jest.fn(async (key: string) => {
+      storage.delete(key);
+    }),
+    setItem: jest.fn(async (key: string, value: string) => {
+      storage.set(key, value);
+    })
+  };
+});

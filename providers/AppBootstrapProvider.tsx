@@ -8,14 +8,12 @@ import { useSettingsStore } from "@/stores/settingsStore";
 
 function getAccessState({
   authStatus,
-  onboardingComplete,
   onboardingHydrated,
   setupCheckComplete,
   setupComplete,
   settingsHydrated
 }: {
   authStatus: ReturnType<typeof useAuthStore.getState>["status"];
-  onboardingComplete: boolean;
   onboardingHydrated: boolean;
   setupCheckComplete: boolean;
   setupComplete: boolean;
@@ -29,7 +27,7 @@ function getAccessState({
     return "signed-out";
   }
 
-  if (!setupComplete && !onboardingComplete) {
+  if (!setupComplete) {
     return "onboarding";
   }
 
@@ -41,8 +39,6 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const onboardingHydrated = useOnboardingStore((state) => state.hasHydrated);
-  const onboardingComplete = useOnboardingStore((state) => (vaultId ? state.vaults[vaultId]?.completed ?? false : false));
-  const completeVault = useOnboardingStore((state) => state.completeVault);
   const settingsHydrated = useSettingsStore((state) => state.hasHydrated);
   const setAccessState = useAccessStore((state) => state.setAccessState);
   const [setupStatus, setSetupStatus] = useState<{
@@ -65,10 +61,10 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
       });
     };
 
-    if (authStatus !== "authenticated" || !token || !vaultId || onboardingComplete) {
+    if (authStatus !== "authenticated" || !token || !vaultId) {
       scheduleSetupStatus({
         checkedVaultId: vaultId,
-        complete: onboardingComplete,
+        complete: false,
         done: true
       });
       return;
@@ -84,10 +80,6 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
       .then((status) => {
         if (!mounted) {
           return;
-        }
-
-        if (status.isComplete) {
-          completeVault(vaultId);
         }
 
         setSetupStatus({
@@ -111,20 +103,19 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
     return () => {
       mounted = false;
     };
-  }, [authStatus, completeVault, onboardingComplete, token, vaultId]);
+  }, [authStatus, token, vaultId]);
 
   useEffect(() => {
     setAccessState(
       getAccessState({
         authStatus,
-        onboardingComplete,
         onboardingHydrated,
         setupCheckComplete: setupStatus.done && setupStatus.checkedVaultId === vaultId,
         setupComplete: setupStatus.complete,
         settingsHydrated
       })
     );
-  }, [authStatus, onboardingComplete, onboardingHydrated, setAccessState, settingsHydrated, setupStatus, vaultId]);
+  }, [authStatus, onboardingHydrated, setAccessState, settingsHydrated, setupStatus, vaultId]);
 
   return <>{children}</>;
 }
