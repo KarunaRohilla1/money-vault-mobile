@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 
 interface FormFieldProps extends PropsWithChildren {
   label: string;
-  error?: string;
+  error?: string | undefined;
 }
 
 export function FormField({ label, error, children }: FormFieldProps) {

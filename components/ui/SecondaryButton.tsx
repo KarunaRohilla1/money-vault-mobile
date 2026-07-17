@@ -11,7 +11,7 @@ interface SecondaryButtonProps extends PropsWithChildren {
   disabled?: boolean;
   icon?: IconName;
   accessibilityLabel?: string;
-  className?: string;
+  className?: string | undefined;
 }
 
 export function SecondaryButton({
