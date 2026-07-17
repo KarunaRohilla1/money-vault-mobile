@@ -13,7 +13,6 @@ import {
   OnboardingApiNotImplementedError,
   saveFirstAccount,
   saveMonthlySavingsGoal,
-  saveNotificationPreference,
   saveVaultName
 } from "@/services/api/onboarding";
 import { useAuthStore } from "@/stores/authStore";
@@ -73,9 +72,6 @@ async function persistStep(token: string, vaultId: string, step: OnboardingStep,
     case "savings-goal":
       await saveMonthlySavingsGoal(token, vaultId, values.monthlySavingsGoal.trim());
       return;
-    case "notifications":
-      await saveNotificationPreference(token, vaultId, values.notificationsEnabled === true);
-      return;
     case "first-account":
     case "finish":
       return;
@@ -125,8 +121,6 @@ export function useOnboardingFlow() {
         return "Financial cycle";
       case "savings-goal":
         return "Savings goal";
-      case "notifications":
-        return "Notifications";
       case "finish":
         return "Ready";
     }

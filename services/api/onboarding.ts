@@ -97,10 +97,6 @@ export async function saveMonthlySavingsGoal(token: string, _vaultId: string, mo
   });
 }
 
-export async function saveNotificationPreference(_token: string, _vaultId: string, _enabled: boolean): Promise<void> {
-  return Promise.resolve();
-}
-
 export async function markOnboardingComplete(_token: string, _vaultId: string): Promise<void> {
   return Promise.resolve();
 }

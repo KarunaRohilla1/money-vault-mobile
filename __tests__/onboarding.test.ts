@@ -32,7 +32,6 @@ describe("onboarding foundation", () => {
       "account-details",
       "financial-cycle",
       "savings-goal",
-      "notifications",
       "finish"
     ]);
     expect(ONBOARDING_STEPS).not.toContain("vault-type");

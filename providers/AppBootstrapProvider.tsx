@@ -46,10 +46,12 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
     checkedVaultId: string | null;
     complete: boolean;
     done: boolean;
+    source: "backend" | "local";
   }>({
     checkedVaultId: null,
     complete: false,
-    done: false
+    done: false,
+    source: "local"
   });
 
   useEffect(() => {
@@ -66,7 +68,8 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
       scheduleSetupStatus({
         checkedVaultId: vaultId,
         complete: false,
-        done: true
+        done: true,
+        source: "local"
       });
       return;
     }
@@ -74,7 +77,8 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
     scheduleSetupStatus({
       checkedVaultId: vaultId,
       complete: false,
-      done: false
+      done: false,
+      source: "backend"
     });
 
     getVaultSetupStatus(token)
@@ -86,7 +90,8 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
         setSetupStatus({
           checkedVaultId: vaultId,
           complete: status.isComplete,
-          done: true
+          done: true,
+          source: "backend"
         });
       })
       .catch(() => {
@@ -96,15 +101,16 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
 
         setSetupStatus({
           checkedVaultId: vaultId,
-          complete: false,
-          done: true
+          complete: localOnboardingComplete,
+          done: true,
+          source: "local"
         });
       });
 
     return () => {
       mounted = false;
     };
-  }, [authStatus, token, vaultId]);
+  }, [authStatus, localOnboardingComplete, token, vaultId]);
 
   useEffect(() => {
     setAccessState(
@@ -112,7 +118,7 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
         authStatus,
         onboardingHydrated,
         setupCheckComplete: setupStatus.done && setupStatus.checkedVaultId === vaultId,
-        setupComplete: setupStatus.complete || localOnboardingComplete,
+        setupComplete: setupStatus.source === "backend" ? setupStatus.complete : localOnboardingComplete,
         settingsHydrated
       })
     );

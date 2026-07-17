@@ -38,7 +38,6 @@ export function validationMessage(step: OnboardingStep, values: OnboardingDraft)
     case "savings-goal":
       return savingsSchema.safeParse(values).error?.issues[0]?.message ?? null;
     case "welcome":
-    case "notifications":
     case "finish":
       return null;
   }

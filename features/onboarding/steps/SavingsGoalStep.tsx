@@ -29,7 +29,7 @@ export function SavingsGoalStep({ control, goToNext, patchField, saving }: Onboa
         />
       </FormField>
       <InfoPanel icon="bullseye-arrow" title="Aim high, you've got this." body="You can update your goal anytime from Settings." />
-      <SecondaryButton disabled={saving} onPress={() => goToNext("notifications")}>
+      <SecondaryButton disabled={saving} onPress={() => goToNext("finish")}>
         Skip
       </SecondaryButton>
     </View>

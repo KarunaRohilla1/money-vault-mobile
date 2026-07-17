@@ -10,7 +10,6 @@ export type OnboardingStep =
   | "account-details"
   | "financial-cycle"
   | "savings-goal"
-  | "notifications"
   | "finish";
 
 export type OnboardingAccountKind = "Salary Account" | "Savings Account" | "Credit Card" | "Cash" | "Other";
@@ -21,7 +20,6 @@ export interface OnboardingDraft {
   accountName: string;
   cycleStartDay: number | null;
   monthlySavingsGoal: string;
-  notificationsEnabled: boolean | null;
   openingBalance: string;
   vaultName: string;
 }
@@ -49,7 +47,6 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   "account-details",
   "financial-cycle",
   "savings-goal",
-  "notifications",
   "finish"
 ];
 
@@ -59,7 +56,6 @@ export const EMPTY_ONBOARDING_DRAFT: OnboardingDraft = {
   accountName: "",
   cycleStartDay: null,
   monthlySavingsGoal: "",
-  notificationsEnabled: null,
   openingBalance: "",
   vaultName: ""
 };

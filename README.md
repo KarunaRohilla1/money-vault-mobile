@@ -71,7 +71,6 @@ The current mobile onboarding flow is local-draft first and backend-compatible:
 - Account details
 - Financial cycle
 - Optional savings goal
-- Notifications
 - Finish
 
 Intermediate onboarding steps save locally and advance without showing backend placeholder errors. Personal Vault provisioning still requires an authenticated Personal/Individual vault from login; Shared Vault setup is blocked from the first-run flow.
