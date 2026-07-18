@@ -1,8 +1,7 @@
 import { queryClient } from "@/lib/queryClient";
-import { queryKeys } from "@/lib/queryKeys";
 import { ApiClientError, apiClient } from "@/services/api/client";
 import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken, TokenStorageError } from "@/services/api/tokenStorage";
-import type { LoginRequest, LoginResponse } from "@/services/api/types";
+import type { LoginRequest, LoginResponse, SharedVaultActivationRequest } from "@/services/api/types";
 import type { BackendSession } from "@/types/domain";
 
 export type LoginFlowStage =
@@ -55,13 +54,13 @@ export async function loginWithVaultCredentials(credentials: LoginRequest): Prom
     });
   }
 
-  queryClient.removeQueries({ queryKey: queryKeys.dashboard.root });
+  queryClient.clear();
   return response;
 }
 
 export async function clearBackendSession(): Promise<void> {
   await clearStoredAuthToken();
-  queryClient.removeQueries({ queryKey: queryKeys.dashboard.root });
+  queryClient.clear();
 }
 
 export async function restoreBackendSession(): Promise<BackendSession | null> {
@@ -72,10 +71,12 @@ export async function restoreBackendSession(): Promise<BackendSession | null> {
   }
 
   try {
-    const dashboard = await apiClient.getDashboard(token);
+    const session = await apiClient.getSession(token);
     return {
+      accessibleVaults: session.accessibleVaults,
+      authenticatedVault: session.authenticatedVault,
       token,
-      vault: dashboard.vault
+      vault: session.vault
     };
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 401) {
@@ -85,4 +86,29 @@ export async function restoreBackendSession(): Promise<BackendSession | null> {
 
     throw error;
   }
+}
+
+async function storeReplacementSession(response: LoginResponse): Promise<LoginResponse> {
+  try {
+    await setStoredAuthToken(response.token);
+  } catch (error) {
+    throw new LoginFlowError("Unable to save the login session.", {
+      cause: error,
+      code: error instanceof TokenStorageError ? error.code : "SECURE_STORE_WRITE_FAILED",
+      stage: "SECURE_STORE_WRITE_STARTED"
+    });
+  }
+
+  queryClient.clear();
+  return response;
+}
+
+export async function activateSharedVaultSession(token: string, body: SharedVaultActivationRequest): Promise<LoginResponse> {
+  const response = await apiClient.activateSharedVault(token, body);
+  return storeReplacementSession(response);
+}
+
+export async function activatePersonalVaultSession(token: string): Promise<LoginResponse> {
+  const response = await apiClient.activatePersonalVault(token);
+  return storeReplacementSession(response);
 }

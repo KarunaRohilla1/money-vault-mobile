@@ -13,6 +13,9 @@ export interface VaultSummary {
 }
 
 export interface AuthenticatedVault {
+  authenticatedVaultId?: string;
+  authenticatedVaultName?: string;
+  authenticatedVaultType?: string;
   id: VaultId;
   isAdmin: boolean;
   name: string;
@@ -20,6 +23,8 @@ export interface AuthenticatedVault {
 }
 
 export interface BackendSession {
+  accessibleVaults: AuthenticatedVault[];
+  authenticatedVault: AuthenticatedVault | null;
   token: string;
   vault: AuthenticatedVault | null;
 }

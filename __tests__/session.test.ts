@@ -3,13 +3,25 @@ import * as SecureStore from "expo-secure-store";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { apiClient, ApiClientError } from "@/services/api/client";
-import { clearBackendSession, loginWithVaultCredentials, restoreBackendSession } from "@/services/api/session";
+import {
+  activatePersonalVaultSession,
+  activateSharedVaultSession,
+  clearBackendSession,
+  loginWithVaultCredentials,
+  restoreBackendSession
+} from "@/services/api/session";
 
 const vault = {
   id: "1",
   isAdmin: true,
   name: "Vault Under Test",
   vaultType: "Individual"
+};
+const sharedVault = {
+  id: "2",
+  isAdmin: false,
+  name: "Shared Vault",
+  vaultType: "Shared"
 };
 
 describe("backend session", () => {
@@ -112,65 +124,26 @@ describe("backend session", () => {
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
-  it("restores a valid token by validating against dashboard", async () => {
+  it("restores a valid token by validating against the backend session endpoint", async () => {
     jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
-    jest.spyOn(apiClient, "getDashboard").mockResolvedValueOnce({
-      data: {
-        creditCardDue: 0,
-        cycle: {
-          daysCompleted: 1,
-          daysRemaining: 1,
-          displayName: "Cycle",
-          endDate: "2026-07-31",
-          id: 1,
-          progressPercent: 50,
-          startDate: "2026-07-01",
-          status: "active",
-          totalDays: 2
-        },
-        expensesThisCycle: 0,
-        primaryAccount: { balance: 0, name: "Account" },
-        recentActivity: [],
-        remainingCommitments: 0,
-        safeToSpend: 0,
-        setup: {
-          accounts: 1,
-          commitments: 0,
-          hasAccounts: true,
-          hasCommitments: false,
-          hasCycleSetting: true,
-          hasIncomeTemplates: false,
-          hasSavingsGoal: true,
-          hasVaultLogin: true,
-          incomeTemplates: 0,
-          isComplete: true
-        },
-        settlement: {
-          amount: 0,
-          direction: "settled",
-          items: [],
-          label: "Settled",
-          net: 0,
-          payable: 0,
-          receivable: 0
-        },
-        spendingByCategory: [],
-        summary: {}
-      },
-      generatedAt: "2026-07-14T00:00:00Z",
-      vault
+    jest.spyOn(apiClient, "getSession").mockResolvedValueOnce({
+      accessibleVaults: [vault, sharedVault],
+      authenticatedVault: vault,
+      vault: sharedVault
     });
 
     await expect(restoreBackendSession()).resolves.toEqual({
+      accessibleVaults: [vault, sharedVault],
+      authenticatedVault: vault,
       token: "jwt-token",
-      vault
+      vault: sharedVault
     });
   });
 
   it("clears a stored token when dashboard validation returns 401", async () => {
     queryClient.setQueryData(queryKeys.dashboard.current("1"), { stale: true });
     jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
-    jest.spyOn(apiClient, "getDashboard").mockRejectedValueOnce(
+    jest.spyOn(apiClient, "getSession").mockRejectedValueOnce(
       new ApiClientError("Invalid authentication token.", {
         isNetworkError: false,
         status: 401
@@ -184,7 +157,7 @@ describe("backend session", () => {
 
   it("preserves a stored token when restore fails due to network error", async () => {
     jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
-    jest.spyOn(apiClient, "getDashboard").mockRejectedValueOnce(
+    jest.spyOn(apiClient, "getSession").mockRejectedValueOnce(
       new ApiClientError("Network unavailable.", {
         isNetworkError: true,
         status: null
@@ -197,7 +170,7 @@ describe("backend session", () => {
 
   it("preserves a stored token when restore fails with a 5xx response", async () => {
     jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
-    jest.spyOn(apiClient, "getDashboard").mockRejectedValueOnce(
+    jest.spyOn(apiClient, "getSession").mockRejectedValueOnce(
       new ApiClientError("Server unavailable.", {
         isNetworkError: false,
         status: 503
@@ -215,5 +188,39 @@ describe("backend session", () => {
 
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token");
     expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
+  });
+
+  it("stores replacement token and clears stale cache when activating a shared vault", async () => {
+    queryClient.setQueryData(queryKeys.dashboard.current("1"), { stale: true });
+    jest.spyOn(apiClient, "activateSharedVault").mockResolvedValueOnce({
+      authenticatedVault: vault,
+      token: "shared-jwt-token",
+      vault: sharedVault
+    });
+
+    await expect(activateSharedVaultSession("personal-jwt-token", { pin: "0123", sharedVaultId: 2 })).resolves.toMatchObject({
+      token: "shared-jwt-token",
+      vault: sharedVault,
+      authenticatedVault: vault
+    });
+
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "shared-jwt-token");
+    expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
+  });
+
+  it("stores replacement token when returning to the personal vault without a PIN", async () => {
+    jest.spyOn(apiClient, "activatePersonalVault").mockResolvedValueOnce({
+      authenticatedVault: vault,
+      token: "personal-jwt-token",
+      vault
+    });
+
+    await expect(activatePersonalVaultSession("shared-jwt-token")).resolves.toMatchObject({
+      token: "personal-jwt-token",
+      vault,
+      authenticatedVault: vault
+    });
+
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "personal-jwt-token");
   });
 });

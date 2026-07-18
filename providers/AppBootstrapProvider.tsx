@@ -38,6 +38,7 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
   const authStatus = useAuthStore((state) => state.status);
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const vaultType = useAuthStore((state) => state.vault?.vaultType ?? null);
   const onboardingHydrated = useOnboardingStore((state) => state.hasHydrated);
   const localOnboardingComplete = useOnboardingStore((state) => (vaultId ? state.vaults[vaultId]?.completed === true : false));
   const settingsHydrated = useSettingsStore((state) => state.hasHydrated);
@@ -70,6 +71,16 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
         complete: false,
         done: true,
         source: "local"
+      });
+      return;
+    }
+
+    if (vaultType === "Shared") {
+      scheduleSetupStatus({
+        checkedVaultId: vaultId,
+        complete: true,
+        done: true,
+        source: "backend"
       });
       return;
     }
@@ -110,7 +121,7 @@ export function AppBootstrapProvider({ children }: PropsWithChildren) {
     return () => {
       mounted = false;
     };
-  }, [authStatus, localOnboardingComplete, token, vaultId]);
+  }, [authStatus, localOnboardingComplete, token, vaultId, vaultType]);
 
   useEffect(() => {
     setAccessState(

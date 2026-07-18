@@ -4,6 +4,8 @@ import { StyleSheet, type ColorValue, View } from "react-native";
 
 import { FAB } from "@/components/ui";
 import { tabs, type TabName } from "@/constants/navigation";
+import { personalTabsHiddenForVault } from "@/lib/vaultNavigation";
+import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
 const tabBarStyles = StyleSheet.create({
@@ -29,8 +31,9 @@ const tabBarStyles = StyleSheet.create({
 
 const newTransactionRoute = "/transaction/new" as Href;
 
-function tabOptions(name: TabName) {
+function tabOptions(name: TabName, hidden = false) {
   return {
+    ...(hidden ? { href: null } : {}),
     title: tabs[name].label,
     tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => (
       <MaterialCommunityIcons name={tabs[name].icon} color={String(color)} size={size} />
@@ -40,6 +43,8 @@ function tabOptions(name: TabName) {
 
 export default function TabLayout() {
   const router = useRouter();
+  const activeVault = useAuthStore((state) => state.vault);
+  const hidePersonalTabs = personalTabsHiddenForVault(activeVault);
 
   return (
     <View className="flex-1 bg-background">
@@ -56,7 +61,7 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen name="index" options={tabOptions("index")} />
-        <Tabs.Screen name="accounts" options={tabOptions("accounts")} />
+        <Tabs.Screen name="accounts" options={tabOptions("accounts", hidePersonalTabs)} />
         <Tabs.Screen
           name="add"
           options={{
@@ -64,12 +69,14 @@ export default function TabLayout() {
             title: ""
           }}
         />
-        <Tabs.Screen name="planning" options={tabOptions("planning")} />
+        <Tabs.Screen name="planning" options={tabOptions("planning", hidePersonalTabs)} />
         <Tabs.Screen name="more" options={tabOptions("more")} />
       </Tabs>
-      <View pointerEvents="box-none" style={tabBarStyles.fab}>
-        <FAB accessibilityLabel="Add transaction" onPress={() => router.push(newTransactionRoute)} />
-      </View>
+      {hidePersonalTabs ? null : (
+        <View pointerEvents="box-none" style={tabBarStyles.fab}>
+          <FAB accessibilityLabel="Add transaction" onPress={() => router.push(newTransactionRoute)} />
+        </View>
+      )}
     </View>
   );
 }

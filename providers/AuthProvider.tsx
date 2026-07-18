@@ -26,7 +26,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        setAuthenticated(session.token, session.vault);
+        setAuthenticated(session.token, session.vault, session.authenticatedVault);
       })
       .catch((error: unknown) => {
         if (!mounted) {

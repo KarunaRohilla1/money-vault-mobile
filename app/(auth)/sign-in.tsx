@@ -88,7 +88,7 @@ export default function SignInRoute() {
     },
     onSuccess: async (response) => {
       try {
-        setAuthenticated(response.token, response.vault);
+        setAuthenticated(response.token, response.vault, response.authenticatedVault ?? response.vault);
       } catch (error) {
         const safeError = getSafeLoginError(
           new LoginFlowError("Unable to update authentication state.", {
@@ -113,7 +113,7 @@ export default function SignInRoute() {
     },
     onSuccess: (session) => {
       if (session) {
-        setAuthenticated(session.token, session.vault);
+        setAuthenticated(session.token, session.vault, session.authenticatedVault);
       }
     }
   });
