@@ -26,6 +26,10 @@ describe("queryKeys", () => {
     expect(queryKeys.transactions.detail("vault_1", 12)).not.toEqual(queryKeys.transactions.detail("vault_2", 12));
     expect(queryKeys.transactions.list("vault_1", "filters")).not.toEqual(queryKeys.transactions.list("vault_2", "filters"));
     expect(queryKeys.transfers.byVault("vault_1")).not.toEqual(queryKeys.transfers.byVault("vault_2"));
+    expect(queryKeys.transfers.lists("vault_1")).not.toEqual(queryKeys.transfers.lists("vault_2"));
+    expect(queryKeys.transfers.list("vault_1", "filters")).not.toEqual(queryKeys.transfers.list("vault_2", "filters"));
+    expect(queryKeys.transfers.list("vault_1", "filters-a")).not.toEqual(queryKeys.transfers.list("vault_1", "filters-b"));
+    expect(queryKeys.transfers.detail("vault_1", "group-a")).not.toEqual(queryKeys.transfers.detail("vault_2", "group-a"));
     expect(queryKeys.wishlist.current("vault_1")).not.toEqual(queryKeys.wishlist.current("vault_2"));
   });
 });

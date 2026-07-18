@@ -18,6 +18,7 @@ Legacy entry point: `app.py`.
 - Shared vaults expose Settings through a separate sidebar button.
 - Switching from a personal vault to a shared vault requires selecting a connected shared vault and entering that shared vault PIN.
 - Switching back from a shared vault returns to the original personal vault without re-entering the personal PIN.
+- Shared-vault feature screens are deferred in the mobile parity plan until Individual vault workflows are complete. Shared activation and visibility may exist, but Shared Dashboard, Shared Expenses, and Bills are not considered accepted.
 
 ## Authentication
 
@@ -46,13 +47,20 @@ Schema source: `supabase/schema.sql`.
 
 Sources: `views.accounts`, `db.accounts`.
 
-- Account types are defined by legacy constants and UI choices, including Salary Account, Savings Account, Credit Card, Cash, and Other.
+- Account types are defined by legacy constants: Salary Account, Savings Account, Credit Card, Cash, and Other.
+- Account name is required.
+- Opening balance is required.
+- Legacy Streamlit does not explicitly reject a zero opening balance. Money Vault Mobile now rejects zero opening balances as an approved product deviation for onboarding, account creation, and account editing.
+- Opening balance cannot be negative unless the account type is Credit Card.
+- Editing a legacy account that already has zero opening balance is still allowed to view, but saving the account through the mobile/API form requires changing opening balance to a non-zero value.
+- Duplicate active account names are rejected case-insensitively within the same vault.
 - The first active account in a vault becomes primary automatically.
 - Setting an account primary clears primary from other active accounts in that vault.
 - Active account ordering is primary first, then type, then name.
 - Account balance is opening balance plus Income and Transfer In, minus Expense and Transfer Out.
 - Credit-card due is the absolute value of negative balances on Credit Card accounts.
-- Deleting an account archives it (`is_active = 0`) and removes primary status; if the archived account was primary, another active account is promoted.
+- Deleting an account archives it (`is_active = 0`) and removes primary status; if the archived account was primary, the legacy backend promotes the active account with the smallest id.
+- Legacy warns before archiving an account with transaction history: "This account has financial history. It will be marked inactive and kept in reports and existing transactions." It still archives rather than physically deleting the row.
 
 ## Transaction Rules
 
@@ -79,9 +87,24 @@ Sources: `views.transfers`, `db.transfers`, `api.transfers`.
   - Transfer Out from the source account.
   - Transfer In to the destination account.
 - Both rows share the same generated `transfer_group_id`.
+- The legacy helper generates the group id with `uuid.uuid4()`.
+- Required fields are source account, destination account, transfer date, and amount.
+- Notes are optional, trimmed by the Streamlit form, and duplicated onto both paired rows.
+- The transfer date is stored as an ISO date string.
+- Amount must be greater than zero; zero, blank, and negative amounts are rejected.
+- Source and destination accounts must be different.
+- The legacy create form selects from active accounts returned by `get_accounts(vault_id)`.
+- Editing is allowed only when both selected account ids still appear in the active account list; transfers using archived or missing accounts cannot be edited in the legacy UI.
+- The list endpoint returns one logical row per transfer group by joining the Transfer Out row to the Transfer In row.
+- Transfer list ordering is newest transfer date first, then newest source transaction id.
+- Optional list filters are date range and account; the account filter matches either source or destination account.
+- Mobile transfer filtering uses the backend-supported date range and account-involved filters.
+- The main mobile Transfers page shows a recent subset of five logical transfers; View All expands the same screen to the full filtered history.
 - Editing a transfer updates both paired rows.
 - Deleting a transfer deletes both paired rows.
-- Source and destination accounts must be different.
+- If one pair row is missing, legacy `get_transfer_by_group`/`get_transfers` does not return a logical transfer because the join fails.
+- Credit Card payments are ordinary transfers into a Credit Card account: bank/cash source is Transfer Out, Credit Card destination is Transfer In.
+- Transfers clear cached transfer, transaction, account, dashboard, and report data after create/update/delete.
 
 ## Dashboard Rules
 
@@ -179,4 +202,3 @@ Sources: `views.settings`, `db.vaults`, `api.settings`.
 - The active database contains real financial data.
 - Destructive tests and mutation parity tests require fixtures or a copied test database.
 - Do not run broad migrations, table resets, or destructive cleanup against the real database.
-

@@ -1,3 +1,5 @@
+import { queryClient } from "@/lib/queryClient";
+
 jest.setTimeout(10000);
 
 process.env.EXPO_PUBLIC_API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.money-vault.test";
@@ -30,4 +32,12 @@ jest.mock("@react-native-async-storage/async-storage", () => {
       storage.set(key, value);
     })
   };
+});
+
+afterEach(() => {
+  queryClient.clear();
+});
+
+afterAll(() => {
+  queryClient.clear();
 });

@@ -41,6 +41,10 @@ export const queryKeys = {
   },
   transfers: {
     byVault: (vaultId: string | null) => ["transfers", "byVault", vaultId ?? "anonymous"] as const,
+    detail: (vaultId: string | null, transferGroupId: string) =>
+      ["transfers", "detail", vaultId ?? "anonymous", transferGroupId] as const,
+    list: (vaultId: string | null, filtersKey = "default") => ["transfers", "list", vaultId ?? "anonymous", filtersKey] as const,
+    lists: (vaultId: string | null) => ["transfers", "list", vaultId ?? "anonymous"] as const,
     root: ["transfers"] as const
   },
   vaults: {

@@ -26,3 +26,9 @@ export interface TransferPayloadApi {
   notes?: string;
   toAccountId: number;
 }
+
+export interface TransferFiltersApi {
+  accountId?: number | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+}
