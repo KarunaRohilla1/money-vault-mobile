@@ -3,6 +3,7 @@ node_modules/
 .expo/
 dist/
 web-build/
+android/
 docs/
 .env
 .env.local
