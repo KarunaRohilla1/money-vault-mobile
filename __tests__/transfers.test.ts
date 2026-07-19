@@ -94,4 +94,21 @@ describe("transfer model", () => {
     expect(queryClient.getQueryData<TransferApi[]>(queryKeys.transfers.list("vault-a", filtersKey({ accountId: 1 })))?.map((transfer) => transfer.transferGroupId)).toEqual(["keep"]);
     expect(queryClient.getQueryData<TransferApi[]>(queryKeys.transfers.list("vault-b"))?.map((transfer) => transfer.transferGroupId)).toEqual(["keep", "delete"]);
   });
+
+  it("leaves undefined, non-array, detail, and other vault transfer cache data untouched", () => {
+    const detail = { amount: 200, date: "2026-07-11", fromAccountId: 2, toAccountId: 1, transferGroupId: "delete" };
+
+    queryClient.setQueryData(queryKeys.transfers.list("vault-a", "wrapped"), { items: [detail] });
+    queryClient.setQueryData(queryKeys.transfers.detail("vault-a", "delete"), detail);
+    queryClient.setQueryData(queryKeys.transfers.list("vault-b"), [
+      { amount: 200, date: "2026-07-11", fromAccountId: 2, fromAccountName: "B", toAccountId: 1, toAccountName: "A", transferGroupId: "delete" }
+    ]);
+
+    removeTransferFromCachedLists("vault-a", "delete");
+
+    expect(queryClient.getQueryData(queryKeys.transfers.list("vault-a", "missing"))).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.transfers.list("vault-a", "wrapped"))).toEqual({ items: [detail] });
+    expect(queryClient.getQueryData(queryKeys.transfers.detail("vault-a", "delete"))).toEqual(detail);
+    expect(queryClient.getQueryData<TransferApi[]>(queryKeys.transfers.list("vault-b"))).toHaveLength(1);
+  });
 });

@@ -2,6 +2,7 @@ import { type PropsWithChildren, useEffect } from "react";
 
 import { ApiClientError } from "@/services/api/client";
 import { clearBackendSession, restoreBackendSession } from "@/services/api/session";
+import { registerUnauthorizedHandler } from "@/services/api/unauthorized";
 import { useAuthStore } from "@/stores/authStore";
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -9,6 +10,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const setBooting = useAuthStore((state) => state.setBooting);
   const setSignedOut = useAuthStore((state) => state.setSignedOut);
+
+  useEffect(() => {
+    return registerUnauthorizedHandler(async () => {
+      await clearBackendSession();
+      setSignedOut();
+    });
+  }, [setSignedOut]);
 
   useEffect(() => {
     let mounted = true;

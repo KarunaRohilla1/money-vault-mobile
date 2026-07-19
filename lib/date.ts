@@ -19,3 +19,21 @@ export function isValidIsoDate(value: string): boolean {
 
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
+
+export function formatIsoDateOnly(
+  value: string,
+  locale: string,
+  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }
+): string {
+  if (!isValidIsoDate(value)) {
+    return value;
+  }
+
+  const [yearText, monthText, dayText] = value.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(year, month - 1, day);
+
+  return new Intl.DateTimeFormat(locale, options).format(date);
+}

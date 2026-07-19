@@ -100,6 +100,7 @@ Sources: `views.transfers`, `db.transfers`, `api.transfers`.
 - Optional list filters are date range and account; the account filter matches either source or destination account.
 - Mobile transfer filtering uses the backend-supported date range and account-involved filters.
 - Transfer dates are date-only ISO values (`YYYY-MM-DD`). Mobile defaults must use the local calendar day, not UTC slicing, and both mobile and API validation must reject impossible calendar dates.
+- Date-only display must split `YYYY-MM-DD` and construct a local calendar date before formatting. Mobile must not render date-only values through `new Date("YYYY-MM-DD")`, because that can shift the displayed day in negative UTC offsets.
 - The main mobile Transfers page shows a recent subset of five logical transfers; View All expands the same screen to the full filtered history.
 - Editing a transfer updates both paired rows.
 - Deleting a transfer deletes both paired rows.
@@ -109,6 +110,7 @@ Sources: `views.transfers`, `db.transfers`, `api.transfers`.
 - Legacy displays source/destination balances as "Available Balance" but does not enforce an overdraft limit in `views.transfers.validate_transfer` or `db.transfers.add_transfer/update_transfer`. The current mobile label treats this as informational ("Current balance"). Backend balance-limit enforcement remains not present in legacy and is not introduced here.
 - Transfer create/update/delete operations are backend-owned paired mutations. Source and destination account ownership is checked by the API before mutation, and the database helper commits after both pair rows are written/updated/deleted.
 - Editing a transfer replaces both paired rows for the same `transfer_group_id`; no mobile-side balance calculation is authoritative.
+- Transfer create/update/delete must be atomic. The backend must commit only after all paired row work succeeds, explicitly roll back on exceptions, and reject corrupted transfer groups that do not contain exactly one Transfer Out and one Transfer In row.
 
 ## Dashboard Rules
 
@@ -139,6 +141,13 @@ max(
 - Recent activity amount direction is backend-owned. Income and Transfer In are credits, Expense and Transfer Out are debits, and unrecognized transaction types are neutral unless legacy defines a specific rule.
 - Dashboard and mobile money display preserve up to two decimal places. Whole values can render without `.00`; fractional values such as `100.50` must not be rounded to `100` or `101`.
 - Dashboard category chart keys should use stable backend category identifiers when available. Full backend propagation of real category IDs remains pending because the legacy category-spending helper currently returns display tuples used by Streamlit.
+- Dashboard category spending API rows include a stable backend-owned `key` for rendering. Normal categories use `category:<id>`, uncategorized uses `uncategorized`, and legacy aggregate rows use deterministic legacy keys.
+
+## Session Handling
+
+- A confirmed HTTP 401 from authenticated resource requests clears the backend JWT/session through centralized mobile API handling.
+- Login and shared-vault PIN failures can also return 401, but they are credential errors and must not clear an existing authenticated session.
+- Network errors, timeouts, malformed responses, and 5xx responses must preserve the stored token.
 
 ## Planning Rules
 

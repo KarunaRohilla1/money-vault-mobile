@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { handleConfirmedUnauthorized } from "@/services/api/unauthorized";
 import type { JsonValue } from "@/types/domain";
 
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -9,6 +10,7 @@ interface RequestOptions<TBody extends object | undefined = undefined> {
   body?: TBody;
   method?: HttpMethod;
   path: string;
+  clearSessionOnUnauthorized?: boolean;
   token?: string | null;
   timeoutMs?: number;
 }
@@ -160,6 +162,7 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
 
 export async function request<TResponse, TBody extends object | undefined = undefined>({
   body,
+  clearSessionOnUnauthorized = true,
   method = "GET",
   path,
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -196,6 +199,10 @@ export async function request<TResponse, TBody extends object | undefined = unde
 
     if (!response.ok) {
       const errorBody = readErrorBody(parsedBody);
+
+      if (response.status === 401 && token && clearSessionOnUnauthorized) {
+        await handleConfirmedUnauthorized();
+      }
 
       throw new ApiClientError(errorBody.message ?? "The server rejected the request.", {
         code: errorBody.code,

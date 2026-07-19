@@ -22,6 +22,7 @@ import {
   type TransferFormValues
 } from "@/features/transfers/transferModel";
 import { formatCurrency } from "@/lib/format";
+import { formatIsoDateOnly } from "@/lib/date";
 import { toAppError } from "@/lib/errors";
 import type { AccountApi, TransferApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -42,13 +43,7 @@ const EMPTY_DRAFT: TransferDraft = {
 };
 
 function formatDate(value: string, locale: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date);
+  return formatIsoDateOnly(value, locale);
 }
 
 function accountIcon(account: Pick<AccountApi, "type">) {

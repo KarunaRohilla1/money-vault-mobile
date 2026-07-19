@@ -31,6 +31,8 @@ Automated resilience coverage:
 
 - Temporary backend-unavailable restore preserves the saved session and shows retry.
 - Invalid or expired saved session returns to sign-in.
+- Confirmed 401 responses from authenticated Dashboard, Accounts, and Transfers requests clear the session through centralized handling.
+- Invalid login credentials and wrong Shared-vault PIN remain credential errors and do not clear an already-valid authenticated session.
 - Sensitive values are not printed in app or backend logs.
 
 ## P0 Vault Access
@@ -66,6 +68,8 @@ For the same vault and fixture database, compare mobile/API with legacy Streamli
 - Needs Attention cards.
 - Recent activity order and transfer exclusion.
 - Spending by category totals.
+- Duplicate category display names render as distinct chart/legend entries when the backend returns stable category keys.
+- Date-only labels show the same local calendar day on devices in negative UTC offsets.
 
 Pass criteria: every value matches the legacy calculation for the same database rows.
 
@@ -185,6 +189,8 @@ Use a fixture or copied database. Do not run destructive write scenarios against
 57. Confirm one successful create/update/delete invalidates Transfers, Accounts, Dashboard, and Transactions once for the active vault without briefly showing another vault's data.
 58. Confirm Transfer In rows render as positive only when backend semantics say credit, and Transfer Out rows render as negative only when backend semantics say debit.
 59. Confirm duplicate category display names do not collapse chart/list rendering once backend category IDs are available.
+60. Confirm a corrupted transfer group produces a safe error and does not partially update/delete either row.
+61. Confirm a failed transfer create/update/delete rolls back and leaves no partial Transfer Out/Transfer In pair.
 
 ## P0 Transfers Manual Execution
 

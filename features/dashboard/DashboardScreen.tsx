@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect } from "react";
 import { Text, useWindowDimensions, View } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
@@ -16,10 +15,10 @@ import {
   formatDashboardMoney,
   singleLineMoneyProps
 } from "@/features/dashboard/dashboardLayout";
-import { getDashboardScreenState, shouldClearDashboardSession } from "@/features/dashboard/state";
+import { getDashboardScreenState } from "@/features/dashboard/state";
 import type { DashboardViewModel } from "@/features/dashboard/types";
-import { clearBackendSession } from "@/services/api/session";
 import type { CategorySpendApi, RecentActivityApi } from "@/services/api/types";
+import { formatIsoDateOnly } from "@/lib/date";
 import type { CurrencyCode } from "@/types/domain";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -66,6 +65,18 @@ function legendDotClassAt(index: number) {
   return legendDotClasses[index % legendDotClasses.length] ?? "bg-brand-soft";
 }
 
+function categoryRenderKey(item: CategorySpendApi) {
+  if (item.key && item.key.length > 0) {
+    return item.key;
+  }
+
+  if (item.categoryId !== null && item.categoryId !== undefined) {
+    return `category:${item.categoryId}`;
+  }
+
+  return item.name.trim().toLowerCase() === "uncategorized" ? "uncategorized" : `legacy-category:${item.name.trim().toLowerCase()}`;
+}
+
 function greetingForDate(date = new Date()) {
   const hour = date.getHours();
 
@@ -89,13 +100,7 @@ function clampPercent(value: number) {
 }
 
 function dateLabel(value: string, locale: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date);
+  return formatIsoDateOnly(value, locale, { day: "numeric", month: "short" });
 }
 
 function DashboardLoading() {
@@ -419,7 +424,7 @@ function DonutChart({ categories, currencyCode, locale }: { categories: Category
         <Circle cx={56} cy={56} r={radius} stroke={theme.colors.surface.border} strokeWidth={strokeWidth} fill="none" />
         {segments.map((segment, index) => (
           <Circle
-            key={segment.item.categoryId ?? `${segment.item.name}-${index}`}
+            key={categoryRenderKey(segment.item)}
             cx={56}
             cy={56}
             r={radius}
@@ -468,7 +473,7 @@ function SpendingByCategory({ categories, currencyCode, locale }: { categories: 
               const percent = total > 0 ? Math.round((item.amount / total) * 100) : 0;
 
               return (
-                <View key={item.categoryId ?? `${item.name}-${index}`} className="flex-row items-center gap-2">
+                <View key={categoryRenderKey(item)} className="flex-row items-center gap-2">
                   <View className={`h-2.5 w-2.5 rounded-full ${legendDotClassAt(index)}`} />
                   <Text className="min-w-0 flex-1 font-sans text-xs text-text-muted" numberOfLines={1}>
                     {item.name}
@@ -507,7 +512,6 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
 export function DashboardScreen() {
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
-  const setSignedOut = useAuthStore((state) => state.setSignedOut);
   const query = useDashboardQuery(token, vaultId);
   const screenState = getDashboardScreenState({
     data: query.data,
@@ -516,12 +520,6 @@ export function DashboardScreen() {
     isLoading: query.isLoading,
     refetch: query.refetch
   });
-
-  useEffect(() => {
-    if (shouldClearDashboardSession(query.error)) {
-      void clearBackendSession().finally(() => setSignedOut());
-    }
-  }, [query.error, setSignedOut]);
 
   if (screenState.kind === "loading") {
     return <DashboardLoading />;

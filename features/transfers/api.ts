@@ -7,12 +7,18 @@ import type { TransferApi, TransferFiltersApi, TransferPayloadApi } from "@/serv
 import { filtersKey } from "@/features/transfers/transferModel";
 
 export function removeTransferFromCachedLists(vaultId: string | null, transferGroupId: string) {
-  queryClient.setQueriesData<TransferApi[]>({ queryKey: queryKeys.transfers.lists(vaultId) }, (current) => {
-    if (!current) {
+  queryClient.setQueriesData<unknown>({ queryKey: queryKeys.transfers.lists(vaultId) }, (current: unknown) => {
+    if (!Array.isArray(current)) {
       return current;
     }
 
-    return current.filter((transfer) => transfer.transferGroupId !== transferGroupId);
+    return current.filter((transfer): transfer is TransferApi => {
+      if (!transfer || typeof transfer !== "object" || !("transferGroupId" in transfer)) {
+        return true;
+      }
+
+      return transfer.transferGroupId !== transferGroupId;
+    });
   });
 }
 

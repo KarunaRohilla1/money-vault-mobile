@@ -113,6 +113,7 @@ function normalizeSessionResponse(value: unknown): SessionResponse {
 export function login(body: LoginRequest) {
   return request<unknown, LoginRequest>({
     body,
+    clearSessionOnUnauthorized: false,
     method: "POST",
     path: "/api/login"
   }).then(normalizeLoginResponse);
@@ -135,6 +136,7 @@ export function getSharedVaults(token: string) {
 export function activateSharedVault(token: string, body: SharedVaultActivationRequest) {
   return request<unknown, SharedVaultActivationRequest>({
     body,
+    clearSessionOnUnauthorized: false,
     method: "POST",
     path: "/api/vaults/shared/activate",
     token

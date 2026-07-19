@@ -51,7 +51,7 @@ const baseResponse: DashboardApiResponse = {
       payable: 25,
       receivable: 0
     },
-    spendingByCategory: [{ amount: 100, categoryId: 10, name: "Food" }],
+    spendingByCategory: [{ amount: 100, categoryId: 10, key: "category:10", name: "Food" }],
     summary: {}
   },
   generatedAt: "2026-07-14T00:00:00Z",
@@ -116,14 +116,15 @@ describe("dashboard adapter", () => {
           }
         ],
         spendingByCategory: [
-          { amount: 50, categoryId: 10, name: "Food" },
-          { amount: 25, categoryId: 11, name: "Food" }
+          { amount: 50, categoryId: 10, key: "category:10", name: "Food" },
+          { amount: 25, categoryId: 11, key: "category:11", name: "Food" },
+          { amount: 5, categoryId: null, key: "uncategorized", name: "Uncategorized" }
         ]
       }
     });
 
     expect(viewModel.recentActivity[0]).toMatchObject({ direction: "credit", signedAmount: 100 });
-    expect(viewModel.categories.map((category) => category.categoryId)).toEqual([10, 11]);
+    expect(viewModel.categories.map((category) => category.key)).toEqual(["category:10", "category:11", "uncategorized"]);
   });
 
   it("rejects invalid successful dashboard responses", () => {

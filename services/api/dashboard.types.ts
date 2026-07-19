@@ -44,6 +44,7 @@ export type CashFlowDirection = "credit" | "debit" | "neutral";
 export interface CategorySpendApi {
   amount: number;
   categoryId?: number | null;
+  key?: string;
   name: string;
 }
 
