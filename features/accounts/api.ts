@@ -9,7 +9,7 @@ export function isVaultScopedAccountDependentQuery(queryKey: readonly unknown[],
   const scopedVaultId = vaultId ?? "anonymous";
   return (
     (queryKey[0] === "transactions" && queryKey[1] === "list" && queryKey[2] === scopedVaultId) ||
-    (queryKey[0] === "transfers" && queryKey[1] === "byVault" && queryKey[2] === scopedVaultId)
+    (queryKey[0] === "transfers" && queryKey[1] === scopedVaultId)
   );
 }
 

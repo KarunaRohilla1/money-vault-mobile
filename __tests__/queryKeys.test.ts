@@ -32,4 +32,12 @@ describe("queryKeys", () => {
     expect(queryKeys.transfers.detail("vault_1", "group-a")).not.toEqual(queryKeys.transfers.detail("vault_2", "group-a"));
     expect(queryKeys.wishlist.current("vault_1")).not.toEqual(queryKeys.wishlist.current("vault_2"));
   });
+
+  it("uses one prefix hierarchy for transfer cache invalidation", () => {
+    expect(queryKeys.transfers.all).toEqual(["transfers"]);
+    expect(queryKeys.transfers.byVault("vault_1")).toEqual(["transfers", "vault_1"]);
+    expect(queryKeys.transfers.lists("vault_1")).toEqual(["transfers", "vault_1", "list"]);
+    expect(queryKeys.transfers.list("vault_1", "filters")).toEqual(["transfers", "vault_1", "list", "filters"]);
+    expect(queryKeys.transfers.detail("vault_1", "group_1")).toEqual(["transfers", "vault_1", "detail", "group_1"]);
+  });
 });

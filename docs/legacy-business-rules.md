@@ -99,12 +99,16 @@ Sources: `views.transfers`, `db.transfers`, `api.transfers`.
 - Transfer list ordering is newest transfer date first, then newest source transaction id.
 - Optional list filters are date range and account; the account filter matches either source or destination account.
 - Mobile transfer filtering uses the backend-supported date range and account-involved filters.
+- Transfer dates are date-only ISO values (`YYYY-MM-DD`). Mobile defaults must use the local calendar day, not UTC slicing, and both mobile and API validation must reject impossible calendar dates.
 - The main mobile Transfers page shows a recent subset of five logical transfers; View All expands the same screen to the full filtered history.
 - Editing a transfer updates both paired rows.
 - Deleting a transfer deletes both paired rows.
 - If one pair row is missing, legacy `get_transfer_by_group`/`get_transfers` does not return a logical transfer because the join fails.
 - Credit Card payments are ordinary transfers into a Credit Card account: bank/cash source is Transfer Out, Credit Card destination is Transfer In.
 - Transfers clear cached transfer, transaction, account, dashboard, and report data after create/update/delete.
+- Legacy displays source/destination balances as "Available Balance" but does not enforce an overdraft limit in `views.transfers.validate_transfer` or `db.transfers.add_transfer/update_transfer`. The current mobile label treats this as informational ("Current balance"). Backend balance-limit enforcement remains not present in legacy and is not introduced here.
+- Transfer create/update/delete operations are backend-owned paired mutations. Source and destination account ownership is checked by the API before mutation, and the database helper commits after both pair rows are written/updated/deleted.
+- Editing a transfer replaces both paired rows for the same `transfer_group_id`; no mobile-side balance calculation is authoritative.
 
 ## Dashboard Rules
 
@@ -132,6 +136,9 @@ max(
 - `available_cash` currently means positive balance in Salary Account type within dashboard SQL.
 - Recent activity is newest first, limit five, excluding transfers and zero amounts.
 - Category spending comes from `get_actual_category_spending`, which includes shared-expense adjustments.
+- Recent activity amount direction is backend-owned. Income and Transfer In are credits, Expense and Transfer Out are debits, and unrecognized transaction types are neutral unless legacy defines a specific rule.
+- Dashboard and mobile money display preserve up to two decimal places. Whole values can render without `.00`; fractional values such as `100.50` must not be rounded to `100` or `101`.
+- Dashboard category chart keys should use stable backend category identifiers when available. Full backend propagation of real category IDs remains pending because the legacy category-spending helper currently returns display tuples used by Streamlit.
 
 ## Planning Rules
 

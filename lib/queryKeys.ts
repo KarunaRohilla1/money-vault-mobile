@@ -40,11 +40,12 @@ export const queryKeys = {
     root: ["transactions"] as const
   },
   transfers: {
-    byVault: (vaultId: string | null) => ["transfers", "byVault", vaultId ?? "anonymous"] as const,
+    all: ["transfers"] as const,
+    byVault: (vaultId: string | null) => ["transfers", vaultId ?? "anonymous"] as const,
     detail: (vaultId: string | null, transferGroupId: string) =>
-      ["transfers", "detail", vaultId ?? "anonymous", transferGroupId] as const,
-    list: (vaultId: string | null, filtersKey = "default") => ["transfers", "list", vaultId ?? "anonymous", filtersKey] as const,
-    lists: (vaultId: string | null) => ["transfers", "list", vaultId ?? "anonymous"] as const,
+      ["transfers", vaultId ?? "anonymous", "detail", transferGroupId] as const,
+    list: (vaultId: string | null, filtersKey = "default") => ["transfers", vaultId ?? "anonymous", "list", filtersKey] as const,
+    lists: (vaultId: string | null) => ["transfers", vaultId ?? "anonymous", "list"] as const,
     root: ["transfers"] as const
   },
   vaults: {

@@ -39,9 +39,11 @@ describe("transfer model", () => {
     expect(transferFormError(validForm)).toBeNull();
   });
 
-  it("validates date presence and parseability", () => {
+  it("validates date presence and actual calendar dates", () => {
     expect(transferFormError({ ...validForm, date: "" })).toBe("Date is required.");
-    expect(transferFormError({ ...validForm, date: "not-a-date" })).toBe("Date must be valid.");
+    expect(transferFormError({ ...validForm, date: "not-a-date" })).toBe("Date must be a valid calendar date.");
+    expect(transferFormError({ ...validForm, date: "2026-02-31" })).toBe("Date must be a valid calendar date.");
+    expect(transferFormError({ ...validForm, date: "2024-02-29" })).toBeNull();
   });
 
   it("builds create and edit payloads without arbitrary transaction types", () => {
@@ -63,6 +65,7 @@ describe("transfer model", () => {
   it("validates transfer filters", () => {
     expect(transferFilterError({ dateFrom: "bad-date" })).toBe("From date must be valid.");
     expect(transferFilterError({ dateTo: "bad-date" })).toBe("To date must be valid.");
+    expect(transferFilterError({ dateFrom: "2026-02-31" })).toBe("From date must be valid.");
     expect(transferFilterError({ dateFrom: "2026-07-31", dateTo: "2026-07-01" })).toBe("From date cannot be after To date.");
     expect(transferFilterError({ accountId: 1, dateFrom: "2026-07-01", dateTo: "2026-07-31" })).toBeNull();
     expect(activeTransferFilterCount({ accountId: 1, dateFrom: "2026-07-01", dateTo: null })).toBe(2);

@@ -1,4 +1,5 @@
 import type { TransferPayloadApi } from "@/services/api/types";
+import { isValidIsoDate, todayLocalIso } from "@/lib/date";
 
 export interface TransferFormValues {
   amount: string;
@@ -17,14 +18,10 @@ export interface TransferFilters {
 export type TransferHistoryMode = "recent" | "all";
 export const RECENT_TRANSFER_LIMIT = 5;
 
-export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function emptyTransferForm(): TransferFormValues {
   return {
     amount: "",
-    date: todayIso(),
+    date: todayLocalIso(),
     fromAccountId: null,
     notes: "",
     toAccountId: null
@@ -58,8 +55,8 @@ export function transferFormError(values: TransferFormValues) {
     return "Date is required.";
   }
 
-  if (Number.isNaN(new Date(values.date).getTime())) {
-    return "Date must be valid.";
+  if (!isValidIsoDate(values.date.trim())) {
+    return "Date must be a valid calendar date.";
   }
 
   return null;
@@ -84,11 +81,11 @@ export function filtersKey(filters: TransferFilters = {}) {
 }
 
 export function transferFilterError(filters: TransferFilters) {
-  if (filters.dateFrom && Number.isNaN(new Date(filters.dateFrom).getTime())) {
+  if (filters.dateFrom && !isValidIsoDate(filters.dateFrom.trim())) {
     return "From date must be valid.";
   }
 
-  if (filters.dateTo && Number.isNaN(new Date(filters.dateTo).getTime())) {
+  if (filters.dateTo && !isValidIsoDate(filters.dateTo.trim())) {
     return "To date must be valid.";
   }
 

@@ -9,12 +9,13 @@ import {
 } from "@/features/dashboard/dashboardLayout";
 
 describe("dashboard responsive layout", () => {
-  it("formats dashboard money with Indian grouping and no prominent decimals", () => {
+  it("formats dashboard money with Indian grouping and preserves fractional values", () => {
     expect(formatDashboardMoney(999, "INR", "en-IN")).toBe("₹999");
     expect(formatDashboardMoney(50000, "INR", "en-IN")).toBe("₹50,000");
     expect(formatDashboardMoney(199000, "INR", "en-IN")).toBe("₹1,99,000");
     expect(formatDashboardMoney(1250000, "INR", "en-IN")).toBe("₹12,50,000");
     expect(formatDashboardMoney(12345678, "INR", "en-IN")).toBe("₹1,23,45,678");
+    expect(formatDashboardMoney(100.5, "INR", "en-IN")).toBe("₹100.50");
   });
 
   it("uses single-line scaling rules for critical money values", () => {

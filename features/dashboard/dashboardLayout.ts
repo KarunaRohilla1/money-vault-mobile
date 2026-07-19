@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "@/types/domain";
+import { formatCurrency } from "@/lib/format";
 
 export const dashboardTypography = {
   caption: "font-sans text-xs text-text-muted",
@@ -44,11 +45,7 @@ export const dashboardVisualRules = {
 } as const;
 
 export function formatDashboardMoney(value: number, currencyCode: CurrencyCode, locale = "en-IN") {
-  return new Intl.NumberFormat(locale, {
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-    style: "currency"
-  }).format(value);
+  return formatCurrency(value, currencyCode, locale);
 }
 
 export function dashboardWidthRules(width: number) {

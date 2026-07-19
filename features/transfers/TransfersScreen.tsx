@@ -21,6 +21,7 @@ import {
   type TransferFilters,
   type TransferFormValues
 } from "@/features/transfers/transferModel";
+import { formatCurrency } from "@/lib/format";
 import { toAppError } from "@/lib/errors";
 import type { AccountApi, TransferApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -39,14 +40,6 @@ const EMPTY_DRAFT: TransferDraft = {
   ...emptyTransferForm(),
   transferGroupId: null
 };
-
-function formatMoney(value: number, currencyCode: string, locale: string) {
-  return new Intl.NumberFormat(locale, {
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-    style: "currency"
-  }).format(value);
-}
 
 function formatDate(value: string, locale: string) {
   const date = new Date(value);
@@ -133,7 +126,7 @@ function AccountCard({
           ) : (
             <>
               <Text className="font-sans text-sm font-semibold text-text tabular-nums" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-                {formatMoney(balance, currencyCode, locale)}
+                {formatCurrency(balance, currencyCode, locale)}
               </Text>
               <Text className="font-sans text-xs text-text-muted">Balance</Text>
             </>
@@ -175,7 +168,7 @@ function AmountInput({
         />
       </View>
       {maxBalance !== null ? (
-        <Text className="font-sans text-xs text-brand-soft">Available: {formatMoney(maxBalance, currencyCode, locale)}</Text>
+        <Text className="font-sans text-xs text-brand-soft">Current balance: {formatCurrency(maxBalance, currencyCode, locale)}</Text>
       ) : null}
       {error ? <Text className="font-sans text-xs text-state-danger">{error}</Text> : null}
     </View>
@@ -217,7 +210,7 @@ function HistoryRow({ currencyCode, locale, onDelete, onEdit, transfer }: { curr
       </Pressable>
       <View className="max-w-28 items-end pl-2">
         <Text className="font-sans text-sm font-semibold text-text tabular-nums" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-          {formatMoney(transfer.amount, currencyCode, locale)}
+          {formatCurrency(transfer.amount, currencyCode, locale)}
         </Text>
         <Text className="font-sans text-xs text-text-muted">{formatDate(transfer.date, locale)}</Text>
       </View>
@@ -303,7 +296,6 @@ export function TransfersScreen() {
         },
         {
           onSuccess: async () => {
-            await transfersQuery.refetch();
             setLastConfirmed(draft);
             setMode("success");
           }
@@ -314,7 +306,6 @@ export function TransfersScreen() {
 
     createMutation.mutate(payload, {
       onSuccess: async (transfer) => {
-        await transfersQuery.refetch();
         setLastConfirmed({
           ...draft,
           transferGroupId: transfer.transferGroupId
@@ -377,7 +368,7 @@ export function TransfersScreen() {
           <AccountCard label="From" account={fromAccount} currencyCode={currencyCode} locale={locale} onPress={() => setMode("compose")} />
           <AccountCard label="To" account={toAccount} currencyCode={currencyCode} locale={locale} onPress={() => setMode("compose")} />
           <View className="gap-3 border-t border-surface-border pt-4">
-            <ReviewRow label="Amount" value={formatMoney(Number(draft.amount), currencyCode, locale)} />
+            <ReviewRow label="Amount" value={formatCurrency(Number(draft.amount), currencyCode, locale)} />
             <ReviewRow label="Date" value={formatDate(draft.date, locale)} />
             <ReviewRow label="Note" value={draft.notes || "-"} />
           </View>
@@ -404,7 +395,7 @@ export function TransfersScreen() {
           </View>
           <Text className="font-sans text-2xl font-bold text-text">Transfer Successful!</Text>
           <Text className="font-sans text-sm text-text-muted">
-            {formatMoney(Number(lastConfirmed.amount), currencyCode, locale)} has been transferred
+            {formatCurrency(Number(lastConfirmed.amount), currencyCode, locale)} has been transferred
           </Text>
         </View>
         <View className="rounded-lg border border-brand-muted bg-surface p-4">
@@ -638,7 +629,6 @@ export function TransfersScreen() {
 
                 deleteMutation.mutate(deleteCandidate.transferGroupId, {
                   onSuccess: async () => {
-                    await transfersQuery.refetch();
                     setDeleteCandidate(null);
                   }
                 });

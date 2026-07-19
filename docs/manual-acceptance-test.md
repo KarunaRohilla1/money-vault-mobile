@@ -177,6 +177,14 @@ Use a fixture or copied database. Do not run destructive write scenarios against
 49. Confirm deleted transfers disappear from recent/full/filtered history without manual refresh.
 50. Confirm disabled Review Transfer text remains readable.
 51. Confirm spacing and typography match the approved screenshot closely enough for device acceptance.
+52. Create or inspect a fractional transfer amount such as `100.50` and confirm Accounts, Dashboard, Transfers, and API do not round it.
+53. Confirm the default transfer date is the local device calendar date around local midnight.
+54. Enter invalid calendar dates such as `2026-02-31`, `2026-13-01`, and `2026-04-31` in transfer filters/API tests and confirm they are rejected.
+55. Confirm the balance label is informational ("Current balance") unless/until backend balance-limit enforcement is introduced.
+56. Confirm an overdraft attempt follows the traced legacy/backend rule: the current legacy transfer path does not enforce source-balance maximum.
+57. Confirm one successful create/update/delete invalidates Transfers, Accounts, Dashboard, and Transactions once for the active vault without briefly showing another vault's data.
+58. Confirm Transfer In rows render as positive only when backend semantics say credit, and Transfer Out rows render as negative only when backend semantics say debit.
+59. Confirm duplicate category display names do not collapse chart/list rendering once backend category IDs are available.
 
 ## P0 Transfers Manual Execution
 

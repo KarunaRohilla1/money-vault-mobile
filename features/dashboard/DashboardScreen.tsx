@@ -5,6 +5,7 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 import { Screen } from "@/components/layout/Screen";
 import { EmptyState, ErrorView, LoadingSkeleton } from "@/components/ui";
+import { recentActivityDirection, recentActivitySignedAmount } from "@/features/dashboard/activityDirection";
 import { useDashboardQuery } from "@/features/dashboard/api";
 import {
   dashboardLayout,
@@ -331,12 +332,15 @@ function FinancialSnapshot({ currencyCode, dashboard, locale }: { currencyCode: 
 }
 
 function ActivityRow({ currencyCode, item, locale }: { currencyCode: CurrencyCode; item: RecentActivityApi; locale: string }) {
-  const isIncome = item.transactionType.toLowerCase().includes("income");
+  const direction = recentActivityDirection(item);
+  const signedAmount = recentActivitySignedAmount(item);
+  const isCredit = direction === "credit";
+  const isDebit = direction === "debit";
 
   return (
     <View className="min-h-16 flex-row items-center border-b border-surface-border py-2.5 last:border-b-0">
       <View className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-brand-deep">
-        <MaterialCommunityIcons name={isIncome ? "arrow-down" : "cart-outline"} size={theme.icons.sm} color={isIncome ? theme.colors.state.success : theme.colors.brand.soft} />
+        <MaterialCommunityIcons name={isCredit ? "arrow-down" : isDebit ? "cart-outline" : "minus"} size={theme.icons.sm} color={isCredit ? theme.colors.state.success : theme.colors.brand.soft} />
       </View>
       <View className="min-w-0 flex-1">
         <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>
@@ -352,9 +356,9 @@ function ActivityRow({ currencyCode, item, locale }: { currencyCode: CurrencyCod
         </Text>
       </View>
       <View className="max-w-28 items-end">
-        <Text className={isIncome ? "font-sans text-sm font-semibold text-state-success tabular-nums" : "font-sans text-sm font-semibold text-accent-rose tabular-nums"} {...singleLineMoneyProps}>
-          {isIncome ? "+" : "-"}
-          {formatDashboardMoney(item.amount, currencyCode, locale)}
+        <Text className={isCredit ? "font-sans text-sm font-semibold text-state-success tabular-nums" : isDebit ? "font-sans text-sm font-semibold text-accent-rose tabular-nums" : "font-sans text-sm font-semibold text-text-muted tabular-nums"} {...singleLineMoneyProps}>
+          {isCredit ? "+" : isDebit ? "-" : ""}
+          {formatDashboardMoney(Math.abs(signedAmount || item.amount), currencyCode, locale)}
         </Text>
         <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
           {dateLabel(item.date, locale)}
@@ -415,7 +419,7 @@ function DonutChart({ categories, currencyCode, locale }: { categories: Category
         <Circle cx={56} cy={56} r={radius} stroke={theme.colors.surface.border} strokeWidth={strokeWidth} fill="none" />
         {segments.map((segment, index) => (
           <Circle
-            key={segment.item.name}
+            key={segment.item.categoryId ?? `${segment.item.name}-${index}`}
             cx={56}
             cy={56}
             r={radius}
@@ -464,7 +468,7 @@ function SpendingByCategory({ categories, currencyCode, locale }: { categories: 
               const percent = total > 0 ? Math.round((item.amount / total) * 100) : 0;
 
               return (
-                <View key={item.name} className="flex-row items-center gap-2">
+                <View key={item.categoryId ?? `${item.name}-${index}`} className="flex-row items-center gap-2">
                   <View className={`h-2.5 w-2.5 rounded-full ${legendDotClassAt(index)}`} />
                   <Text className="min-w-0 flex-1 font-sans text-xs text-text-muted" numberOfLines={1}>
                     {item.name}

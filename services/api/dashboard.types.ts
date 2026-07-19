@@ -32,13 +32,18 @@ export interface RecentActivityApi {
   amount: number;
   categoryName: string;
   date: string;
+  direction?: CashFlowDirection;
   id: number;
   notes?: string | null;
+  signedAmount?: number;
   transactionType: string;
 }
 
+export type CashFlowDirection = "credit" | "debit" | "neutral";
+
 export interface CategorySpendApi {
   amount: number;
+  categoryId?: number | null;
   name: string;
 }
 

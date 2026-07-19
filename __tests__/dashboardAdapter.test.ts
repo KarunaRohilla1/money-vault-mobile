@@ -51,7 +51,7 @@ const baseResponse: DashboardApiResponse = {
       payable: 25,
       receivable: 0
     },
-    spendingByCategory: [{ amount: 100, name: "Food" }],
+    spendingByCategory: [{ amount: 100, categoryId: 10, name: "Food" }],
     summary: {}
   },
   generatedAt: "2026-07-14T00:00:00Z",
@@ -97,6 +97,33 @@ describe("dashboard adapter", () => {
     });
 
     expect(viewModel.categories).toEqual([]);
+  });
+
+  it("preserves backend category IDs and activity direction fields", () => {
+    const viewModel = adaptDashboardResponse({
+      ...baseResponse,
+      data: {
+        ...baseResponse.data,
+        recentActivity: [
+          {
+            amount: 100,
+            categoryName: "Transfer",
+            date: "2026-07-01",
+            direction: "credit",
+            id: 1,
+            signedAmount: 100,
+            transactionType: "Transfer In"
+          }
+        ],
+        spendingByCategory: [
+          { amount: 50, categoryId: 10, name: "Food" },
+          { amount: 25, categoryId: 11, name: "Food" }
+        ]
+      }
+    });
+
+    expect(viewModel.recentActivity[0]).toMatchObject({ direction: "credit", signedAmount: 100 });
+    expect(viewModel.categories.map((category) => category.categoryId)).toEqual([10, 11]);
   });
 
   it("rejects invalid successful dashboard responses", () => {

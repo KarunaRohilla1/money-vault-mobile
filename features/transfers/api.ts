@@ -18,15 +18,11 @@ export function removeTransferFromCachedLists(vaultId: string | null, transferGr
 
 export async function invalidateTransferDependents(vaultId: string | null) {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.transfers.list(vaultId) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.transfers.lists(vaultId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.transfers.byVault(vaultId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.accounts.byVault(vaultId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.transactions.list(vaultId) })
   ]);
-
-  await queryClient.refetchQueries({ queryKey: queryKeys.transfers.lists(vaultId), type: "active" });
 }
 
 export function useTransfersQuery(token: string | null, vaultId: string | null, filters: TransferFiltersApi = {}) {
