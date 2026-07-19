@@ -1,9 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system/legacy";
 import { router } from "expo-router";
-import * as Sharing from "expo-sharing";
 import { useEffect, useMemo, useState } from "react";
-import { BackHandler, Pressable, Text, View } from "react-native";
+import { BackHandler, Pressable, Share, Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { BottomSheet, EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
@@ -181,28 +179,11 @@ export function TransferHistoryScreen() {
     }
 
     const filename = `money-vault-transfers-${todayLocalIso()}.csv`;
-    const directory = FileSystem.documentDirectory;
+    const csv = transfersToCsv(transfers);
 
-    if (!directory) {
-      setExportMessage("Export is unavailable on this device.");
-      return;
-    }
-
-    const fileUri = `${directory}${filename}`;
-
-    await FileSystem.writeAsStringAsync(fileUri, transfersToCsv(transfers), {
-      encoding: FileSystem.EncodingType.UTF8
-    });
-
-    if (!(await Sharing.isAvailableAsync())) {
-      setExportMessage("Sharing is unavailable on this device.");
-      return;
-    }
-
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "text/csv",
-      UTI: "public.comma-separated-values-text",
-      dialogTitle: "Export transfers"
+    await Share.share({
+      message: `${filename}\n\n${csv}`,
+      title: filename
     });
   };
 
