@@ -420,6 +420,27 @@ describe("apiClient", () => {
     );
   });
 
+  it("serializes independent transfer history filters", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getTransfers("jwt-token", {
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-31",
+      destinationAccountId: 2,
+      sourceAccountId: 1
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/transfers?sourceAccountId=1&destinationAccountId=2&dateFrom=2026-07-01&dateTo=2026-07-31",
+      expect.objectContaining({
+        method: "GET"
+      })
+    );
+  });
+
   it("posts shared bill actions through the backend API", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     const fetchMock = jest.fn(async () => new Response(JSON.stringify({ status: "ok" }), { status: 200 }));

@@ -11,8 +11,10 @@ export interface TransferFormValues {
 
 export interface TransferFilters {
   accountId?: number | null;
+  destinationAccountId?: number | null;
   dateFrom?: string | null;
   dateTo?: string | null;
+  sourceAccountId?: number | null;
 }
 
 export type TransferFilterKey = keyof TransferFilters;
@@ -115,8 +117,10 @@ export function clearTransferFilters(): TransferFilters {
 export function filtersKey(filters: TransferFilters = {}) {
   return JSON.stringify({
     accountId: filters.accountId ?? null,
+    destinationAccountId: filters.destinationAccountId ?? null,
     dateFrom: filters.dateFrom ?? null,
-    dateTo: filters.dateTo ?? null
+    dateTo: filters.dateTo ?? null,
+    sourceAccountId: filters.sourceAccountId ?? null
   });
 }
 
@@ -137,9 +141,35 @@ export function transferFilterError(filters: TransferFilters) {
 }
 
 export function activeTransferFilterCount(filters: TransferFilters) {
-  return [filters.accountId, filters.dateFrom, filters.dateTo].filter((value) => value !== null && value !== undefined && value !== "").length;
+  return [filters.accountId, filters.sourceAccountId, filters.destinationAccountId, filters.dateFrom, filters.dateTo].filter(
+    (value) => value !== null && value !== undefined && value !== ""
+  ).length;
 }
 
 export function visibleTransferHistory<T>(transfers: T[], mode: TransferHistoryMode) {
   return mode === "all" ? transfers : transfers.slice(0, RECENT_TRANSFER_LIMIT);
+}
+
+function escapeCsvValue(value: string | number | null | undefined): string {
+  const text = value === null || value === undefined ? "" : String(value);
+
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+}
+
+export function transfersToCsv(transfers: TransferApi[]): string {
+  const header = ["Date", "Source Account", "Destination Account", "Amount", "Notes", "Transfer Group ID"];
+  const rows = transfers.map((transfer) => [
+    transfer.date,
+    transfer.fromAccountName,
+    transfer.toAccountName,
+    transfer.amount,
+    transfer.notes ?? "",
+    transfer.transferGroupId
+  ]);
+
+  return [header, ...rows].map((row) => row.map(escapeCsvValue).join(",")).join("\n");
 }

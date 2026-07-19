@@ -29,6 +29,8 @@ export interface TransferPayloadApi {
 
 export interface TransferFiltersApi {
   accountId?: number | null;
+  destinationAccountId?: number | null;
   dateFrom?: string | null;
   dateTo?: string | null;
+  sourceAccountId?: number | null;
 }

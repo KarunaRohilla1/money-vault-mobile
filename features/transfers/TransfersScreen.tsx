@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Pressable, Text, TextInput, View } from "react-native";
 
@@ -12,18 +13,12 @@ import {
   useUpdateTransferMutation
 } from "@/features/transfers/api";
 import {
-  activeTransferFilterCount,
-  clearTransferFilter,
-  clearTransferFilters,
   emptyTransferForm,
   toTransferPayload,
   transferAmountError,
-  transferFilterError,
   transferFormFromTransfer,
   transferFormError,
-  updateTransferFilter,
   visibleTransferHistory,
-  type TransferFilters,
   type TransferFormValues
 } from "@/features/transfers/transferModel";
 import { formatCurrency } from "@/lib/format";
@@ -35,9 +30,8 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { theme } from "@/theme";
 
 type FlowMode = "compose" | "review" | "success";
-type HistoryMode = "recent" | "all";
 type AccountPickerTarget = "from" | "to" | null;
-type DatePickerTarget = "transfer" | "filterFrom" | "filterTo" | null;
+type DatePickerTarget = "transfer" | null;
 
 interface TransferDraft extends TransferFormValues {
   transferGroupId: string | null;
@@ -141,7 +135,7 @@ function AccountCard({
   );
 }
 
-function DateField({
+export function DateField({
   label,
   locale,
   onClear,
@@ -177,18 +171,20 @@ function DateField({
   );
 }
 
-function FilterAccountField({
+export function FilterAccountField({
   account,
+  label = "Account Involved",
   onClear,
   onPress
 }: {
   account: AccountApi | null;
+  label?: string;
   onClear: () => void;
   onPress: () => void;
 }) {
   return (
     <View className="gap-2">
-      <Text className="font-sans text-xs font-bold uppercase text-text-muted">Account Involved</Text>
+      <Text className="font-sans text-xs font-bold uppercase text-text-muted">{label}</Text>
       <Pressable
         accessibilityLabel="Choose account filter"
         accessibilityRole="button"
@@ -214,7 +210,7 @@ function FilterAccountField({
   );
 }
 
-function MonthDatePicker({
+export function MonthDatePicker({
   locale,
   onCancel,
   onConfirm,
@@ -227,9 +223,13 @@ function MonthDatePicker({
   selectedDate: string;
   setSelectedDate: (date: string) => void;
 }) {
+  const [pickerMode, setPickerMode] = useState<"days" | "months" | "years">("days");
   const parts = isoDateParts(selectedDate) ?? isoDateParts(todayLocalIso());
   const days = parts ? Array.from({ length: daysInMonth(parts.year, parts.month) }, (_value, index) => index + 1) : [];
-  const monthTitle = parts ? formatIsoDateOnly(isoDateFromParts(parts.year, parts.month, 1), locale, { month: "long", year: "numeric" }) : "Choose Date";
+  const monthTitle = parts ? formatIsoDateOnly(isoDateFromParts(parts.year, parts.month, 1), locale, { month: "long" }) : "Month";
+  const yearTitle = parts ? String(parts.year) : "Year";
+  const monthOptions = Array.from({ length: 12 }, (_value, index) => index + 1);
+  const yearOptions = parts ? Array.from({ length: 21 }, (_value, index) => parts.year - 10 + index) : [];
 
   return (
     <View className="gap-4">
@@ -242,7 +242,14 @@ function MonthDatePicker({
         >
           <MaterialCommunityIcons name="chevron-left" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
         </Pressable>
-        <Text className="font-sans text-base font-semibold text-text">{monthTitle}</Text>
+        <View className="flex-row items-center gap-2">
+          <Pressable accessibilityLabel="Select month" accessibilityRole="button" onPress={() => setPickerMode("months")}>
+            <Text className="font-sans text-base font-semibold text-brand-soft">{monthTitle}</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Select year" accessibilityRole="button" onPress={() => setPickerMode("years")}>
+            <Text className="font-sans text-base font-semibold text-brand-soft">{yearTitle}</Text>
+          </Pressable>
+        </View>
         <Pressable
           accessibilityLabel="Next month"
           accessibilityRole="button"
@@ -252,28 +259,81 @@ function MonthDatePicker({
           <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
         </Pressable>
       </View>
-      <View className="flex-row flex-wrap gap-2">
-        {parts
-          ? days.map((day) => {
-              const date = isoDateFromParts(parts.year, parts.month, day);
-              const isSelected = date === selectedDate;
+      {pickerMode === "months" && parts ? (
+        <View className="flex-row flex-wrap gap-2">
+          {monthOptions.map((month) => {
+            const isSelected = month === parts.month;
+            const date = isoDateFromParts(parts.year, month, Math.min(parts.day, daysInMonth(parts.year, month)));
 
-              return (
-                <Pressable
-                  key={date}
-                  accessibilityLabel={`Choose ${formatDate(date, locale)}`}
-                  accessibilityRole="button"
-                  className={isSelected ? "h-10 w-10 items-center justify-center rounded-full bg-brand" : "h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-background"}
-                  onPress={() => setSelectedDate(date)}
-                >
-                  <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
-                    {day}
-                  </Text>
-                </Pressable>
-              );
-            })
-          : null}
-      </View>
+            return (
+              <Pressable
+                key={month}
+                accessibilityLabel={`Choose ${formatIsoDateOnly(isoDateFromParts(parts.year, month, 1), locale, { month: "long" })}`}
+                accessibilityRole="button"
+                className={isSelected ? "min-h-10 min-w-[30%] flex-1 items-center justify-center rounded-md bg-brand px-3" : "min-h-10 min-w-[30%] flex-1 items-center justify-center rounded-md border border-surface-border bg-background px-3"}
+                onPress={() => {
+                  setSelectedDate(date);
+                  setPickerMode("days");
+                }}
+              >
+                <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
+                  {formatIsoDateOnly(isoDateFromParts(parts.year, month, 1), locale, { month: "short" })}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+      {pickerMode === "years" && parts ? (
+        <View className="flex-row flex-wrap gap-2">
+          {yearOptions.map((year) => {
+            const isSelected = year === parts.year;
+            const date = isoDateFromParts(year, parts.month, Math.min(parts.day, daysInMonth(year, parts.month)));
+
+            return (
+              <Pressable
+                key={year}
+                accessibilityLabel={`Choose ${year}`}
+                accessibilityRole="button"
+                className={isSelected ? "h-10 min-w-[22%] flex-1 items-center justify-center rounded-md bg-brand px-2" : "h-10 min-w-[22%] flex-1 items-center justify-center rounded-md border border-surface-border bg-background px-2"}
+                onPress={() => {
+                  setSelectedDate(date);
+                  setPickerMode("days");
+                }}
+              >
+                <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
+                  {year}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+      {pickerMode === "days" ? (
+        <View className="flex-row flex-wrap gap-2">
+          {parts
+            ? days.map((day) => {
+                const date = isoDateFromParts(parts.year, parts.month, day);
+                const isSelected = date === selectedDate;
+
+                return (
+                  <Pressable
+                    key={date}
+                    accessibilityLabel={`Choose ${formatDate(date, locale)}`}
+                    accessibilityRole="button"
+                    className={isSelected ? "h-10 w-10 items-center justify-center rounded-full bg-brand" : "h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-background"}
+                    onPress={() => setSelectedDate(date)}
+                  >
+                    <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
+                      {day}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            : null}
+        </View>
+      ) : null}
+      <SecondaryButton onPress={() => setSelectedDate(todayLocalIso())}>Today</SecondaryButton>
       <View className="flex-row gap-2">
         <PrimaryButton className="flex-1" onPress={onConfirm}>
           Select Date
@@ -345,7 +405,7 @@ function NoteInput({ notes, onChange }: { notes: string; onChange: (notes: strin
   );
 }
 
-function HistoryRow({ currencyCode, locale, onDelete, onEdit, transfer }: { currencyCode: string; locale: string; onDelete: (transfer: TransferApi) => void; onEdit: (transfer: TransferApi) => void; transfer: TransferApi }) {
+export function HistoryRow({ currencyCode, locale, onDelete, onEdit, transfer }: { currencyCode: string; locale: string; onDelete: (transfer: TransferApi) => void; onEdit: (transfer: TransferApi) => void; transfer: TransferApi }) {
   return (
     <View className="flex-row items-center border-b border-surface-border py-2.5 last:border-b-0">
       <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-brand-deep">
@@ -375,48 +435,18 @@ function HistoryRow({ currencyCode, locale, onDelete, onEdit, transfer }: { curr
 export function TransfersScreen() {
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
-  const vaultFilterKey = vaultId ?? "anonymous";
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
-  const [filtersByVault, setFiltersByVault] = useState<Record<string, TransferFilters>>({});
-  const [draftFiltersByVault, setDraftFiltersByVault] = useState<Record<string, TransferFilters>>({});
-  const filters = filtersByVault[vaultFilterKey] ?? {};
-  const draftFilters = draftFiltersByVault[vaultFilterKey] ?? {};
-  const setActiveFilters = (nextFilters: TransferFilters | ((current: TransferFilters) => TransferFilters)) => {
-    setFiltersByVault((currentByVault) => {
-      const currentFilters = currentByVault[vaultFilterKey] ?? {};
-      const value = typeof nextFilters === "function" ? nextFilters(currentFilters) : nextFilters;
-
-      return {
-        ...currentByVault,
-        [vaultFilterKey]: value
-      };
-    });
-  };
-  const setActiveDraftFilters = (nextFilters: TransferFilters | ((current: TransferFilters) => TransferFilters)) => {
-    setDraftFiltersByVault((currentByVault) => {
-      const currentFilters = currentByVault[vaultFilterKey] ?? {};
-      const value = typeof nextFilters === "function" ? nextFilters(currentFilters) : nextFilters;
-
-      return {
-        ...currentByVault,
-        [vaultFilterKey]: value
-      };
-    });
-  };
-  const transfersQuery = useTransfersQuery(token, vaultId, filters);
+  const transfersQuery = useTransfersQuery(token, vaultId);
   const accountsQuery = useAccountsQuery(token, vaultId);
   const createMutation = useCreateTransferMutation(token, vaultId);
   const updateMutation = useUpdateTransferMutation(token, vaultId);
   const deleteMutation = useDeleteTransferMutation(token, vaultId);
   const [draft, setDraft] = useState<TransferDraft>(() => createEmptyDraft());
   const [mode, setMode] = useState<FlowMode>("compose");
-  const [historyMode, setHistoryMode] = useState<HistoryMode>("recent");
   const [pickerTarget, setPickerTarget] = useState<AccountPickerTarget>(null);
-  const [filterAccountPickerVisible, setFilterAccountPickerVisible] = useState(false);
   const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget>(null);
   const [datePickerValue, setDatePickerValue] = useState(todayLocalIso());
-  const [filterVisible, setFilterVisible] = useState(false);
   const [attemptedReview, setAttemptedReview] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<TransferApi | null>(null);
@@ -424,7 +454,6 @@ export function TransfersScreen() {
   const accounts = accountsQuery.data ?? [];
   const fromAccount = accounts.find((account) => account.id === draft.fromAccountId) ?? null;
   const toAccount = accounts.find((account) => account.id === draft.toAccountId) ?? null;
-  const selectedFilterAccount = accounts.find((account) => account.id === draftFilters.accountId) ?? null;
   const formError = useMemo(() => transferFormError(draft), [draft]);
   const amountError = useMemo(() => transferAmountError(draft.amount), [draft.amount]);
   const mutationError = createMutation.error ?? updateMutation.error ?? deleteMutation.error;
@@ -432,9 +461,7 @@ export function TransfersScreen() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const hasCachedRefreshError = Boolean(transfersQuery.error && transfersQuery.data);
   const maxBalance = accountBalance(fromAccount);
-  const activeFilterCount = activeTransferFilterCount(filters);
-  const filterError = transferFilterError(draftFilters);
-  const visibleTransfers = visibleTransferHistory(transfersQuery.data ?? [], historyMode);
+  const visibleTransfers = visibleTransferHistory(transfersQuery.data ?? [], "recent");
   const showReviewError = attemptedReview && formError;
   const visibleAmountError = (attemptedReview || amountTouched) && amountError ? amountError : null;
 
@@ -452,26 +479,11 @@ export function TransfersScreen() {
         return true;
       }
 
-      if (filterAccountPickerVisible) {
-        setFilterAccountPickerVisible(false);
-        return true;
-      }
-
-      if (filterVisible) {
-        setFilterVisible(false);
-        return true;
-      }
-
-      if (historyMode === "all") {
-        setHistoryMode("recent");
-        return true;
-      }
-
       return false;
     });
 
     return () => subscription.remove();
-  }, [datePickerTarget, filterAccountPickerVisible, filterVisible, historyMode]);
+  }, [datePickerTarget]);
 
   const openDatePicker = (target: Exclude<DatePickerTarget, null>, value: string | null | undefined) => {
     setDatePickerValue(value && value.trim() ? value : todayLocalIso());
@@ -481,14 +493,6 @@ export function TransfersScreen() {
   const confirmDatePicker = () => {
     if (datePickerTarget === "transfer") {
       setDraft((current) => ({ ...current, date: datePickerValue }));
-    }
-
-    if (datePickerTarget === "filterFrom") {
-      setActiveDraftFilters((current) => updateTransferFilter(current, "dateFrom", datePickerValue));
-    }
-
-    if (datePickerTarget === "filterTo") {
-      setActiveDraftFilters((current) => updateTransferFilter(current, "dateTo", datePickerValue));
     }
 
     setDatePickerTarget(null);
@@ -624,22 +628,6 @@ export function TransfersScreen() {
     <Screen contentClassName="gap-5 pb-44" onRefresh={() => transfersQuery.refetch()} refreshing={transfersQuery.isRefetching}>
       <View className="flex-row items-center justify-between">
         <Text className="font-sans text-3xl font-bold text-text">Transfers</Text>
-        <Pressable
-          accessibilityLabel="Filter transfers"
-          accessibilityRole="button"
-          className={activeFilterCount > 0 ? "h-10 w-10 items-center justify-center rounded-full bg-brand-deep" : "h-10 w-10 items-center justify-center rounded-full"}
-          onPress={() => {
-            setActiveDraftFilters(filters);
-            setFilterVisible(true);
-          }}
-        >
-          <MaterialCommunityIcons name="filter-variant" size={theme.icons.md} color={activeFilterCount > 0 ? theme.colors.text.DEFAULT : theme.colors.brand.soft} />
-          {activeFilterCount > 0 ? (
-            <View className="absolute right-1 top-1 h-4 min-w-4 items-center justify-center rounded-full bg-state-success px-1">
-              <Text className="font-sans text-[10px] font-bold text-text">{activeFilterCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
       </View>
       {hasCachedRefreshError ? (
         <View className="rounded-lg border border-state-warning bg-surface p-3">
@@ -693,22 +681,16 @@ export function TransfersScreen() {
 
       <View className="gap-3">
         <View className="flex-row items-center justify-between">
-          <Text className="font-sans text-xs font-bold uppercase text-text-muted">{historyMode === "all" ? "All Transfers" : "Transfer History"}</Text>
-          {historyMode === "all" ? (
-            <Pressable accessibilityLabel="Back to recent transfers" accessibilityRole="button" onPress={() => setHistoryMode("recent")}>
-              <Text className="font-sans text-xs font-semibold text-brand-soft">Back</Text>
-            </Pressable>
-          ) : (
-            <Pressable accessibilityLabel="View all transfers" accessibilityRole="button" onPress={() => setHistoryMode("all")}>
-              <Text className="font-sans text-xs font-semibold text-brand-soft">View All</Text>
-            </Pressable>
-          )}
+          <Text className="font-sans text-xs font-bold uppercase text-text-muted">Recent Transfers</Text>
+          <Pressable accessibilityLabel="View all transfers" accessibilityRole="button" onPress={() => router.push("/transfers/history")}>
+            <Text className="font-sans text-xs font-semibold text-brand-soft">View All</Text>
+          </Pressable>
         </View>
         {transfersQuery.data?.length === 0 ? (
           <EmptyState
             icon="bank-transfer"
-            title={activeFilterCount > 0 ? "No matching transfers" : "No transfers"}
-            message={activeFilterCount > 0 ? "Clear filters or try a different date/account." : "Account transfers will appear here."}
+            title="No transfers"
+            message="Account transfers will appear here."
           />
         ) : (
           <View className="rounded-lg border border-surface-border bg-surface px-4">
@@ -754,49 +736,9 @@ export function TransfersScreen() {
         </View>
       </BottomSheet>
 
-      <BottomSheet visible={filterAccountPickerVisible} title="Filter Account" onClose={() => setFilterAccountPickerVisible(false)}>
-        <View className="gap-3">
-          <Pressable
-            accessibilityRole="button"
-            className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-background p-3"
-            onPress={() => {
-              setActiveDraftFilters((current) => clearTransferFilter(current, "accountId"));
-              setFilterAccountPickerVisible(false);
-            }}
-          >
-            <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
-              <MaterialCommunityIcons name="bank-transfer" size={theme.icons.sm} color={theme.colors.brand.soft} />
-            </View>
-            <View className="flex-1">
-              <Text className="font-sans text-sm font-semibold text-text">All accounts</Text>
-              <Text className="font-sans text-xs text-text-muted">Source or destination</Text>
-            </View>
-          </Pressable>
-          {accounts.map((account) => (
-            <Pressable
-              key={account.id}
-              accessibilityRole="button"
-              className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-background p-3"
-              onPress={() => {
-                setActiveDraftFilters((current) => updateTransferFilter(current, "accountId", account.id));
-                setFilterAccountPickerVisible(false);
-              }}
-            >
-              <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
-                <MaterialCommunityIcons name={accountIcon(account)} size={theme.icons.sm} color={accountTone(account)} />
-              </View>
-              <View className="flex-1">
-                <Text className="font-sans text-sm font-semibold text-text">{account.name}</Text>
-                <Text className="font-sans text-xs text-text-muted">{account.type}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </BottomSheet>
-
       <BottomSheet
         visible={datePickerTarget !== null}
-        title={datePickerTarget === "transfer" ? "Transfer Date" : datePickerTarget === "filterFrom" ? "From Date" : "To Date"}
+        title="Transfer Date"
         onClose={() => setDatePickerTarget(null)}
       >
         <MonthDatePicker
@@ -806,61 +748,6 @@ export function TransfersScreen() {
           onCancel={() => setDatePickerTarget(null)}
           onConfirm={confirmDatePicker}
         />
-      </BottomSheet>
-
-      <BottomSheet visible={filterVisible} title="Filter Transfers" onClose={() => setFilterVisible(false)}>
-        <View className="gap-4">
-          <FilterAccountField
-            account={selectedFilterAccount}
-            onClear={() => setActiveDraftFilters((current) => clearTransferFilter(current, "accountId"))}
-            onPress={() => setFilterAccountPickerVisible(true)}
-          />
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <DateField
-                label="From Date"
-                locale={locale}
-                value={draftFilters.dateFrom}
-                onClear={() => setActiveDraftFilters((current) => clearTransferFilter(current, "dateFrom"))}
-                onPress={() => openDatePicker("filterFrom", draftFilters.dateFrom)}
-              />
-            </View>
-            <View className="flex-1">
-              <DateField
-                label="To Date"
-                locale={locale}
-                value={draftFilters.dateTo}
-                onClear={() => setActiveDraftFilters((current) => clearTransferFilter(current, "dateTo"))}
-                onPress={() => openDatePicker("filterTo", draftFilters.dateTo)}
-              />
-            </View>
-          </View>
-          {filterError ? <Text className="font-sans text-sm text-state-danger">{filterError}</Text> : null}
-          <View className="flex-row gap-2">
-            <PrimaryButton
-              className="flex-1"
-              disabled={Boolean(filterError)}
-              onPress={() => {
-                setActiveFilters(draftFilters);
-                setFilterVisible(false);
-                setHistoryMode("all");
-              }}
-            >
-              Apply
-            </PrimaryButton>
-            <SecondaryButton
-              className="flex-1"
-              onPress={() => {
-                setActiveDraftFilters(clearTransferFilters());
-                setActiveFilters(clearTransferFilters());
-                setFilterVisible(false);
-              }}
-            >
-              Clear
-            </SecondaryButton>
-          </View>
-          <SecondaryButton onPress={() => setFilterVisible(false)}>Cancel</SecondaryButton>
-        </View>
       </BottomSheet>
 
       <BottomSheet visible={Boolean(deleteCandidate)} title="Delete transfer?" onClose={() => setDeleteCandidate(null)}>

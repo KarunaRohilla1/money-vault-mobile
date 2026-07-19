@@ -8,6 +8,7 @@ import {
   transferFilterError,
   transferFormFromTransfer,
   transferFormError,
+  transfersToCsv,
   updateTransferFilter,
   visibleTransferHistory,
   type TransferFormValues
@@ -93,26 +94,29 @@ describe("transfer model", () => {
 
   it("creates stable transfer filter keys", () => {
     expect(filtersKey({ accountId: 1, dateFrom: "2026-07-01", dateTo: "2026-07-31" })).toBe(
-      '{"accountId":1,"dateFrom":"2026-07-01","dateTo":"2026-07-31"}'
+      '{"accountId":1,"destinationAccountId":null,"dateFrom":"2026-07-01","dateTo":"2026-07-31","sourceAccountId":null}'
+    );
+    expect(filtersKey({ destinationAccountId: 2, sourceAccountId: 1 })).toBe(
+      '{"accountId":null,"destinationAccountId":2,"dateFrom":null,"dateTo":null,"sourceAccountId":1}'
     );
   });
 
   it("updates and clears selectable transfer filters without changing form state", () => {
     const form = { ...validForm };
-    const accountFiltered = updateTransferFilter({}, "accountId", 7);
+    const accountFiltered = updateTransferFilter({}, "sourceAccountId", 7);
     const dateFiltered = updateTransferFilter(accountFiltered, "dateFrom", "2026-07-01");
 
-    expect(accountFiltered).toEqual({ accountId: 7 });
-    expect(dateFiltered).toEqual({ accountId: 7, dateFrom: "2026-07-01" });
-    expect(clearTransferFilter(dateFiltered, "accountId")).toEqual({ accountId: null, dateFrom: "2026-07-01" });
+    expect(accountFiltered).toEqual({ sourceAccountId: 7 });
+    expect(dateFiltered).toEqual({ sourceAccountId: 7, dateFrom: "2026-07-01" });
+    expect(clearTransferFilter(dateFiltered, "sourceAccountId")).toEqual({ sourceAccountId: null, dateFrom: "2026-07-01" });
     expect(clearTransferFilters()).toEqual({});
     expect(form).toEqual(validForm);
   });
 
   it("uses different query keys after filter selection and per vault", () => {
-    expect(filtersKey({})).not.toBe(filtersKey({ accountId: 1 }));
-    expect(queryKeys.transfers.list("vault-a", filtersKey({ accountId: 1 }))).not.toEqual(
-      queryKeys.transfers.list("vault-b", filtersKey({ accountId: 1 }))
+    expect(filtersKey({})).not.toBe(filtersKey({ sourceAccountId: 1 }));
+    expect(queryKeys.transfers.list("vault-a", filtersKey({ sourceAccountId: 1 }))).not.toEqual(
+      queryKeys.transfers.list("vault-b", filtersKey({ sourceAccountId: 1 }))
     );
   });
 
@@ -121,8 +125,8 @@ describe("transfer model", () => {
     expect(transferFilterError({ dateTo: "bad-date" })).toBe("To date must be valid.");
     expect(transferFilterError({ dateFrom: "2026-02-31" })).toBe("From date must be valid.");
     expect(transferFilterError({ dateFrom: "2026-07-31", dateTo: "2026-07-01" })).toBe("From date cannot be after To date.");
-    expect(transferFilterError({ accountId: 1, dateFrom: "2026-07-01", dateTo: "2026-07-31" })).toBeNull();
-    expect(activeTransferFilterCount({ accountId: 1, dateFrom: "2026-07-01", dateTo: null })).toBe(2);
+    expect(transferFilterError({ sourceAccountId: 1, destinationAccountId: 2, dateFrom: "2026-07-01", dateTo: "2026-07-31" })).toBeNull();
+    expect(activeTransferFilterCount({ sourceAccountId: 1, destinationAccountId: 2, dateFrom: "2026-07-01", dateTo: null })).toBe(3);
   });
 
   it("switches between recent transfer history and View All history", () => {
@@ -130,6 +134,25 @@ describe("transfer model", () => {
 
     expect(visibleTransferHistory(items, "recent")).toEqual([1, 2, 3, 4, 5]);
     expect(visibleTransferHistory(items, "all")).toEqual(items);
+  });
+
+  it("exports one logical transfer row per CSV line with escaping and decimal amounts", () => {
+    const csv = transfersToCsv([
+      {
+        amount: 100.5,
+        date: "2026-07-10",
+        fromAccountId: 1,
+        fromAccountName: "HDFC, Salary",
+        notes: "Family \"savings\"\nJuly",
+        toAccountId: 2,
+        toAccountName: "ICICI Savings",
+        transferGroupId: "group-1"
+      }
+    ]);
+
+    expect(csv).toBe(
+      'Date,Source Account,Destination Account,Amount,Notes,Transfer Group ID\n2026-07-10,"HDFC, Salary",ICICI Savings,100.5,"Family ""savings""\nJuly",group-1'
+    );
   });
 
   it("removes a deleted logical transfer from every cached list variant for the active vault", () => {

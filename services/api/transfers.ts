@@ -8,6 +8,14 @@ export function getTransfers(token: string, filters: TransferFiltersApi = {}) {
     query.set("accountId", String(filters.accountId));
   }
 
+  if (filters.sourceAccountId) {
+    query.set("sourceAccountId", String(filters.sourceAccountId));
+  }
+
+  if (filters.destinationAccountId) {
+    query.set("destinationAccountId", String(filters.destinationAccountId));
+  }
+
   if (filters.dateFrom) {
     query.set("dateFrom", filters.dateFrom);
   }
