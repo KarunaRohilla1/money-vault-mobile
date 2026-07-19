@@ -26,7 +26,7 @@ export function AccountDetailsStep({ control, patchField, values }: OnboardingSt
           )}
         />
       </FormField>
-      <FormField label="Opening balance (optional)">
+      <FormField label="Opening balance">
         <Controller
           control={control}
           name="openingBalance"

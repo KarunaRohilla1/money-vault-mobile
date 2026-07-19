@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import type { AccountType } from "@/services/api/accountTypes";
 import { zustandStorage } from "@/stores/zustandStorage";
 
 export type OnboardingStep =
@@ -12,7 +13,7 @@ export type OnboardingStep =
   | "savings-goal"
   | "finish";
 
-export type OnboardingAccountKind = "Salary Account" | "Savings Account" | "Credit Card" | "Cash" | "Other";
+export type OnboardingAccountKind = AccountType;
 
 export interface OnboardingDraft {
   accountKind: OnboardingAccountKind | null;

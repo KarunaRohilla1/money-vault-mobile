@@ -1,28 +1,7 @@
-import type { IconName } from "@/constants/navigation";
 import type { OnboardingAccountKind } from "@/stores/onboardingStore";
+import { ACCOUNT_TYPES, accountTypeMeta } from "@/services/api/accountTypes";
 
-export const accountOptions: OnboardingAccountKind[] = ["Salary Account", "Savings Account", "Credit Card", "Cash", "Other"];
+export const accountOptions: OnboardingAccountKind[] = [...ACCOUNT_TYPES];
 export const cycleDays = Array.from({ length: 31 }, (_, index) => index + 1);
 
-export const accountOptionMeta: Record<OnboardingAccountKind, { icon: IconName; subtitle: string }> = {
-  "Salary Account": {
-    icon: "bank-outline",
-    subtitle: "Track your income."
-  },
-  "Savings Account": {
-    icon: "piggy-bank-outline",
-    subtitle: "For your savings."
-  },
-  "Credit Card": {
-    icon: "credit-card-outline",
-    subtitle: "Track your card dues."
-  },
-  Cash: {
-    icon: "wallet-outline",
-    subtitle: "Track cash in hand."
-  },
-  Other: {
-    icon: "dots-horizontal-circle-outline",
-    subtitle: "Investment, loan, or another account."
-  }
-};
+export const accountOptionMeta = accountTypeMeta;

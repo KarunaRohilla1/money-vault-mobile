@@ -163,19 +163,16 @@ function AmountInput({
   return (
     <View className="gap-2">
       <Text className="font-sans text-xs font-bold uppercase text-text-muted">Transfer Amount</Text>
-      <View className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-surface px-4 py-2.5">
-        <Text className="font-sans text-4xl font-bold text-text">₹</Text>
+      <View className="flex-row items-center gap-2 rounded-lg border border-surface-border bg-surface px-4 py-3">
+        <Text className="font-sans text-3xl font-bold leading-10 text-text">₹</Text>
         <TextInput
-          className="h-12 flex-1 font-sans text-4xl font-bold text-text"
+          className="h-14 flex-1 font-sans text-3xl font-bold leading-10 text-text"
           inputMode="decimal"
           onChangeText={onChange}
           placeholder="0"
           placeholderTextColor={theme.colors.text.muted}
           value={amount}
         />
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-deep">
-          <MaterialCommunityIcons name="pencil-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
-        </View>
       </View>
       {maxBalance !== null ? (
         <Text className="font-sans text-xs text-brand-soft">Available: {formatMoney(maxBalance, currencyCode, locale)}</Text>

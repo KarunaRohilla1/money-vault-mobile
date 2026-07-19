@@ -5,11 +5,20 @@ import { queryKeys } from "@/lib/queryKeys";
 import { apiClient } from "@/services/api/client";
 import type { AccountPayloadApi } from "@/services/api/types";
 
-function invalidateAccountDependents(vaultId: string | null) {
-  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
+export function isVaultScopedAccountDependentQuery(queryKey: readonly unknown[], vaultId: string | null) {
+  const scopedVaultId = vaultId ?? "anonymous";
+  return (
+    (queryKey[0] === "transactions" && queryKey[1] === "list" && queryKey[2] === scopedVaultId) ||
+    (queryKey[0] === "transfers" && queryKey[1] === "byVault" && queryKey[2] === scopedVaultId)
+  );
+}
+
+export function invalidateAccountDependents(vaultId: string | null) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.byVault(vaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
-  queryClient.invalidateQueries({ queryKey: queryKeys.transfers.root });
+  queryClient.invalidateQueries({
+    predicate: (query) => isVaultScopedAccountDependentQuery(query.queryKey, vaultId)
+  });
 }
 
 export function useAccountsQuery(token: string | null, vaultId: string | null) {

@@ -14,6 +14,7 @@ import {
   saveMonthlySavingsGoal,
   saveVaultName
 } from "@/services/api/onboarding";
+import { validationMessage } from "@/features/onboarding/onboardingSchema";
 
 describe("onboarding foundation", () => {
   beforeEach(() => {
@@ -107,8 +108,51 @@ describe("onboarding foundation", () => {
       isPrimary: true,
       name: "Salary Account",
       openingBalance: 500,
-      type: "Bank"
+      type: "Salary Account"
     });
+  });
+
+  it("requires opening balance before saving onboarding account details", () => {
+    expect(
+      validationMessage("account-details", {
+        ...EMPTY_ONBOARDING_DRAFT,
+        accountName: "Salary Account",
+        openingBalance: ""
+      })
+    ).toBe("Opening balance is required.");
+  });
+
+  it("rejects zero opening balance during onboarding", () => {
+    for (const openingBalance of ["0", "0.00", "-0"]) {
+      expect(
+        validationMessage("account-details", {
+          ...EMPTY_ONBOARDING_DRAFT,
+          accountKind: "Salary Account",
+          accountName: "Salary Account",
+          openingBalance
+        })
+      ).toBe("Opening balance must be greater than zero.");
+    }
+  });
+
+  it("uses the account type when validating onboarding opening balance", () => {
+    expect(
+      validationMessage("account-details", {
+        ...EMPTY_ONBOARDING_DRAFT,
+        accountKind: "Cash",
+        accountName: "Cash",
+        openingBalance: "-1"
+      })
+    ).toBe("Opening balance cannot be negative.");
+
+    expect(
+      validationMessage("account-details", {
+        ...EMPTY_ONBOARDING_DRAFT,
+        accountKind: "Credit Card",
+        accountName: "Credit Card",
+        openingBalance: "-1"
+      })
+    ).toBeNull();
   });
 
   it("updates an existing first account instead of duplicating it", async () => {
@@ -118,7 +162,7 @@ describe("onboarding foundation", () => {
         isPrimary: true,
         name: "Salary Account",
         openingBalance: 100,
-        type: "Bank"
+        type: "Salary Account"
       }
     ]);
     const updateAccount = jest.spyOn(apiClient, "updateAccount").mockResolvedValue({
@@ -126,7 +170,7 @@ describe("onboarding foundation", () => {
       isPrimary: true,
       name: "Salary Account",
       openingBalance: 500,
-      type: "Bank"
+      type: "Salary Account"
     });
 
     await saveFirstAccount("token", "vault-1", {
@@ -140,8 +184,15 @@ describe("onboarding foundation", () => {
       isPrimary: true,
       name: "Salary Account",
       openingBalance: 500,
-      type: "Bank"
+      type: "Salary Account"
     });
+  });
+
+  it("uses the same account choices as the Accounts form", async () => {
+    const { ACCOUNT_TYPES } = await import("@/services/api/accountTypes");
+    const { accountOptions } = await import("@/features/onboarding/onboardingOptions");
+
+    expect(accountOptions).toEqual([...ACCOUNT_TYPES]);
   });
 
   it("records local mobile onboarding completion per vault", () => {

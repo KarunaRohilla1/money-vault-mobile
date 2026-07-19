@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { cycleDays } from "@/features/onboarding/onboardingOptions";
+import { ACCOUNT_TYPES } from "@/services/api/accountTypes";
 import type { OnboardingDraft, OnboardingStep } from "@/stores/onboardingStore";
 
 const vaultNameSchema = z.object({
@@ -8,13 +9,30 @@ const vaultNameSchema = z.object({
 });
 
 const firstAccountSchema = z.object({
-  accountKind: z.enum(["Salary Account", "Savings Account", "Credit Card", "Cash", "Other"], "Choose the first account type.")
+  accountKind: z.enum(ACCOUNT_TYPES, "Choose the first account type.")
 });
 
-const accountDetailsSchema = z.object({
-  accountName: z.string().trim().min(1, "Account name is required."),
-  openingBalance: z.string().refine((value) => value.trim() === "" || Number(value) >= 0, "Opening balance cannot be negative.")
-});
+const accountDetailsSchema = z
+  .object({
+    accountKind: z.enum(ACCOUNT_TYPES, "Choose the first account type.").nullable(),
+    accountName: z.string().trim().min(1, "Account name is required."),
+    openingBalance: z.string().trim().min(1, "Opening balance is required.")
+  })
+  .refine((value) => Number.isFinite(Number(value.openingBalance)), {
+    message: "Opening balance must be a number.",
+    path: ["openingBalance"]
+  })
+  .refine((value) => {
+    const amount = Number(value.openingBalance);
+    return !Object.is(amount, -0) && amount !== 0;
+  }, {
+    message: "Opening balance must be greater than zero.",
+    path: ["openingBalance"]
+  })
+  .refine((value) => value.accountKind === "Credit Card" || Number(value.openingBalance) >= 0, {
+    message: "Opening balance cannot be negative.",
+    path: ["openingBalance"]
+  });
 
 const cycleSchema = z.object({
   cycleStartDay: z.number().int().refine((value) => cycleDays.includes(value), "Choose a cycle start day.")

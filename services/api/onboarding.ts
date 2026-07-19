@@ -48,13 +48,16 @@ function accountTypeFor(kind: OnboardingAccountKind | null) {
   switch (kind) {
     case "Credit Card":
       return "Credit Card";
+    case "Salary Account":
+      return "Salary Account";
+    case "Savings Account":
+      return "Savings Account";
     case "Cash":
       return "Cash";
-    case "Salary Account":
-    case "Savings Account":
     case "Other":
+      return "Other";
     case null:
-      return "Bank";
+      return "Salary Account";
   }
 }
 

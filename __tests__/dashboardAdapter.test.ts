@@ -98,4 +98,10 @@ describe("dashboard adapter", () => {
 
     expect(viewModel.categories).toEqual([]);
   });
+
+  it("rejects invalid successful dashboard responses", () => {
+    expect(() => adaptDashboardResponse({ data: {}, generatedAt: "2026-07-14T00:00:00Z", vault: baseResponse.vault } as DashboardApiResponse)).toThrow(
+      "The dashboard response was incomplete."
+    );
+  });
 });
