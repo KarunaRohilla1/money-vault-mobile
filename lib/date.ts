@@ -20,6 +20,43 @@ export function isValidIsoDate(value: string): boolean {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
+export function isoDateParts(value: string): { day: number; month: number; year: number } | null {
+  if (!isValidIsoDate(value)) {
+    return null;
+  }
+
+  const [yearText, monthText, dayText] = value.split("-");
+
+  return {
+    day: Number(dayText),
+    month: Number(monthText),
+    year: Number(yearText)
+  };
+}
+
+export function isoDateFromParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+export function addMonthsToIsoDate(value: string, monthOffset: number): string {
+  const parts = isoDateParts(value) ?? isoDateParts(todayLocalIso());
+
+  if (!parts) {
+    return todayLocalIso();
+  }
+
+  const monthStart = new Date(parts.year, parts.month - 1 + monthOffset, 1);
+  const year = monthStart.getFullYear();
+  const month = monthStart.getMonth() + 1;
+  const day = Math.min(parts.day, daysInMonth(year, month));
+
+  return isoDateFromParts(year, month, day);
+}
+
 export function formatIsoDateOnly(
   value: string,
   locale: string,

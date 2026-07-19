@@ -1,9 +1,14 @@
 import {
   activeTransferFilterCount,
+  clearTransferFilter,
+  clearTransferFilters,
   filtersKey,
   toTransferPayload,
+  transferAmountError,
   transferFilterError,
+  transferFormFromTransfer,
   transferFormError,
+  updateTransferFilter,
   visibleTransferHistory,
   type TransferFormValues
 } from "@/features/transfers/transferModel";
@@ -39,6 +44,15 @@ describe("transfer model", () => {
     expect(transferFormError(validForm)).toBeNull();
   });
 
+  it("returns field-level amount validation errors that clear when valid", () => {
+    expect(transferAmountError("")).toBe("Amount is required.");
+    expect(transferAmountError("0")).toBe("Amount must be greater than zero.");
+    expect(transferAmountError("-5")).toBe("Amount must be greater than zero.");
+    expect(transferAmountError("abc")).toBe("Amount must be a number.");
+    expect(transferAmountError("5000")).toBeNull();
+    expect(transferAmountError("100.50")).toBeNull();
+  });
+
   it("validates date presence and actual calendar dates", () => {
     expect(transferFormError({ ...validForm, date: "" })).toBe("Date is required.");
     expect(transferFormError({ ...validForm, date: "not-a-date" })).toBe("Date must be a valid calendar date.");
@@ -56,9 +70,49 @@ describe("transfer model", () => {
     });
   });
 
+  it("preloads transfer edit form values including the existing date", () => {
+    expect(
+      transferFormFromTransfer({
+        amount: 100.5,
+        date: "2026-07-09",
+        fromAccountId: 1,
+        fromAccountName: "Salary",
+        notes: null,
+        toAccountId: 2,
+        toAccountName: "Savings",
+        transferGroupId: "group-1"
+      })
+    ).toEqual({
+      amount: "100.5",
+      date: "2026-07-09",
+      fromAccountId: 1,
+      notes: "",
+      toAccountId: 2
+    });
+  });
+
   it("creates stable transfer filter keys", () => {
     expect(filtersKey({ accountId: 1, dateFrom: "2026-07-01", dateTo: "2026-07-31" })).toBe(
       '{"accountId":1,"dateFrom":"2026-07-01","dateTo":"2026-07-31"}'
+    );
+  });
+
+  it("updates and clears selectable transfer filters without changing form state", () => {
+    const form = { ...validForm };
+    const accountFiltered = updateTransferFilter({}, "accountId", 7);
+    const dateFiltered = updateTransferFilter(accountFiltered, "dateFrom", "2026-07-01");
+
+    expect(accountFiltered).toEqual({ accountId: 7 });
+    expect(dateFiltered).toEqual({ accountId: 7, dateFrom: "2026-07-01" });
+    expect(clearTransferFilter(dateFiltered, "accountId")).toEqual({ accountId: null, dateFrom: "2026-07-01" });
+    expect(clearTransferFilters()).toEqual({});
+    expect(form).toEqual(validForm);
+  });
+
+  it("uses different query keys after filter selection and per vault", () => {
+    expect(filtersKey({})).not.toBe(filtersKey({ accountId: 1 }));
+    expect(queryKeys.transfers.list("vault-a", filtersKey({ accountId: 1 }))).not.toEqual(
+      queryKeys.transfers.list("vault-b", filtersKey({ accountId: 1 }))
     );
   });
 

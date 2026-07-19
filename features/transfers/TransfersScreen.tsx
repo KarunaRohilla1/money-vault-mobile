@@ -13,16 +13,21 @@ import {
 } from "@/features/transfers/api";
 import {
   activeTransferFilterCount,
+  clearTransferFilter,
+  clearTransferFilters,
   emptyTransferForm,
   toTransferPayload,
+  transferAmountError,
   transferFilterError,
+  transferFormFromTransfer,
   transferFormError,
+  updateTransferFilter,
   visibleTransferHistory,
   type TransferFilters,
   type TransferFormValues
 } from "@/features/transfers/transferModel";
 import { formatCurrency } from "@/lib/format";
-import { formatIsoDateOnly } from "@/lib/date";
+import { addMonthsToIsoDate, daysInMonth, formatIsoDateOnly, isoDateFromParts, isoDateParts, todayLocalIso } from "@/lib/date";
 import { toAppError } from "@/lib/errors";
 import type { AccountApi, TransferApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -32,15 +37,18 @@ import { theme } from "@/theme";
 type FlowMode = "compose" | "review" | "success";
 type HistoryMode = "recent" | "all";
 type AccountPickerTarget = "from" | "to" | null;
+type DatePickerTarget = "transfer" | "filterFrom" | "filterTo" | null;
 
 interface TransferDraft extends TransferFormValues {
   transferGroupId: string | null;
 }
 
-const EMPTY_DRAFT: TransferDraft = {
-  ...emptyTransferForm(),
-  transferGroupId: null
-};
+function createEmptyDraft(): TransferDraft {
+  return {
+    ...emptyTransferForm(),
+    transferGroupId: null
+  };
+}
 
 function formatDate(value: string, locale: string) {
   return formatIsoDateOnly(value, locale);
@@ -133,12 +141,158 @@ function AccountCard({
   );
 }
 
+function DateField({
+  label,
+  locale,
+  onClear,
+  onPress,
+  value
+}: {
+  label: string;
+  locale: string;
+  onClear?: () => void;
+  onPress: () => void;
+  value: string | null | undefined;
+}) {
+  return (
+    <View className="gap-2">
+      <Text className="font-sans text-xs font-bold uppercase text-text-muted">{label}</Text>
+      <Pressable
+        accessibilityLabel={`Choose ${label.toLowerCase()}`}
+        accessibilityRole="button"
+        className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-surface px-4 py-3"
+        onPress={onPress}
+      >
+        <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
+        <Text className={value ? "flex-1 font-sans text-sm font-semibold text-text" : "flex-1 font-sans text-sm text-text-muted"}>
+          {value ? formatDate(value, locale) : "Select date"}
+        </Text>
+        {value && onClear ? (
+          <Pressable accessibilityLabel={`Clear ${label.toLowerCase()}`} accessibilityRole="button" hitSlop={8} onPress={onClear}>
+            <MaterialCommunityIcons name="close-circle" size={theme.icons.sm} color={theme.colors.text.muted} />
+          </Pressable>
+        ) : null}
+      </Pressable>
+    </View>
+  );
+}
+
+function FilterAccountField({
+  account,
+  onClear,
+  onPress
+}: {
+  account: AccountApi | null;
+  onClear: () => void;
+  onPress: () => void;
+}) {
+  return (
+    <View className="gap-2">
+      <Text className="font-sans text-xs font-bold uppercase text-text-muted">Account Involved</Text>
+      <Pressable
+        accessibilityLabel="Choose account filter"
+        accessibilityRole="button"
+        className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-background px-4 py-3"
+        onPress={onPress}
+      >
+        <MaterialCommunityIcons name="bank-transfer" size={theme.icons.sm} color={theme.colors.brand.soft} />
+        <View className="flex-1">
+          <Text className={account ? "font-sans text-sm font-semibold text-text" : "font-sans text-sm text-text-muted"} numberOfLines={1}>
+            {account?.name ?? "All accounts"}
+          </Text>
+          <Text className="font-sans text-xs text-text-muted">{account?.type ?? "Source or destination"}</Text>
+        </View>
+        {account ? (
+          <Pressable accessibilityLabel="Clear account filter" accessibilityRole="button" hitSlop={8} onPress={onClear}>
+            <MaterialCommunityIcons name="close-circle" size={theme.icons.sm} color={theme.colors.text.muted} />
+          </Pressable>
+        ) : (
+          <MaterialCommunityIcons name="chevron-down" size={theme.icons.sm} color={theme.colors.text.muted} />
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+function MonthDatePicker({
+  locale,
+  onCancel,
+  onConfirm,
+  selectedDate,
+  setSelectedDate
+}: {
+  locale: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+}) {
+  const parts = isoDateParts(selectedDate) ?? isoDateParts(todayLocalIso());
+  const days = parts ? Array.from({ length: daysInMonth(parts.year, parts.month) }, (_value, index) => index + 1) : [];
+  const monthTitle = parts ? formatIsoDateOnly(isoDateFromParts(parts.year, parts.month, 1), locale, { month: "long", year: "numeric" }) : "Choose Date";
+
+  return (
+    <View className="gap-4">
+      <View className="flex-row items-center justify-between">
+        <Pressable
+          accessibilityLabel="Previous month"
+          accessibilityRole="button"
+          className="h-10 w-10 items-center justify-center rounded-md border border-surface-border bg-surface"
+          onPress={() => setSelectedDate(addMonthsToIsoDate(selectedDate, -1))}
+        >
+          <MaterialCommunityIcons name="chevron-left" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
+        </Pressable>
+        <Text className="font-sans text-base font-semibold text-text">{monthTitle}</Text>
+        <Pressable
+          accessibilityLabel="Next month"
+          accessibilityRole="button"
+          className="h-10 w-10 items-center justify-center rounded-md border border-surface-border bg-surface"
+          onPress={() => setSelectedDate(addMonthsToIsoDate(selectedDate, 1))}
+        >
+          <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
+        </Pressable>
+      </View>
+      <View className="flex-row flex-wrap gap-2">
+        {parts
+          ? days.map((day) => {
+              const date = isoDateFromParts(parts.year, parts.month, day);
+              const isSelected = date === selectedDate;
+
+              return (
+                <Pressable
+                  key={date}
+                  accessibilityLabel={`Choose ${formatDate(date, locale)}`}
+                  accessibilityRole="button"
+                  className={isSelected ? "h-10 w-10 items-center justify-center rounded-full bg-brand" : "h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-background"}
+                  onPress={() => setSelectedDate(date)}
+                >
+                  <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
+                    {day}
+                  </Text>
+                </Pressable>
+              );
+            })
+          : null}
+      </View>
+      <View className="flex-row gap-2">
+        <PrimaryButton className="flex-1" onPress={onConfirm}>
+          Select Date
+        </PrimaryButton>
+        <SecondaryButton className="flex-1" onPress={onCancel}>
+          Cancel
+        </SecondaryButton>
+      </View>
+    </View>
+  );
+}
+
 function AmountInput({
   amount,
   currencyCode,
   error,
   locale,
   maxBalance,
+  onBlur,
   onChange
 }: {
   amount: string;
@@ -146,16 +300,18 @@ function AmountInput({
   error: string | null;
   locale: string;
   maxBalance: number | null;
+  onBlur: () => void;
   onChange: (amount: string) => void;
 }) {
   return (
     <View className="gap-2">
       <Text className="font-sans text-xs font-bold uppercase text-text-muted">Transfer Amount</Text>
-      <View className="flex-row items-center gap-2 rounded-lg border border-surface-border bg-surface px-4 py-3">
+      <View className={error ? "flex-row items-center gap-2 rounded-lg border border-state-danger bg-surface px-4 py-3" : "flex-row items-center gap-2 rounded-lg border border-surface-border bg-surface px-4 py-3"}>
         <Text className="font-sans text-3xl font-bold leading-10 text-text">₹</Text>
         <TextInput
           className="h-14 flex-1 font-sans text-3xl font-bold leading-10 text-text"
           inputMode="decimal"
+          onBlur={onBlur}
           onChangeText={onChange}
           placeholder="0"
           placeholderTextColor={theme.colors.text.muted}
@@ -219,27 +375,58 @@ function HistoryRow({ currencyCode, locale, onDelete, onEdit, transfer }: { curr
 export function TransfersScreen() {
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const vaultFilterKey = vaultId ?? "anonymous";
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
-  const [filters, setFilters] = useState<TransferFilters>({});
-  const [draftFilters, setDraftFilters] = useState<TransferFilters>({});
+  const [filtersByVault, setFiltersByVault] = useState<Record<string, TransferFilters>>({});
+  const [draftFiltersByVault, setDraftFiltersByVault] = useState<Record<string, TransferFilters>>({});
+  const filters = filtersByVault[vaultFilterKey] ?? {};
+  const draftFilters = draftFiltersByVault[vaultFilterKey] ?? {};
+  const setActiveFilters = (nextFilters: TransferFilters | ((current: TransferFilters) => TransferFilters)) => {
+    setFiltersByVault((currentByVault) => {
+      const currentFilters = currentByVault[vaultFilterKey] ?? {};
+      const value = typeof nextFilters === "function" ? nextFilters(currentFilters) : nextFilters;
+
+      return {
+        ...currentByVault,
+        [vaultFilterKey]: value
+      };
+    });
+  };
+  const setActiveDraftFilters = (nextFilters: TransferFilters | ((current: TransferFilters) => TransferFilters)) => {
+    setDraftFiltersByVault((currentByVault) => {
+      const currentFilters = currentByVault[vaultFilterKey] ?? {};
+      const value = typeof nextFilters === "function" ? nextFilters(currentFilters) : nextFilters;
+
+      return {
+        ...currentByVault,
+        [vaultFilterKey]: value
+      };
+    });
+  };
   const transfersQuery = useTransfersQuery(token, vaultId, filters);
   const accountsQuery = useAccountsQuery(token, vaultId);
   const createMutation = useCreateTransferMutation(token, vaultId);
   const updateMutation = useUpdateTransferMutation(token, vaultId);
   const deleteMutation = useDeleteTransferMutation(token, vaultId);
-  const [draft, setDraft] = useState<TransferDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<TransferDraft>(() => createEmptyDraft());
   const [mode, setMode] = useState<FlowMode>("compose");
   const [historyMode, setHistoryMode] = useState<HistoryMode>("recent");
   const [pickerTarget, setPickerTarget] = useState<AccountPickerTarget>(null);
+  const [filterAccountPickerVisible, setFilterAccountPickerVisible] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget>(null);
+  const [datePickerValue, setDatePickerValue] = useState(todayLocalIso());
   const [filterVisible, setFilterVisible] = useState(false);
   const [attemptedReview, setAttemptedReview] = useState(false);
+  const [amountTouched, setAmountTouched] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<TransferApi | null>(null);
   const [lastConfirmed, setLastConfirmed] = useState<TransferDraft | null>(null);
   const accounts = accountsQuery.data ?? [];
   const fromAccount = accounts.find((account) => account.id === draft.fromAccountId) ?? null;
   const toAccount = accounts.find((account) => account.id === draft.toAccountId) ?? null;
+  const selectedFilterAccount = accounts.find((account) => account.id === draftFilters.accountId) ?? null;
   const formError = useMemo(() => transferFormError(draft), [draft]);
+  const amountError = useMemo(() => transferAmountError(draft.amount), [draft.amount]);
   const mutationError = createMutation.error ?? updateMutation.error ?? deleteMutation.error;
   const safeMutationError = mutationError ? toAppError(mutationError, "Transfer could not be saved.") : null;
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -249,15 +436,27 @@ export function TransfersScreen() {
   const filterError = transferFilterError(draftFilters);
   const visibleTransfers = visibleTransferHistory(transfersQuery.data ?? [], historyMode);
   const showReviewError = attemptedReview && formError;
+  const visibleAmountError = (attemptedReview || amountTouched) && amountError ? amountError : null;
 
   const resetFlow = () => {
-    setDraft(EMPTY_DRAFT);
+    setDraft(createEmptyDraft());
     setAttemptedReview(false);
+    setAmountTouched(false);
     setMode("compose");
   };
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (datePickerTarget) {
+        setDatePickerTarget(null);
+        return true;
+      }
+
+      if (filterAccountPickerVisible) {
+        setFilterAccountPickerVisible(false);
+        return true;
+      }
+
       if (filterVisible) {
         setFilterVisible(false);
         return true;
@@ -272,7 +471,28 @@ export function TransfersScreen() {
     });
 
     return () => subscription.remove();
-  }, [filterVisible, historyMode]);
+  }, [datePickerTarget, filterAccountPickerVisible, filterVisible, historyMode]);
+
+  const openDatePicker = (target: Exclude<DatePickerTarget, null>, value: string | null | undefined) => {
+    setDatePickerValue(value && value.trim() ? value : todayLocalIso());
+    setDatePickerTarget(target);
+  };
+
+  const confirmDatePicker = () => {
+    if (datePickerTarget === "transfer") {
+      setDraft((current) => ({ ...current, date: datePickerValue }));
+    }
+
+    if (datePickerTarget === "filterFrom") {
+      setActiveDraftFilters((current) => updateTransferFilter(current, "dateFrom", datePickerValue));
+    }
+
+    if (datePickerTarget === "filterTo") {
+      setActiveDraftFilters((current) => updateTransferFilter(current, "dateTo", datePickerValue));
+    }
+
+    setDatePickerTarget(null);
+  };
 
   const submit = () => {
     const error = transferFormError(draft);
@@ -312,13 +532,11 @@ export function TransfersScreen() {
 
   const editTransfer = (transfer: TransferApi) => {
     setDraft({
-      amount: String(transfer.amount),
-      date: transfer.date,
-      fromAccountId: transfer.fromAccountId,
-      notes: transfer.notes ?? "",
-      toAccountId: transfer.toAccountId,
+      ...transferFormFromTransfer(transfer),
       transferGroupId: transfer.transferGroupId
     });
+    setAttemptedReview(false);
+    setAmountTouched(false);
     setMode("compose");
   };
 
@@ -411,7 +629,7 @@ export function TransfersScreen() {
           accessibilityRole="button"
           className={activeFilterCount > 0 ? "h-10 w-10 items-center justify-center rounded-full bg-brand-deep" : "h-10 w-10 items-center justify-center rounded-full"}
           onPress={() => {
-            setDraftFilters(filters);
+            setActiveDraftFilters(filters);
             setFilterVisible(true);
           }}
         >
@@ -450,17 +668,18 @@ export function TransfersScreen() {
         <AmountInput
           amount={draft.amount}
           currencyCode={currencyCode}
-          error={showReviewError && (formError.includes("Amount") || formError.includes("required")) ? formError : null}
+          error={visibleAmountError}
           locale={locale}
           maxBalance={maxBalance}
+          onBlur={() => setAmountTouched(true)}
           onChange={(amount) => setDraft((current) => ({ ...current, amount }))}
         />
-        {showReviewError && !formError.includes("Amount") && !formError.includes("required") ? (
+        <DateField label="Transfer Date" locale={locale} value={draft.date} onPress={() => openDatePicker("transfer", draft.date)} />
+        {showReviewError && formError !== amountError ? (
           <Text className="font-sans text-sm text-state-danger">{formError}</Text>
         ) : null}
         <NoteInput notes={draft.notes} onChange={(notes) => setDraft((current) => ({ ...current, notes }))} />
         <PrimaryButton
-          disabled={Boolean(formError)}
           onPress={() => {
             setAttemptedReview(true);
             if (!formError) {
@@ -535,47 +754,84 @@ export function TransfersScreen() {
         </View>
       </BottomSheet>
 
+      <BottomSheet visible={filterAccountPickerVisible} title="Filter Account" onClose={() => setFilterAccountPickerVisible(false)}>
+        <View className="gap-3">
+          <Pressable
+            accessibilityRole="button"
+            className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-background p-3"
+            onPress={() => {
+              setActiveDraftFilters((current) => clearTransferFilter(current, "accountId"));
+              setFilterAccountPickerVisible(false);
+            }}
+          >
+            <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
+              <MaterialCommunityIcons name="bank-transfer" size={theme.icons.sm} color={theme.colors.brand.soft} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-sans text-sm font-semibold text-text">All accounts</Text>
+              <Text className="font-sans text-xs text-text-muted">Source or destination</Text>
+            </View>
+          </Pressable>
+          {accounts.map((account) => (
+            <Pressable
+              key={account.id}
+              accessibilityRole="button"
+              className="flex-row items-center gap-3 rounded-lg border border-surface-border bg-background p-3"
+              onPress={() => {
+                setActiveDraftFilters((current) => updateTransferFilter(current, "accountId", account.id));
+                setFilterAccountPickerVisible(false);
+              }}
+            >
+              <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
+                <MaterialCommunityIcons name={accountIcon(account)} size={theme.icons.sm} color={accountTone(account)} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-sans text-sm font-semibold text-text">{account.name}</Text>
+                <Text className="font-sans text-xs text-text-muted">{account.type}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={datePickerTarget !== null}
+        title={datePickerTarget === "transfer" ? "Transfer Date" : datePickerTarget === "filterFrom" ? "From Date" : "To Date"}
+        onClose={() => setDatePickerTarget(null)}
+      >
+        <MonthDatePicker
+          locale={locale}
+          selectedDate={datePickerValue}
+          setSelectedDate={setDatePickerValue}
+          onCancel={() => setDatePickerTarget(null)}
+          onConfirm={confirmDatePicker}
+        />
+      </BottomSheet>
+
       <BottomSheet visible={filterVisible} title="Filter Transfers" onClose={() => setFilterVisible(false)}>
         <View className="gap-4">
-          <View className="gap-2">
-            <Text className="font-sans text-xs font-bold uppercase text-text-muted">Account Involved</Text>
-            <View className="flex-row flex-wrap gap-2">
-              <SecondaryButton
-                className={!draftFilters.accountId ? "border-brand-soft" : undefined}
-                onPress={() => setDraftFilters((current) => ({ ...current, accountId: null }))}
-              >
-                All
-              </SecondaryButton>
-              {accounts.map((account) => (
-                <SecondaryButton
-                  key={account.id}
-                  className={draftFilters.accountId === account.id ? "border-brand-soft" : undefined}
-                  onPress={() => setDraftFilters((current) => ({ ...current, accountId: account.id }))}
-                >
-                  {account.name}
-                </SecondaryButton>
-              ))}
-            </View>
-          </View>
+          <FilterAccountField
+            account={selectedFilterAccount}
+            onClear={() => setActiveDraftFilters((current) => clearTransferFilter(current, "accountId"))}
+            onPress={() => setFilterAccountPickerVisible(true)}
+          />
           <View className="flex-row gap-3">
-            <View className="flex-1 gap-2">
-              <Text className="font-sans text-xs font-bold uppercase text-text-muted">From Date</Text>
-              <TextInput
-                className="h-11 rounded-md border border-surface-border bg-background px-3 font-sans text-sm text-text"
-                onChangeText={(dateFrom) => setDraftFilters((current) => ({ ...current, dateFrom }))}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.colors.text.muted}
-                value={draftFilters.dateFrom ?? ""}
+            <View className="flex-1">
+              <DateField
+                label="From Date"
+                locale={locale}
+                value={draftFilters.dateFrom}
+                onClear={() => setActiveDraftFilters((current) => clearTransferFilter(current, "dateFrom"))}
+                onPress={() => openDatePicker("filterFrom", draftFilters.dateFrom)}
               />
             </View>
-            <View className="flex-1 gap-2">
-              <Text className="font-sans text-xs font-bold uppercase text-text-muted">To Date</Text>
-              <TextInput
-                className="h-11 rounded-md border border-surface-border bg-background px-3 font-sans text-sm text-text"
-                onChangeText={(dateTo) => setDraftFilters((current) => ({ ...current, dateTo }))}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.colors.text.muted}
-                value={draftFilters.dateTo ?? ""}
+            <View className="flex-1">
+              <DateField
+                label="To Date"
+                locale={locale}
+                value={draftFilters.dateTo}
+                onClear={() => setActiveDraftFilters((current) => clearTransferFilter(current, "dateTo"))}
+                onPress={() => openDatePicker("filterTo", draftFilters.dateTo)}
               />
             </View>
           </View>
@@ -585,7 +841,7 @@ export function TransfersScreen() {
               className="flex-1"
               disabled={Boolean(filterError)}
               onPress={() => {
-                setFilters(draftFilters);
+                setActiveFilters(draftFilters);
                 setFilterVisible(false);
                 setHistoryMode("all");
               }}
@@ -595,8 +851,8 @@ export function TransfersScreen() {
             <SecondaryButton
               className="flex-1"
               onPress={() => {
-                setDraftFilters({});
-                setFilters({});
+                setActiveDraftFilters(clearTransferFilters());
+                setActiveFilters(clearTransferFilters());
                 setFilterVisible(false);
               }}
             >

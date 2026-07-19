@@ -1,4 +1,4 @@
-import type { TransferPayloadApi } from "@/services/api/types";
+import type { TransferApi, TransferPayloadApi } from "@/services/api/types";
 import { isValidIsoDate, todayLocalIso } from "@/lib/date";
 
 export interface TransferFormValues {
@@ -15,6 +15,7 @@ export interface TransferFilters {
   dateTo?: string | null;
 }
 
+export type TransferFilterKey = keyof TransferFilters;
 export type TransferHistoryMode = "recent" | "all";
 export const RECENT_TRANSFER_LIMIT = 5;
 
@@ -28,6 +29,16 @@ export function emptyTransferForm(): TransferFormValues {
   };
 }
 
+export function transferFormFromTransfer(transfer: TransferApi): TransferFormValues {
+  return {
+    amount: String(transfer.amount),
+    date: transfer.date,
+    fromAccountId: transfer.fromAccountId,
+    notes: transfer.notes ?? "",
+    toAccountId: transfer.toAccountId
+  };
+}
+
 export function transferFormError(values: TransferFormValues) {
   if (!values.fromAccountId || !values.toAccountId) {
     return "Choose both accounts.";
@@ -37,18 +48,10 @@ export function transferFormError(values: TransferFormValues) {
     return "Accounts must be different.";
   }
 
-  if (!values.amount.trim()) {
-    return "Amount is required.";
-  }
+  const amountError = transferAmountError(values.amount);
 
-  const amount = Number(values.amount);
-
-  if (!Number.isFinite(amount)) {
-    return "Amount must be a number.";
-  }
-
-  if (amount <= 0) {
-    return "Amount must be greater than zero.";
+  if (amountError) {
+    return amountError;
   }
 
   if (!values.date.trim()) {
@@ -62,6 +65,24 @@ export function transferFormError(values: TransferFormValues) {
   return null;
 }
 
+export function transferAmountError(amountText: string) {
+  if (!amountText.trim()) {
+    return "Amount is required.";
+  }
+
+  const amount = Number(amountText);
+
+  if (!Number.isFinite(amount)) {
+    return "Amount must be a number.";
+  }
+
+  if (amount <= 0) {
+    return "Amount must be greater than zero.";
+  }
+
+  return null;
+}
+
 export function toTransferPayload(values: TransferFormValues): TransferPayloadApi {
   return {
     amount: Number(values.amount),
@@ -70,6 +91,25 @@ export function toTransferPayload(values: TransferFormValues): TransferPayloadAp
     notes: values.notes.trim(),
     toAccountId: values.toAccountId ?? 0
   };
+}
+
+export function updateTransferFilter<TFilterKey extends TransferFilterKey>(
+  filters: TransferFilters,
+  key: TFilterKey,
+  value: TransferFilters[TFilterKey]
+): TransferFilters {
+  return {
+    ...filters,
+    [key]: value
+  };
+}
+
+export function clearTransferFilter(filters: TransferFilters, key: TransferFilterKey): TransferFilters {
+  return updateTransferFilter(filters, key, null);
+}
+
+export function clearTransferFilters(): TransferFilters {
+  return {};
 }
 
 export function filtersKey(filters: TransferFilters = {}) {

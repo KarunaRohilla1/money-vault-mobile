@@ -1,4 +1,4 @@
-import { formatIsoDateOnly, isValidIsoDate, todayLocalIso } from "@/lib/date";
+import { addMonthsToIsoDate, daysInMonth, formatIsoDateOnly, isoDateFromParts, isoDateParts, isValidIsoDate, todayLocalIso } from "@/lib/date";
 
 describe("date utilities", () => {
   it.each(["2024-02-29", "2026-01-01", "2026-12-31"])("accepts real ISO date %s", (value) => {
@@ -27,5 +27,14 @@ describe("date utilities", () => {
 
   it("supports existing short dashboard date labels", () => {
     expect(formatIsoDateOnly("2026-07-19", "en-IN", { day: "numeric", month: "short" })).toBe("19 Jul");
+  });
+
+  it("builds constrained date-picker month values from ISO date parts", () => {
+    expect(isoDateParts("2026-07-19")).toEqual({ day: 19, month: 7, year: 2026 });
+    expect(isoDateParts("2026-02-31")).toBeNull();
+    expect(isoDateFromParts(2026, 7, 9)).toBe("2026-07-09");
+    expect(daysInMonth(2024, 2)).toBe(29);
+    expect(addMonthsToIsoDate("2026-01-31", 1)).toBe("2026-02-28");
+    expect(addMonthsToIsoDate("2024-01-31", 1)).toBe("2024-02-29");
   });
 });
