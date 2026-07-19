@@ -37,6 +37,7 @@ Do not commit `.env` or secrets. This value points to the Money Vault backend AP
 - `components/` contains reusable UI, layout, card, chart, and form primitives.
 - `features/` contains feature-owned surfaces. Dashboard and supporting authenticated pages consume backend APIs; financial calculations stay on the backend.
 - `features/onboarding/` contains the setup coordinator, step components, Zod validation, options, and the onboarding flow hook.
+- `features/transactions/parser/` contains the local copy-paste transaction message parser. It is deterministic TypeScript, stores nothing, logs nothing, and never calls the backend.
 
 ## Backend Auth Model
 
@@ -80,6 +81,14 @@ Intermediate onboarding steps save locally and advance without showing backend p
 The API client is split by domain while preserving the public `apiClient` object for existing callers. Implemented client groups include auth, dashboard, accounts, categories, transactions, transfers, planning, shared, wishlist, reports, settings, and onboarding placeholders.
 
 The Dashboard screen renders the backend response contract: `generatedAt`, `vault`, and nested `data` fields for cycle, Safe to Spend, financial snapshot, recent activity, and spending by category.
+
+## Transaction Message Parsing
+
+The Add Transaction screen includes an optional `Paste Message` flow for bank SMS/email text. Parsing happens entirely on device and only fills supported form fields after the user reviews and taps `Use Details`.
+
+Supported prefill fields are transaction type, amount, date, account, category, and notes. Reference IDs, channels, merchants, and parsed time are folded into notes because the current transaction form has no dedicated fields for them. Parsed details are never auto-submitted.
+
+`expo-clipboard` powers the `Paste from Clipboard` action. After installing or changing this native dependency, rebuild the EAS development build before testing the button on a device. Manual paste into the text box still works without clipboard module access.
 
 ## Commands
 
