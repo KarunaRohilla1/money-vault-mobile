@@ -21,6 +21,8 @@ describe("queryKeys", () => {
     expect(queryKeys.planning.current("vault_1")).not.toEqual(queryKeys.planning.current("vault_2"));
     expect(queryKeys.reports.current("vault_1")).not.toEqual(queryKeys.reports.current("vault_2"));
     expect(queryKeys.shared.bills("vault_1")).not.toEqual(queryKeys.shared.bills("vault_2"));
+    expect(queryKeys.shared.dashboard("vault_1")).not.toEqual(queryKeys.shared.dashboard("vault_2"));
+    expect(queryKeys.shared.dashboard("vault_1", 10)).not.toEqual(queryKeys.shared.dashboard("vault_1", 20));
     expect(queryKeys.shared.expenses("vault_1")).not.toEqual(queryKeys.shared.expenses("vault_2"));
     expect(queryKeys.shared.bills("vault_1", 10)).not.toEqual(queryKeys.shared.bills("vault_1", 20));
     expect(queryKeys.transactions.detail("vault_1", 12)).not.toEqual(queryKeys.transactions.detail("vault_2", 12));

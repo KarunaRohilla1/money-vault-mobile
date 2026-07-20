@@ -158,3 +158,116 @@ export interface SharedSettlementPayloadApi {
 export interface SharedPageApiResponse<TData> {
   data: TData;
 }
+
+export interface SharedDashboardCycleApi {
+  daysCompleted: number;
+  daysRemaining: number;
+  displayName: string;
+  endDate: string;
+  id: number;
+  progressPercent: number;
+  startDate: string;
+  status: string;
+  totalDays: number;
+}
+
+export interface SharedDashboardSettlementApi {
+  amount: number;
+  currentUserIsOwed: number;
+  currentUserOwes: number;
+  currentUserPaid: number;
+  currentUserShare: number;
+  direction: "payable" | "receivable" | "settled";
+  items: SharedSettlementItemApi[];
+  label: string;
+  settlementPercentage: number;
+}
+
+export interface SharedDashboardSnapshotApi {
+  householdSpendThisMonth: number;
+  participantCount: number;
+  topCategory: string | null;
+  topCategoryAmount: number;
+  topCategoryPercentage: number;
+  upcomingBillsCount: number;
+}
+
+export interface SharedDashboardRecentActivityApi {
+  amount: number;
+  category: string;
+  date: string;
+  direction: "owed" | "paid";
+  icon: string;
+  id: number;
+  participant: string;
+  sharedTag: string;
+  time?: string | null;
+}
+
+export interface SharedDashboardParticipantApi {
+  avatarInitial: string;
+  balance: number;
+  isCurrentUser: boolean;
+  name: string;
+  negativeBalance: number;
+  paid: number;
+  positiveBalance: number;
+  share: number;
+  vaultId: number;
+}
+
+export interface SharedDashboardSpendingCategoryApi {
+  amount: number;
+  category: string;
+  color?: string | null;
+  icon?: string | null;
+  key: string;
+  percentage: number;
+}
+
+export interface SharedDashboardMonthlySummaryApi {
+  dailyAverage: number;
+  monthlySpend: number;
+  projection: number;
+}
+
+export interface SharedDashboardQuickActionsApi {
+  canAddBill: boolean;
+  canAddExpense: boolean;
+  canSplit: boolean;
+  markSettledEnabled: boolean;
+  markSettledVisible: boolean;
+}
+
+export interface SharedDashboardEmptyStatesApi {
+  noBills: boolean;
+  noCategories: boolean;
+  noParticipants: boolean;
+  noSharedTransactions: boolean;
+  noSpending: boolean;
+}
+
+export interface SharedDashboardDataApi {
+  cycle: SharedDashboardCycleApi;
+  emptyStates: SharedDashboardEmptyStatesApi;
+  householdSnapshot: SharedDashboardSnapshotApi;
+  monthlySummary: SharedDashboardMonthlySummaryApi;
+  participants: SharedDashboardParticipantApi[];
+  quickActions: SharedDashboardQuickActionsApi;
+  recentActivity: SharedDashboardRecentActivityApi[];
+  settlement: SharedDashboardSettlementApi;
+  spendingChart: SharedDashboardSpendingCategoryApi[];
+}
+
+export interface SharedDashboardApiResponse {
+  data: {
+    data: SharedDashboardDataApi;
+    generatedAt: string;
+    vault: {
+      id: string;
+      isAdmin: boolean;
+      name: string;
+      vaultType: string;
+    };
+  };
+}

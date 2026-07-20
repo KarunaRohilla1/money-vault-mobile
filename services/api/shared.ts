@@ -1,12 +1,20 @@
 import { buildQuery, request } from "@/services/api/core";
 import type {
   SharedBillsApiResponse,
+  SharedDashboardApiResponse,
   SharedExpensesApiResponse,
   SharedPageApiResponse,
   SharedSettlementPayloadApi,
   SharedSettlementsApiResponse,
   SuccessApiResponse
 } from "@/services/api/types";
+
+export function getSharedDashboard(token: string, sharedVaultId?: number) {
+  return request<SharedDashboardApiResponse>({
+    path: `/api/shared/dashboard${buildQuery([["sharedVaultId", sharedVaultId]])}`,
+    token
+  });
+}
 
 export function getSharedExpenses(token: string, sharedVaultId?: number) {
   return request<SharedPageApiResponse<SharedExpensesApiResponse>>({

@@ -28,6 +28,8 @@ export const queryKeys = {
   shared: {
     bills: (vaultId: string | null, sharedVaultId: number | null = null) =>
       ["shared", "bills", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
+    dashboard: (vaultId: string | null, sharedVaultId: number | null = null) =>
+      ["shared", "dashboard", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
     expenses: (vaultId: string | null, sharedVaultId: number | null = null) =>
       ["shared", "expenses", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
     settlements: (vaultId: string | null) => ["shared", "settlements", vaultId ?? "anonymous"] as const,

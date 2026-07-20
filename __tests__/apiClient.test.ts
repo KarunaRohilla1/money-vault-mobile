@@ -441,6 +441,100 @@ describe("apiClient", () => {
     );
   });
 
+  it("loads the shared dashboard with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            generatedAt: "2026-07-20T10:00:00Z",
+            vault: {
+              id: "40",
+              isAdmin: false,
+              name: "Home",
+              vaultType: "Shared"
+            },
+            data: {
+              cycle: {
+                daysCompleted: 10,
+                daysRemaining: 21,
+                displayName: "July Cycle",
+                endDate: "2026-07-31",
+                id: 1,
+                progressPercent: 32,
+                startDate: "2026-07-01",
+                status: "Current",
+                totalDays: 31
+              },
+              emptyStates: {
+                noBills: false,
+                noCategories: false,
+                noParticipants: false,
+                noSharedTransactions: false,
+                noSpending: false
+              },
+              householdSnapshot: {
+                householdSpendThisMonth: 2000,
+                participantCount: 2,
+                topCategory: "Food",
+                topCategoryAmount: 1200,
+                topCategoryPercentage: 60,
+                upcomingBillsCount: 1
+              },
+              monthlySummary: {
+                dailyAverage: 200,
+                monthlySpend: 2000,
+                projection: 6200
+              },
+              participants: [],
+              quickActions: {
+                canAddBill: true,
+                canAddExpense: true,
+                canSplit: true,
+                markSettledEnabled: true,
+                markSettledVisible: true
+              },
+              recentActivity: [],
+              settlement: {
+                amount: 200,
+                currentUserIsOwed: 200,
+                currentUserOwes: 0,
+                currentUserPaid: 1200,
+                currentUserShare: 1000,
+                direction: "receivable",
+                items: [],
+                label: "You are owed",
+                settlementPercentage: 120
+              },
+              spendingChart: []
+            }
+          }
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await expect(apiClient.getSharedDashboard("jwt-token", 40)).resolves.toMatchObject({
+      data: {
+        data: {
+          settlement: {
+            amount: 200
+          }
+        }
+      }
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/shared/dashboard?sharedVaultId=40",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        })
+      })
+    );
+  });
+
   it("posts shared bill actions through the backend API", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     const fetchMock = jest.fn(async () => new Response(JSON.stringify({ status: "ok" }), { status: 200 }));

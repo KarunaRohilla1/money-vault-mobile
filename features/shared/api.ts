@@ -7,12 +7,18 @@ import type { SharedSettlementPayloadApi } from "@/services/api/types";
 
 function invalidateShared(vaultId: string | null, sharedVaultId: number | null = null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.root });
-  queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
-  queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
+  queryClient.invalidateQueries({ queryKey: queryKeys.shared.dashboard(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.bills(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.expenses(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.settlements(vaultId) });
+}
+
+export function useSharedDashboardQuery(token: string | null, vaultId: string | null, sharedVaultId: number | null = null) {
+  return useQuery({
+    enabled: Boolean(token && vaultId),
+    queryFn: async () => apiClient.getSharedDashboard(token ?? "", sharedVaultId ?? undefined),
+    queryKey: queryKeys.shared.dashboard(vaultId, sharedVaultId)
+  });
 }
 
 export function useSharedExpensesQuery(token: string | null, vaultId: string | null, sharedVaultId: number | null = null) {
