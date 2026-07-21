@@ -17,11 +17,16 @@ function filtersKey(filters: TransactionFiltersApi) {
   });
 }
 
-function invalidateTransactionDependents(vaultId: string | null) {
+export function invalidateTransactionDependents(vaultId: string | null, sharedVaultId: number | null = null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
+  queryClient.invalidateQueries({ queryKey: queryKeys.categories.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.transfers.root });
+
+  if (sharedVaultId !== null) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.shared.dashboard(vaultId, sharedVaultId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.shared.expenses(vaultId, sharedVaultId) });
+  }
 }
 
 export function useTransactionsQuery(token: string | null, vaultId: string | null, filters: TransactionFiltersApi = {}) {
@@ -43,7 +48,7 @@ export function useTransactionDetailQuery(token: string | null, vaultId: string 
 export function useCreateTransactionMutation(token: string | null, vaultId: string | null) {
   return useMutation({
     mutationFn: async (body: TransactionPayloadApi) => apiClient.createTransaction(token ?? "", body),
-    onSuccess: () => invalidateTransactionDependents(vaultId)
+    onSuccess: (_data, body) => invalidateTransactionDependents(vaultId, body.beneficiaryVaultId ?? null)
   });
 }
 
@@ -51,7 +56,7 @@ export function useUpdateTransactionMutation(token: string | null, vaultId: stri
   return useMutation({
     mutationFn: async ({ body, transactionId }: { body: TransactionPayloadApi; transactionId: number }) =>
       apiClient.updateTransaction(token ?? "", transactionId, body),
-    onSuccess: () => invalidateTransactionDependents(vaultId)
+    onSuccess: (_data, variables) => invalidateTransactionDependents(vaultId, variables.body.beneficiaryVaultId ?? null)
   });
 }
 
