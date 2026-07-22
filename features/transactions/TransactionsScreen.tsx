@@ -96,8 +96,8 @@ function TypeChip({ active, icon, label, onPress }: { active: boolean; icon: key
       accessibilityRole="button"
       className={
         active
-          ? "min-h-10 flex-row items-center gap-1.5 rounded-full border border-brand bg-brand px-3.5"
-          : "min-h-10 flex-row items-center gap-1.5 rounded-full border border-surface-border bg-background-muted px-3.5"
+          ? "min-h-10 flex-row items-center gap-1.5 rounded-full border border-brand bg-brand px-3"
+          : "min-h-10 flex-row items-center gap-1.5 rounded-full border border-surface-border bg-background-muted px-3"
       }
       onPress={onPress}
     >
@@ -122,43 +122,48 @@ const TransactionRow = memo(function TransactionRow({
 }) {
   return (
     <Pressable accessibilityRole="button" className={transactionLayout.transactionCardClassName} onPress={onPress}>
-      <View className="mr-3">
-        <TransactionTypeIcon item={item} />
-      </View>
-      <View className="min-w-0 flex-1">
-        <View className="flex-row items-center gap-2">
-          <Text className="min-w-0 flex-1 font-sans text-base font-semibold text-text" numberOfLines={1}>
-            {item.title}
+      <View className={transactionLayout.transactionRowContentClassName}>
+        <View className="mr-3">
+          <TransactionTypeIcon item={item} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <View className="flex-row items-center gap-2">
+            <Text className="min-w-0 flex-1 font-sans text-base font-semibold text-text" numberOfLines={1}>
+              {item.title}
+            </Text>
+            {item.shared ? (
+              <View className={transactionLayout.sharedBadgeClassName}>
+                <Text className="font-sans text-[10px] font-semibold text-brand-soft">Shared</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text className="mt-0.5 font-sans text-sm text-text-muted" numberOfLines={1}>
+            {item.type === "transfer" ? "Transfer" : item.category}
           </Text>
-          {item.shared ? (
-            <View className={transactionLayout.sharedBadgeClassName}>
-              <Text className="font-sans text-[10px] font-semibold text-brand-soft">Shared</Text>
-            </View>
+          <View className={transactionLayout.accountMetaClassName}>
+            <MaterialCommunityIcons name={item.type === "transfer" ? "bank-transfer" : "credit-card-outline"} size={theme.icons.xs} color={theme.colors.brand.soft} />
+            <Text className="min-w-0 flex-1 font-sans text-[11px] text-text-muted" numberOfLines={1}>
+              {item.account ?? item.transferMetadata?.toAccount ?? "Account"}
+            </Text>
+          </View>
+        </View>
+        <View className="ml-2 max-w-32 shrink items-end">
+          {item.time ? <Text className="mb-0.5 font-sans text-[11px] text-text-muted">{item.time}</Text> : null}
+          <View className="max-w-full flex-row items-center">
+            <Text className={amountClassName(item)}>{signedPrefix(item)}</Text>
+            <CurrencyText value={item.amount} currencyCode={currencyCode} locale={locale} className={amountClassName(item)} />
+          </View>
+          {item.runningBalance !== null && item.runningBalance !== undefined ? (
+            <Text className={transactionLayout.balanceMetaClassName} numberOfLines={1}>
+              Balance <CurrencyText value={item.runningBalance} currencyCode={currencyCode} locale={locale} className="text-[11px] text-text-muted" />
+            </Text>
           ) : null}
         </View>
-        <Text className="mt-0.5 font-sans text-sm text-text-muted" numberOfLines={1}>
-          {item.type === "transfer" ? "Transfer" : item.category}
-        </Text>
-        <View className={transactionLayout.accountMetaClassName}>
-          <MaterialCommunityIcons name={item.type === "transfer" ? "bank-transfer" : "credit-card-outline"} size={theme.icons.xs} color={theme.colors.brand.soft} />
-          <Text className="min-w-0 flex-1 font-sans text-[11px] text-text-muted" numberOfLines={1}>
-            {item.account ?? item.transferMetadata?.toAccount ?? "Account"}
-          </Text>
+        <View className="ml-2">
+          <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.subtle} />
         </View>
       </View>
-      <View className="ml-2 w-[96px] shrink-0 items-end">
-        {item.time ? <Text className="mb-0.5 font-sans text-[11px] text-text-muted">{item.time}</Text> : null}
-        <View className="max-w-full flex-row items-center">
-          <Text className={amountClassName(item)}>{signedPrefix(item)}</Text>
-          <CurrencyText value={item.amount} currencyCode={currencyCode} locale={locale} className={amountClassName(item)} />
-        </View>
-        {item.runningBalance !== null && item.runningBalance !== undefined ? (
-          <Text className={transactionLayout.balanceMetaClassName} numberOfLines={1}>
-            Balance <CurrencyText value={item.runningBalance} currencyCode={currencyCode} locale={locale} className="text-[11px] text-text-muted" />
-          </Text>
-        ) : null}
-      </View>
-      <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.subtle} />
+      <View className={transactionLayout.transactionDividerClassName} />
     </Pressable>
   );
 });
@@ -244,7 +249,7 @@ function TransactionsScreenContent({ vaultId }: { vaultId: string | null }) {
   };
 
   const listHeader = (
-    <View className="gap-3 px-5 pt-4">
+    <View className="gap-3 pt-4">
       <View className="flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1 gap-1">
           <Text className="font-sans text-4xl font-bold text-text">Transactions</Text>
@@ -280,7 +285,7 @@ function TransactionsScreenContent({ vaultId }: { vaultId: string | null }) {
         {typeFilters.map((filter) => (
           <TypeChip key={filter.label} active={transactionType === filter.label} icon={filter.icon} label={filter.label} onPress={() => setTransactionType(filter.label)} />
         ))}
-        <Pressable accessibilityRole="button" className="min-h-10 flex-row items-center gap-1.5 rounded-full border border-surface-border bg-background-muted px-3.5" onPress={() => setFilterVisible(true)}>
+        <Pressable accessibilityRole="button" className="min-h-10 flex-row items-center gap-1.5 rounded-full border border-surface-border bg-background-muted px-3" onPress={() => setFilterVisible(true)}>
           <MaterialCommunityIcons name="filter-variant" size={theme.icons.sm} color={theme.colors.text.muted} />
           <Text className="font-sans text-sm font-semibold text-text-muted" numberOfLines={1}>
             Filters{filterCount > 0 ? ` ${filterCount}` : ""}
@@ -351,7 +356,7 @@ function TransactionsScreenContent({ vaultId }: { vaultId: string | null }) {
         showsVerticalScrollIndicator={false}
         updateCellsBatchingPeriod={40}
         windowSize={9}
-        contentContainerClassName="pb-8"
+        contentContainerClassName={`${transactionLayout.pagePaddingClassName} ${transactionLayout.bottomPaddingClassName}`}
       />
 
       <BottomSheet visible={monthPickerVisible} title="Select Month" onClose={() => setMonthPickerVisible(false)}>

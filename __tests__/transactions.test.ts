@@ -1,7 +1,7 @@
 import { invalidateTransactionDependents } from "@/features/transactions/api";
 import { transactionIconName } from "@/features/transactions/transactionIconModel";
 import { buildMonths, groupMonthsByYear, transactionsToCsv } from "@/features/transactions/transactionHistoryModel";
-import { transactionLayout } from "@/features/transactions/transactionLayout";
+import { transactionLayout, transactionSpacing, transactionWidthRules } from "@/features/transactions/transactionLayout";
 import {
   ALLOCATION_EQUAL,
   ALLOCATION_FIXED,
@@ -239,10 +239,31 @@ describe("transaction history helpers", () => {
     expect(transactionLayout.chipRowClassName).not.toContain("flex-wrap");
     expect(transactionLayout.chipRowClassName).toContain("flex-row");
     expect(transactionLayout.dateHeaderClassName).not.toContain("border");
-    expect(transactionLayout.rowContainerClassName).toContain("mt-2");
+    expect(transactionLayout.dateHeaderClassName).not.toContain("mx-");
+    expect(transactionLayout.rowContainerClassName).toBe("");
+    expect(transactionLayout.pagePaddingClassName).toBe("px-4");
     expect(transactionLayout.transactionCardClassName).toContain("min-h-[76px]");
-    expect(transactionLayout.transactionCardClassName).toContain("py-2.5");
+    expect(transactionLayout.transactionCardClassName).toContain("py-3.5");
+    expect(transactionLayout.transactionDividerClassName).toContain("ml-14");
     expect(transactionLayout.sharedBadgeClassName).toContain("px-1.5");
+  });
+
+  it("keeps the Transactions page on a single 16dp horizontal grid", () => {
+    expect(transactionSpacing.pageHorizontalPadding).toBe(16);
+    expect(transactionSpacing.chipGap).toBe(8);
+    expect(transactionSpacing.chipHorizontalPadding).toBe(12);
+    expect(transactionSpacing.iconContainerSize).toBe(44);
+    expect(transactionSpacing.iconToContentGap).toBe(12);
+    expect(transactionSpacing.dividerStartOffset).toBe(56);
+    expect(transactionSpacing.bottomContentPadding).toBe(112);
+  });
+
+  it.each([320, 360, 390, 412, 430])("keeps transaction content full-width at %idp", (width) => {
+    expect(transactionWidthRules(width)).toMatchObject({
+      contentWidth: width - 32,
+      pageHorizontalPadding: 16,
+      rowUsesFullContentWidth: true
+    });
   });
 
   it("uses neutral category-appropriate icons instead of category artwork", () => {

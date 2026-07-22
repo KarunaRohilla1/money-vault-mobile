@@ -56,7 +56,7 @@ function SettingsRow({ row }: { row: MoreRowModel }) {
       <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
         <MaterialCommunityIcons name={row.icon} size={theme.icons.md} color={color} />
       </View>
-      <Text className="min-w-0 flex-1 font-sans text-lg font-semibold text-text" numberOfLines={1}>
+      <Text className="min-w-0 flex-1 font-sans text-base font-semibold text-text" numberOfLines={1}>
         {row.title}
       </Text>
       <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.subtle} />
@@ -100,18 +100,20 @@ function VaultCard({
         <View className="mt-2 self-start rounded-md bg-brand-deep px-2 py-1">
           <Text className="font-sans text-xs font-bold text-brand-soft">{roleLabel(currentVault)}</Text>
         </View>
-        <Text className="mt-2 font-sans text-sm text-text-muted">Current vault</Text>
       </View>
-      <Pressable
-        accessibilityLabel="Switch Vault"
-        accessibilityRole="button"
-        className={disabled ? "min-h-12 flex-row items-center gap-2 rounded-lg border border-surface-border px-4 opacity-50" : "min-h-12 flex-row items-center gap-2 rounded-lg border border-brand-muted px-4"}
-        disabled={disabled || switching}
-        onPress={onSwitch}
-      >
-        <MaterialCommunityIcons name="swap-horizontal" size={theme.icons.sm} color={theme.colors.brand.soft} />
-        <Text className="font-sans text-sm font-bold text-brand-soft">{switching ? "Switching..." : "Switch Vault"}</Text>
-      </Pressable>
+      <View className="items-end gap-2">
+        <Text className="font-sans text-xs text-text-muted">Current vault</Text>
+        <Pressable
+          accessibilityLabel="Switch Vault"
+          accessibilityRole="button"
+          className={disabled ? "min-h-12 flex-row items-center gap-2 rounded-lg border border-surface-border px-4 opacity-50" : "min-h-12 flex-row items-center gap-2 rounded-lg border border-brand-muted px-4"}
+          disabled={disabled || switching}
+          onPress={onSwitch}
+        >
+          <MaterialCommunityIcons name="swap-horizontal" size={theme.icons.sm} color={theme.colors.brand.soft} />
+          <Text className="font-sans text-sm font-bold text-brand-soft">{switching ? "Switching..." : "Switch Vault"}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

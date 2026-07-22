@@ -9,7 +9,7 @@ type TransactionIconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
 export function TransactionTypeIcon({ item }: { item: Pick<TransactionHistoryItemApi, "category" | "title" | "transactionType" | "type"> }) {
   return (
-    <View className="h-11 w-11 items-center justify-center rounded-full border border-surface-border bg-surface-raised">
+    <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-deep">
       <MaterialCommunityIcons name={transactionIconName(item) as TransactionIconName} size={20} color={theme.colors.brand.soft} />
     </View>
   );
