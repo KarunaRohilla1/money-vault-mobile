@@ -546,7 +546,7 @@ export function TransfersScreen() {
 
   if ((transfersQuery.isLoading || accountsQuery.isLoading) && !transfersQuery.data) {
     return (
-      <Screen contentClassName="pb-44">
+      <Screen>
         <Text className="font-sans text-3xl font-bold text-text">Transfers</Text>
         <LoadingSkeleton variant="card" />
         <LoadingSkeleton variant="card" />
@@ -556,7 +556,7 @@ export function TransfersScreen() {
 
   if ((transfersQuery.isError && !transfersQuery.data) || accountsQuery.isError) {
     return (
-      <Screen contentClassName="pb-44">
+      <Screen>
         <Text className="font-sans text-3xl font-bold text-text">Transfers</Text>
         {transfersQuery.isError ? <ErrorView message="Transfers could not be loaded." onRetry={() => transfersQuery.refetch()} /> : null}
         {accountsQuery.isError ? <ErrorView message="Accounts could not be loaded." onRetry={() => accountsQuery.refetch()} /> : null}
@@ -566,7 +566,7 @@ export function TransfersScreen() {
 
   if (mode === "review") {
     return (
-      <Screen contentClassName="gap-5 pb-44">
+      <Screen contentClassName="gap-5">
         <View className="flex-row items-center justify-between">
           <Pressable accessibilityLabel="Back to transfer form" accessibilityRole="button" onPress={() => setMode("compose")}>
             <MaterialCommunityIcons name="chevron-left" size={theme.icons.lg} color={theme.colors.brand.soft} />
@@ -605,7 +605,7 @@ export function TransfersScreen() {
 
   if (mode === "success" && lastConfirmed) {
     return (
-      <Screen contentClassName="gap-5 pb-44">
+      <Screen contentClassName="gap-5">
         <View className="items-center gap-4 pt-8">
           <View className="h-32 w-32 items-center justify-center rounded-full bg-state-success">
             <MaterialCommunityIcons name="check" size={64} color={theme.colors.text.DEFAULT} />
@@ -625,7 +625,7 @@ export function TransfersScreen() {
   }
 
   return (
-    <Screen contentClassName="gap-5 pb-44" onRefresh={() => transfersQuery.refetch()} refreshing={transfersQuery.isRefetching}>
+    <Screen contentClassName="gap-5" onRefresh={() => transfersQuery.refetch()} refreshing={transfersQuery.isRefetching}>
       <View className="flex-row items-center justify-between">
         <Text className="font-sans text-3xl font-bold text-text">Transfers</Text>
       </View>

@@ -5,7 +5,7 @@ export const ALLOCATION_EQUAL = "Equal";
 export const ALLOCATION_PERCENTAGE = "Percentage";
 export const ALLOCATION_FIXED = "Fixed Amount";
 
-export type TransactionKind = "Expense" | "Income" | "Transfer";
+export type TransactionKind = "Expense" | "Income";
 export type ExpenseScope = "Personal" | "Shared";
 export type SplitType = typeof ALLOCATION_EQUAL | typeof ALLOCATION_PERCENTAGE | typeof ALLOCATION_FIXED;
 
@@ -84,7 +84,7 @@ function roundMoney(value: number): number {
 }
 
 export function splitPreview(amount: number, splitType: SplitType, participants: SplitParticipant[], values: TransactionFormValues) {
-  if (amount <= 0 || participants.length === 0) {
+  if (participants.length === 0) {
     return [];
   }
 
@@ -201,6 +201,85 @@ export function defaultSplitValues(participants: SplitParticipant[], amount: num
   return {
     allocationAmounts: amounts,
     allocationPercentages: percentages
+  };
+}
+
+function clampAllocation(value: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(value, 0), max);
+}
+
+function formatAllocationValue(value: number): string {
+  return String(roundMoney(value));
+}
+
+export function rebalanceTwoParticipantPercentages(
+  participants: SplitParticipant[],
+  currentValues: Record<string, string>,
+  changedParticipantId: number,
+  value: string
+): Record<string, string> {
+  const changedKey = String(changedParticipantId);
+  const next = { ...currentValues, [changedKey]: value };
+
+  if (participants.length !== 2) {
+    return next;
+  }
+
+  const parsed = Number(value.trim());
+
+  if (!Number.isFinite(parsed)) {
+    return next;
+  }
+
+  const clamped = clampAllocation(parsed, 100);
+  const otherParticipant = participants.find((participant) => participant.id !== changedParticipantId);
+
+  if (!otherParticipant) {
+    return next;
+  }
+
+  return {
+    ...next,
+    [changedKey]: formatAllocationValue(clamped),
+    [String(otherParticipant.id)]: formatAllocationValue(100 - clamped)
+  };
+}
+
+export function rebalanceTwoParticipantAmounts(
+  participants: SplitParticipant[],
+  currentValues: Record<string, string>,
+  changedParticipantId: number,
+  value: string,
+  transactionAmount: number
+): Record<string, string> {
+  const changedKey = String(changedParticipantId);
+  const next = { ...currentValues, [changedKey]: value };
+
+  if (participants.length !== 2 || transactionAmount <= 0) {
+    return next;
+  }
+
+  const parsed = Number(value.trim());
+
+  if (!Number.isFinite(parsed)) {
+    return next;
+  }
+
+  const clamped = clampAllocation(parsed, transactionAmount);
+  const otherParticipant = participants.find((participant) => participant.id !== changedParticipantId);
+
+  if (!otherParticipant) {
+    return next;
+  }
+
+  return {
+    ...next,
+    [changedKey]: formatAllocationValue(clamped),
+    [String(otherParticipant.id)]: formatAllocationValue(transactionAmount - clamped)
   };
 }
 

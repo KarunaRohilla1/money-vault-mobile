@@ -27,14 +27,19 @@ export function AccountTypeSelector({ onSelect, selected }: AccountTypeSelectorP
             key={accountType}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            className={`h-28 w-32 items-center justify-center rounded-lg border px-3 py-3 ${
+            className={`min-h-36 w-36 items-center justify-start rounded-lg border px-3 py-4 ${
               active ? "border-brand-soft bg-brand-muted" : "border-surface-border bg-surface"
             }`}
             onPress={() => onSelect(accountType)}
           >
-            <MaterialCommunityIcons name={meta.icon} size={theme.icons.lg} color={active ? theme.colors.brand.soft : theme.colors.text.muted} />
-            <Text className="mt-2 text-center font-sans text-sm font-semibold text-text">{accountType}</Text>
-            <Text className={active ? "mt-1 text-center font-sans text-xs text-brand-soft" : "mt-1 text-center font-sans text-xs text-text-muted"}>
+            <MaterialCommunityIcons name={meta.icon} size={theme.icons.md} color={active ? theme.colors.brand.soft : theme.colors.text.muted} />
+            <Text className="mt-2 text-center font-sans text-sm font-semibold leading-5 text-text" numberOfLines={2}>
+              {accountType}
+            </Text>
+            <Text
+              className={active ? "mt-1 text-center font-sans text-xs leading-4 text-brand-soft" : "mt-1 text-center font-sans text-xs leading-4 text-text-muted"}
+              numberOfLines={3}
+            >
               {meta.subtitle}
             </Text>
             {active ? (

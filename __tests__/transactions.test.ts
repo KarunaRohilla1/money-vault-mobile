@@ -1,4 +1,7 @@
 import { invalidateTransactionDependents } from "@/features/transactions/api";
+import { transactionIconName } from "@/features/transactions/transactionIconModel";
+import { buildMonths, groupMonthsByYear, transactionsToCsv } from "@/features/transactions/transactionHistoryModel";
+import { transactionLayout } from "@/features/transactions/transactionLayout";
 import {
   ALLOCATION_EQUAL,
   ALLOCATION_FIXED,
@@ -6,6 +9,8 @@ import {
   amountError,
   buildTransactionPayload,
   defaultSplitValues,
+  rebalanceTwoParticipantAmounts,
+  rebalanceTwoParticipantPercentages,
   splitPreview,
   transactionFormErrors,
   type SplitParticipant,
@@ -72,6 +77,13 @@ describe("transaction form model", () => {
     ]);
   });
 
+  it("shows shared participants in split preview before an amount is entered", () => {
+    expect(splitPreview(0, ALLOCATION_EQUAL, participants, validForm)).toEqual([
+      { amount: 0, id: 4, isCurrent: true, name: "Karuna Rohilla", percentage: 50 },
+      { amount: 0, id: 5, isCurrent: false, name: "Asfar Sharief", percentage: 50 }
+    ]);
+  });
+
   it("requires percentage splits to total 100", () => {
     const invalid = {
       ...validForm,
@@ -121,6 +133,41 @@ describe("transaction form model", () => {
       allocationPercentages: { "4": "50", "5": "50" }
     });
   });
+
+  it("auto-balances a two-person percentage split to 100%", () => {
+    expect(rebalanceTwoParticipantPercentages(participants, { "4": "50", "5": "50" }, 4, "65")).toEqual({
+      "4": "65",
+      "5": "35"
+    });
+  });
+
+  it("caps two-person percentage splits between 0 and 100", () => {
+    expect(rebalanceTwoParticipantPercentages(participants, { "4": "50", "5": "50" }, 4, "125")).toEqual({
+      "4": "100",
+      "5": "0"
+    });
+    expect(rebalanceTwoParticipantPercentages(participants, { "4": "50", "5": "50" }, 4, "-10")).toEqual({
+      "4": "0",
+      "5": "100"
+    });
+  });
+
+  it("auto-balances a two-person fixed split to the transaction amount", () => {
+    expect(rebalanceTwoParticipantAmounts(participants, { "4": "225", "5": "225" }, 4, "300", 450)).toEqual({
+      "4": "300",
+      "5": "150"
+    });
+  });
+
+  it("does not guess the remaining allocation for larger shared groups", () => {
+    const threeParticipants = [...participants, { id: 6, name: "Third Person" }];
+
+    expect(rebalanceTwoParticipantPercentages(threeParticipants, { "4": "33", "5": "33", "6": "34" }, 4, "60")).toEqual({
+      "4": "60",
+      "5": "33",
+      "6": "34"
+    });
+  });
 });
 
 describe("transaction query invalidation", () => {
@@ -141,5 +188,66 @@ describe("transaction query invalidation", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.shared.dashboard("4", 40) });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.shared.expenses("4", 40) });
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.transfers.root });
+  });
+});
+
+describe("transaction history helpers", () => {
+  it("generates dynamic months from newest to oldest without a fixed cutoff", () => {
+    expect(buildMonths("2026-04", "2026-07")).toEqual(["2026-07", "2026-06", "2026-05", "2026-04"]);
+  });
+
+  it("groups generated months by year for the month selector", () => {
+    expect(groupMonthsByYear(["2026-01", "2025-12"], "en-IN")).toEqual([
+      { months: [{ label: "January", value: "2026-01" }], year: "2026" },
+      { months: [{ label: "December", value: "2025-12" }], year: "2025" }
+    ]);
+  });
+
+  it("exports transaction CSV with escaped commas and quotes", () => {
+    expect(
+      transactionsToCsv([
+        {
+          date: "2026-07-10",
+          label: "10 Jul",
+          received: 0,
+          spent: 220,
+          summary: "Spent 220",
+          transactions: [
+            {
+              account: "HDFC, Salary",
+              amount: 220,
+              category: "Food",
+              categoryIcon: "coffee",
+              date: "2026-07-10",
+              direction: "debit",
+              id: "1",
+              merchant: "Starbucks \"Coffee\"",
+              runningBalance: 42880,
+              shared: false,
+              title: "Starbucks",
+              transactionId: 1,
+              transactionType: "Expense",
+              type: "expense"
+            }
+          ]
+        }
+      ])
+    ).toContain("\"Starbucks \"\"Coffee\"\"\",\"Food\",\"HDFC, Salary\"");
+  });
+
+  it("keeps transaction history layout compact without wrapping filter chips", () => {
+    expect(transactionLayout.chipRowClassName).not.toContain("flex-wrap");
+    expect(transactionLayout.chipRowClassName).toContain("flex-row");
+    expect(transactionLayout.dateHeaderClassName).not.toContain("border");
+    expect(transactionLayout.rowContainerClassName).toContain("mt-2");
+    expect(transactionLayout.transactionCardClassName).toContain("min-h-[76px]");
+    expect(transactionLayout.transactionCardClassName).toContain("py-2.5");
+    expect(transactionLayout.sharedBadgeClassName).toContain("px-1.5");
+  });
+
+  it("uses neutral category-appropriate icons instead of category artwork", () => {
+    expect(transactionIconName({ category: "Dining", title: "Lunch", transactionType: "Expense", type: "expense" })).toBe("silverware-fork-knife");
+    expect(transactionIconName({ category: "Subscriptions", title: "Music plan", transactionType: "Expense", type: "expense" })).toBe("calendar-refresh-outline");
+    expect(transactionIconName({ category: "Transfer", title: "Move money", transactionType: "Transfer", type: "transfer" })).toBe("swap-horizontal");
   });
 });

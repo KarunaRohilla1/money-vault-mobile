@@ -11,8 +11,8 @@ import { useAccountsQuery } from "@/features/accounts/api";
 import { useCategoriesQuery } from "@/features/categories/api";
 import { useSettingsQuery } from "@/features/settings/api";
 import { useSharedExpensesQuery } from "@/features/shared/api";
-import { DateField, MonthDatePicker } from "@/features/transfers/TransfersScreen";
-import { useCreateTransactionMutation } from "@/features/transactions/api";
+import { MonthDatePicker } from "@/features/transfers/TransfersScreen";
+import { useCreateTransactionMutation, useTransactionDetailQuery, useUpdateTransactionMutation } from "@/features/transactions/api";
 import {
   ALLOCATION_EQUAL,
   ALLOCATION_FIXED,
@@ -21,6 +21,8 @@ import {
   buildTransactionPayload,
   defaultSplitValues,
   hasTransactionFormErrors,
+  rebalanceTwoParticipantAmounts,
+  rebalanceTwoParticipantPercentages,
   splitPreview,
   type SplitPreviewItem,
   transactionFormErrors,
@@ -31,7 +33,7 @@ import {
   type TransactionFormValues,
   type TransactionKind
 } from "@/features/transactions/transactionFormModel";
-import { todayLocalIso } from "@/lib/date";
+import { formatIsoDateOnly, todayLocalIso } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
 import type { AccountApi, VaultSummaryApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -49,7 +51,7 @@ const transactionSchema = z.object({
   notes: z.string(),
   sharedVaultId: z.number().int(),
   splitType: z.enum([ALLOCATION_EQUAL, ALLOCATION_PERCENTAGE, ALLOCATION_FIXED]),
-  transactionType: z.enum(["Expense", "Income", "Transfer"])
+  transactionType: z.enum(["Expense", "Income"])
 });
 
 type SelectorTarget = "account" | "category" | "sharedVault" | null;
@@ -71,14 +73,17 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
   const categoriesQuery = useCategoriesQuery(token, vaultId);
   const settingsQuery = useSettingsQuery(token, vaultId);
   const [selectorTarget, setSelectorTarget] = useState<SelectorTarget>(null);
+  const [categorySearch, setCategorySearch] = useState("");
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerValue, setDatePickerValue] = useState(todayLocalIso());
   const [submittedErrors, setSubmittedErrors] = useState<TransactionFormErrorMap>({});
-  const createTransaction = useCreateTransactionMutation(token, vaultId);
   const isEditing = transactionId !== null;
-  const isSaving = createTransaction.isPending;
+  const transactionDetailQuery = useTransactionDetailQuery(token, vaultId, transactionId);
+  const createTransaction = useCreateTransactionMutation(token, vaultId);
+  const updateTransaction = useUpdateTransactionMutation(token, vaultId);
+  const isSaving = createTransaction.isPending || updateTransaction.isPending;
 
-  const { control, handleSubmit, setValue } = useForm<TransactionFormValues>({
+  const { control, handleSubmit, reset, setValue } = useForm<TransactionFormValues>({
     defaultValues: {
       accountId: 0,
       allocationAmounts: {},
@@ -137,6 +142,15 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
   const visibleErrors = { ...submittedErrors };
   const selectedAccount = (accountsQuery.data ?? []).find((account) => account.id === formValues.accountId) ?? null;
   const selectedCategory = categoryOptions.find((category) => category.id === formValues.categoryId) ?? null;
+  const normalizedCategorySearch = categorySearch.trim().toLocaleLowerCase();
+  const visibleCategoryOptions = normalizedCategorySearch
+    ? categoryOptions.filter((category) =>
+        [category.name, category.parentCategory ?? "", category.categoryType, category.emoji]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(normalizedCategorySearch)
+      )
+    : categoryOptions;
   const isSharedExpense = selectedType === "Expense" && selectedScope === "Shared";
   const clearSubmittedError = (field: keyof TransactionFormErrorMap) => {
     setSubmittedErrors((current) => {
@@ -145,6 +159,27 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!isEditing || !transactionDetailQuery.data) {
+      return;
+    }
+
+    const detail = transactionDetailQuery.data;
+    reset({
+      accountId: detail.accountId,
+      allocationAmounts: {},
+      allocationPercentages: {},
+      amount: String(detail.amount),
+      categoryId: detail.categoryId,
+      date: detail.date,
+      expenseScope: detail.shared ? "Shared" : "Personal",
+      notes: detail.notes ?? "",
+      sharedVaultId: detail.beneficiaryVaultId ?? 0,
+      splitType: detail.allocationMethod === ALLOCATION_PERCENTAGE || detail.allocationMethod === ALLOCATION_FIXED ? detail.allocationMethod : ALLOCATION_EQUAL,
+      transactionType: detail.transactionType === "Income" ? "Income" : "Expense"
+    });
+  }, [isEditing, reset, transactionDetailQuery.data]);
 
   useEffect(() => {
     if (isSharedVault) {
@@ -191,10 +226,19 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
     setValue
   ]);
 
-  if (isEditing) {
+  if (isEditing && transactionDetailQuery.isLoading) {
     return (
       <Screen>
-        <ErrorView message="Editing transactions is not part of this slice yet." onRetry={() => router.back()} />
+        <LoadingSkeleton variant="card" />
+        <LoadingSkeleton variant="card" />
+      </Screen>
+    );
+  }
+
+  if (isEditing && transactionDetailQuery.isError) {
+    return (
+      <Screen>
+        <ErrorView message="Transaction could not be loaded." onRetry={() => transactionDetailQuery.refetch()} />
       </Screen>
     );
   }
@@ -217,17 +261,27 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
       return;
     }
 
-    createTransaction.mutate(buildTransactionPayload(parsed.data, participants, isSharedVault ? Number(vaultId) : null), {
+    const body = buildTransactionPayload(parsed.data, participants, isSharedVault ? Number(vaultId) : null);
+
+    if (isEditing && transactionId !== null) {
+      updateTransaction.mutate(
+        {
+          body,
+          transactionId
+        },
+        {
+          onSuccess: () => router.replace(`/transaction/${transactionId}` as never)
+        }
+      );
+      return;
+    }
+
+    createTransaction.mutate(body, {
       onSuccess: () => router.back()
     });
   };
 
   const chooseTransactionType = (type: TransactionKind) => {
-    if (type === "Transfer") {
-      router.replace("/transfers");
-      return;
-    }
-
     setValue("transactionType", type);
     setValue("categoryId", 0);
 
@@ -237,12 +291,12 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
   };
 
   return (
-    <Screen contentClassName="gap-4 px-5 pb-8 pt-3">
+    <Screen contentClassName="gap-3 px-5 pb-8 pt-3">
       <View className="h-1.5 w-20 self-center rounded-full bg-surface-border" />
       <View className="flex-row items-start justify-between">
         <View className="flex-1">
-          <Text className="font-sans text-2xl font-bold text-text">Record Transaction</Text>
-          <Text className="mt-1 font-sans text-base text-text-muted">Add a new income, expense or transfer</Text>
+          <Text className="font-sans text-2xl font-bold text-text">{isEditing ? "Edit Transaction" : "Record Transaction"}</Text>
+          <Text className="mt-1 font-sans text-base text-text-muted">{isEditing ? "Update the selected transaction" : "Add a new income, expense or transfer"}</Text>
         </View>
         <Pressable
           accessibilityLabel="Close transaction form"
@@ -254,22 +308,21 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
         </Pressable>
       </View>
 
-      <View className="flex-row rounded-lg border border-surface-border bg-surface p-1">
+      <View className="flex-row rounded-md border border-surface-border bg-surface p-0.5">
         <TypeTab icon="arrow-down" label="Expense" selected={selectedType === "Expense"} onPress={() => chooseTransactionType("Expense")} />
         <TypeTab icon="arrow-up-right" label="Income" selected={selectedType === "Income"} onPress={() => chooseTransactionType("Income")} />
-        <TypeTab icon="swap-horizontal" label="Transfer" selected={false} onPress={() => chooseTransactionType("Transfer")} />
       </View>
 
-      <View className="items-center gap-2 py-5">
-        <View className="flex-row items-center justify-center">
-          <Text className="font-sans text-6xl font-bold text-text">₹</Text>
+      <View className="items-center gap-2 py-2">
+        <View className="h-20 w-full flex-row items-center justify-center">
+          <Text className="font-sans text-5xl font-bold leading-[64px] text-text">₹</Text>
           <Controller
             control={control}
             name="amount"
             render={({ field: { onChange, value } }) => (
               <TextInput
                 accessibilityLabel="Transaction amount"
-                className="min-w-28 max-w-72 font-sans text-6xl font-bold text-text"
+                className="h-20 min-w-24 max-w-64 px-1 font-sans text-5xl font-bold leading-[64px] text-text"
                 inputMode="decimal"
                 keyboardType="decimal-pad"
                 onChangeText={(text) => {
@@ -278,7 +331,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
                 }}
                 placeholder="0"
                 placeholderTextColor={theme.colors.text.DEFAULT}
-                textAlign="left"
+                textAlign="center"
                 value={value}
               />
             )}
@@ -287,8 +340,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
         <Text className={visibleErrors.amount ? "font-sans text-sm text-state-danger" : "font-sans text-base text-brand-soft"}>
           {visibleErrors.amount ?? "Enter amount"}
         </Text>
-        <DateField
-          label=""
+        <DatePill
           locale={locale}
           value={formValues.date}
           onPress={() => {
@@ -311,7 +363,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
         />
       ) : null}
 
-      <SelectorRow
+      <DropdownField
         icon={selectedCategory?.emoji ?? "coffee-outline"}
         label="Category"
         subtitle={selectedCategory?.parentCategory ?? selectedCategory?.categoryType ?? "Choose category"}
@@ -319,7 +371,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
         error={visibleErrors.categoryId}
         onPress={() => setSelectorTarget("category")}
       />
-      <SelectorRow
+      <DropdownField
         icon="bank-outline"
         label="Account (Paid From)"
         subtitle={selectedAccount ? balanceLabel(selectedAccount, currencyCode, locale) : "Choose account"}
@@ -330,14 +382,14 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
 
       {selectedType === "Expense" ? (
         <View className="gap-2">
-          <Text className="font-sans text-base text-text">Expense Type</Text>
+          <Text className="font-sans text-sm font-semibold text-text">Expense Type</Text>
           {isSharedVault ? (
-            <View className="rounded-lg border border-brand bg-brand-deep px-4 py-3">
-              <Text className="font-sans text-base font-semibold text-text">Shared</Text>
+            <View className="rounded-md border border-brand bg-brand-deep px-3 py-2">
+              <Text className="font-sans text-sm font-semibold text-text">Shared</Text>
               <Text className="font-sans text-xs text-text-muted">Shared vault is active</Text>
             </View>
           ) : (
-            <View className="flex-row rounded-lg border border-surface-border bg-surface p-1">
+            <View className="flex-row rounded-md border border-surface-border bg-surface p-0.5">
               {(["Personal", "Shared"] as const).map((scope) => (
                 <SegmentButton key={scope} label={scope} selected={selectedScope === scope} onPress={() => setValue("expenseScope", scope)} />
               ))}
@@ -348,7 +400,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
 
       {isSharedExpense ? (
         <>
-          <SelectorRow
+          <DropdownField
             disabled={isSharedVault}
             icon="account-group-outline"
             label="Shared Vault"
@@ -358,8 +410,8 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
             onPress={() => setSelectorTarget("sharedVault")}
           />
           <View className="gap-2">
-            <Text className="font-sans text-base text-text">Split Type</Text>
-            <View className="flex-row rounded-lg border border-surface-border bg-surface p-1">
+            <Text className="font-sans text-sm font-semibold text-text">Split Type</Text>
+            <View className="flex-row rounded-md border border-surface-border bg-surface p-0.5">
               <SplitButton icon="equal" label="Equal" selected={selectedSplitType === ALLOCATION_EQUAL} onPress={() => setValue("splitType", ALLOCATION_EQUAL)} />
               <SplitButton icon="percent-outline" label="Percentage" selected={selectedSplitType === ALLOCATION_PERCENTAGE} onPress={() => setValue("splitType", ALLOCATION_PERCENTAGE)} />
               <SplitButton icon="currency-inr" label="Fixed Amount" selected={selectedSplitType === ALLOCATION_FIXED} onPress={() => setValue("splitType", ALLOCATION_FIXED)} />
@@ -368,22 +420,19 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
           <SplitPreviewCard
             currencyCode={currencyCode}
             error={visibleErrors.split}
+            isLoading={sharedExpensesQuery.isLoading}
+            isQueryError={sharedExpensesQuery.isError}
             items={previewItems}
             locale={locale}
             splitType={selectedSplitType}
             values={formValues}
             onAmountChange={(participantId, value) =>
-              setValue("allocationAmounts", {
-                ...formValues.allocationAmounts,
-                [String(participantId)]: value
-              })
+              setValue("allocationAmounts", rebalanceTwoParticipantAmounts(participants, formValues.allocationAmounts, participantId, value, parsedAmount))
             }
             onPercentageChange={(participantId, value) =>
-              setValue("allocationPercentages", {
-                ...formValues.allocationPercentages,
-                [String(participantId)]: value
-              })
+              setValue("allocationPercentages", rebalanceTwoParticipantPercentages(participants, formValues.allocationPercentages, participantId, value))
             }
+            onRetry={() => sharedExpensesQuery.refetch()}
           />
         </>
       ) : null}
@@ -405,11 +454,10 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
         />
       </View>
 
-      {createTransaction.isError ? <Text className="font-sans text-sm text-state-danger">Transaction could not be saved.</Text> : null}
+      {createTransaction.isError || updateTransaction.isError ? <Text className="font-sans text-sm text-state-danger">Transaction could not be saved.</Text> : null}
       <PrimaryButton loading={isSaving} disabled={isSaving || isLoading || isError} onPress={handleSubmit(submit)}>
-        Save Transaction
+        {isEditing ? "Save Changes" : "Save Transaction"}
       </PrimaryButton>
-      <TrustStrip />
 
       <BottomSheet visible={selectorTarget === "account"} title="Choose Account" onClose={() => setSelectorTarget(null)}>
         <OptionList
@@ -427,8 +475,14 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
         />
       </BottomSheet>
       <BottomSheet visible={selectorTarget === "category"} title="Choose Category" onClose={() => setSelectorTarget(null)}>
+        <SearchField
+          value={categorySearch}
+          onChangeText={setCategorySearch}
+          onClear={() => setCategorySearch("")}
+        />
         <OptionList
-          options={categoryOptions.map((category) => ({
+          emptyMessage={categorySearch.trim() ? "No matching categories." : "No options available."}
+          options={visibleCategoryOptions.map((category) => ({
             id: category.id,
             icon: category.emoji,
             subtitle: category.parentCategory ?? category.categoryType,
@@ -437,6 +491,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
           onSelect={(id) => {
             setValue("categoryId", id, { shouldValidate: true });
             clearSubmittedError("categoryId");
+            setCategorySearch("");
             setSelectorTarget(null);
           }}
         />
@@ -477,32 +532,7 @@ function TypeTab({ icon, label, onPress, selected }: { icon: keyof typeof Materi
   return (
     <Pressable
       accessibilityRole="button"
-      className={selected ? "min-h-14 flex-1 flex-row items-center justify-center gap-2 rounded-md bg-brand-deep" : "min-h-14 flex-1 flex-row items-center justify-center gap-2 rounded-md"}
-      onPress={onPress}
-    >
-      <MaterialCommunityIcons name={icon} size={theme.icons.md} color={selected ? theme.colors.brand.soft : theme.colors.text.muted} />
-      <Text className={selected ? "font-sans text-base font-semibold text-text" : "font-sans text-base text-text-muted"}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function SegmentButton({ label, onPress, selected }: { label: ExpenseScope; onPress: () => void; selected: boolean }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      className={selected ? "min-h-14 flex-1 items-center justify-center rounded-md border border-brand bg-brand-deep" : "min-h-14 flex-1 items-center justify-center rounded-md"}
-      onPress={onPress}
-    >
-      <Text className={selected ? "font-sans text-base font-semibold text-text" : "font-sans text-base text-text-muted"}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function SplitButton({ icon, label, onPress, selected }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; onPress: () => void; selected: boolean }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      className={selected ? "min-h-12 flex-1 flex-row items-center justify-center gap-1 rounded-md border border-brand bg-brand-deep" : "min-h-12 flex-1 flex-row items-center justify-center gap-1 rounded-md"}
+      className={selected ? "min-h-10 flex-1 flex-row items-center justify-center gap-1.5 rounded bg-brand-deep" : "min-h-10 flex-1 flex-row items-center justify-center gap-1.5 rounded"}
       onPress={onPress}
     >
       <MaterialCommunityIcons name={icon} size={theme.icons.sm} color={selected ? theme.colors.brand.soft : theme.colors.text.muted} />
@@ -511,7 +541,47 @@ function SplitButton({ icon, label, onPress, selected }: { icon: keyof typeof Ma
   );
 }
 
-function SelectorRow({
+function SegmentButton({ label, onPress, selected }: { label: ExpenseScope; onPress: () => void; selected: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      className={selected ? "min-h-10 flex-1 items-center justify-center rounded border border-brand bg-brand-deep" : "min-h-10 flex-1 items-center justify-center rounded"}
+      onPress={onPress}
+    >
+      <Text className={selected ? "font-sans text-sm font-semibold text-text" : "font-sans text-sm text-text-muted"}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function SplitButton({ icon, label, onPress, selected }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; onPress: () => void; selected: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      className={selected ? "min-h-10 flex-1 flex-row items-center justify-center gap-1 rounded border border-brand bg-brand-deep" : "min-h-10 flex-1 flex-row items-center justify-center gap-1 rounded"}
+      onPress={onPress}
+    >
+      <MaterialCommunityIcons name={icon} size={theme.icons.xs} color={selected ? theme.colors.brand.soft : theme.colors.text.muted} />
+      <Text className={selected ? "font-sans text-xs font-semibold text-text" : "font-sans text-xs text-text-muted"}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function DatePill({ locale, onPress, value }: { locale: string; onPress: () => void; value: string }) {
+  return (
+    <Pressable
+      accessibilityLabel="Choose transaction date"
+      accessibilityRole="button"
+      className="min-h-11 flex-row items-center gap-2 rounded-full border border-surface-border bg-surface px-4"
+      onPress={onPress}
+    >
+      <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
+      <Text className="font-sans text-sm font-semibold text-text">{formatIsoDateOnly(value, locale, { day: "numeric", month: "short", year: "numeric" })}</Text>
+      <MaterialCommunityIcons name="chevron-down" size={theme.icons.sm} color={theme.colors.text.muted} />
+    </Pressable>
+  );
+}
+
+function DropdownField({
   disabled = false,
   error,
   icon,
@@ -531,54 +601,93 @@ function SelectorRow({
   const isEmoji = icon.length <= 4 && !icon.includes("-");
 
   return (
-    <View className="gap-2">
-      <Text className="font-sans text-base text-text">{label}</Text>
+    <View className="gap-1.5">
+      <Text className="font-sans text-sm font-semibold text-text">{label}</Text>
       <Pressable
         accessibilityRole="button"
-        className="flex-row items-center gap-4 rounded-lg border border-surface-border bg-surface px-4 py-4"
+        className="min-h-12 flex-row items-center gap-3 rounded-md border border-surface-border bg-surface px-3 py-2.5"
         disabled={disabled}
         onPress={disabled ? undefined : onPress}
       >
-        <View className="h-14 w-14 items-center justify-center rounded-full bg-brand-deep">
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-deep">
           {isEmoji ? (
-            <Text className="font-sans text-2xl">{icon}</Text>
+            <Text className="font-sans text-lg">{icon}</Text>
           ) : (
-            <MaterialCommunityIcons name={icon as keyof typeof MaterialCommunityIcons.glyphMap} size={theme.icons.lg} color={theme.colors.brand.soft} />
+            <MaterialCommunityIcons name={icon as keyof typeof MaterialCommunityIcons.glyphMap} size={theme.icons.sm} color={theme.colors.brand.soft} />
           )}
         </View>
         <View className="min-w-0 flex-1">
-          <Text className="font-sans text-lg font-semibold text-text" numberOfLines={1}>
+          <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>
             {title}
           </Text>
-          <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
+          <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
             {subtitle}
           </Text>
         </View>
-        {disabled ? null : <MaterialCommunityIcons name="chevron-right" size={theme.icons.md} color={theme.colors.text.muted} />}
+        {disabled ? null : <MaterialCommunityIcons name="chevron-down" size={theme.icons.sm} color={theme.colors.text.muted} />}
       </Pressable>
       {error ? <Text className="font-sans text-xs text-state-danger">{error}</Text> : null}
     </View>
   );
 }
 
+function DropdownOptionRow({
+  icon,
+  onPress,
+  subtitle,
+  title
+}: {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap | string;
+  onPress: () => void;
+  subtitle: string;
+  title: string;
+}) {
+  const isEmoji = icon.length <= 4 && !icon.includes("-");
+
+  return (
+    <Pressable
+      accessibilityRole="menuitem"
+      className="min-h-14 flex-row items-center gap-3 border-b border-surface-border py-3 last:border-b-0"
+      onPress={onPress}
+    >
+      <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-deep">
+        {isEmoji ? (
+          <Text className="font-sans text-lg">{icon}</Text>
+        ) : (
+          <MaterialCommunityIcons name={icon as keyof typeof MaterialCommunityIcons.glyphMap} size={theme.icons.sm} color={theme.colors.brand.soft} />
+        )}
+      </View>
+      <View className="min-w-0 flex-1">
+        <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>
+          {title}
+        </Text>
+        <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function OptionList({
+  emptyMessage = "No options available.",
   onSelect,
   options
 }: {
+  emptyMessage?: string;
   onSelect: (id: number) => void;
   options: { id: number; icon: keyof typeof MaterialCommunityIcons.glyphMap | string; subtitle: string; title: string }[];
 }) {
   if (options.length === 0) {
-    return <Text className="font-sans text-sm text-text-muted">No options available.</Text>;
+    return <Text className="font-sans text-sm text-text-muted">{emptyMessage}</Text>;
   }
 
   return (
-    <View className="gap-2">
+    <View className="overflow-hidden rounded-lg border border-surface-border bg-surface px-3">
       {options.map((option) => (
-        <SelectorRow
+        <DropdownOptionRow
           key={option.id}
           icon={option.icon}
-          label=""
           subtitle={option.subtitle}
           title={option.title}
           onPress={() => onSelect(option.id)}
@@ -588,96 +697,114 @@ function OptionList({
   );
 }
 
+function SearchField({
+  onChangeText,
+  onClear,
+  value
+}: {
+  onChangeText: (value: string) => void;
+  onClear: () => void;
+  value: string;
+}) {
+  return (
+    <View className="mb-3 min-h-12 flex-row items-center gap-2 rounded-md border border-surface-border bg-background px-3">
+      <MaterialCommunityIcons name="magnify" size={theme.icons.sm} color={theme.colors.text.muted} />
+      <TextInput
+        accessibilityLabel="Search categories"
+        className="h-12 min-w-0 flex-1 font-sans text-sm text-text"
+        onChangeText={onChangeText}
+        placeholder="Search categories"
+        placeholderTextColor={theme.colors.text.muted}
+        value={value}
+      />
+      {value ? (
+        <Pressable accessibilityLabel="Clear category search" accessibilityRole="button" onPress={onClear}>
+          <MaterialCommunityIcons name="close-circle" size={theme.icons.sm} color={theme.colors.text.muted} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 function SplitPreviewCard({
   currencyCode,
   error,
+  isLoading,
+  isQueryError,
   items,
   locale,
   onAmountChange,
   onPercentageChange,
+  onRetry,
   splitType,
   values
 }: {
   currencyCode: string;
   error?: string | undefined;
+  isLoading: boolean;
+  isQueryError: boolean;
   items: SplitPreviewItem[];
   locale: string;
   onAmountChange: (participantId: number, value: string) => void;
   onPercentageChange: (participantId: number, value: string) => void;
+  onRetry: () => void;
   splitType: SplitType;
   values: TransactionFormValues;
 }) {
   return (
-    <View className="gap-3">
-      <Text className="font-sans text-base text-text-muted">Split Preview</Text>
-      <View className="rounded-lg border border-surface-border bg-surface px-4 py-3">
-        {items.length === 0 ? <Text className="font-sans text-sm text-text-muted">Choose a shared vault to preview the split.</Text> : null}
+    <View className="gap-2">
+      <Text className="font-sans text-sm font-semibold text-text-muted">Split Preview</Text>
+      <View className="rounded-md border border-surface-border bg-surface px-3 py-2">
+        {isLoading ? <Text className="font-sans text-sm text-text-muted">Loading shared vault members...</Text> : null}
+        {isQueryError ? (
+          <View className="gap-2">
+            <Text className="font-sans text-sm text-state-danger">Could not load shared vault members.</Text>
+            <Pressable accessibilityRole="button" className="self-start rounded-full border border-brand px-3 py-1.5" onPress={onRetry}>
+              <Text className="font-sans text-xs font-semibold text-brand-soft">Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {!isLoading && !isQueryError && items.length === 0 ? <Text className="font-sans text-sm text-text-muted">Choose a shared vault to preview the split.</Text> : null}
         {items.map((item) => (
-          <View key={item.id} className="flex-row items-center border-b border-surface-border py-3 last:border-b-0">
-            <View className={item.isCurrent ? "mr-3 h-10 w-10 items-center justify-center rounded-full bg-brand" : "mr-3 h-10 w-10 items-center justify-center rounded-full bg-brand-deep"}>
-              <Text className="font-sans text-sm font-bold text-text">{initials(item.name)}</Text>
+          <View key={item.id} className="flex-row items-center border-b border-surface-border py-2.5 last:border-b-0">
+            <View className={item.isCurrent ? "mr-2.5 h-8 w-8 items-center justify-center rounded-full bg-brand" : "mr-2.5 h-8 w-8 items-center justify-center rounded-full bg-brand-deep"}>
+              <Text className="font-sans text-xs font-bold text-text">{initials(item.name)}</Text>
             </View>
-            <Text className="min-w-0 flex-1 font-sans text-base font-semibold text-text" numberOfLines={1}>
+            <Text className="min-w-0 flex-1 font-sans text-sm font-semibold text-text" numberOfLines={1}>
               {item.name}
             </Text>
             {splitType === ALLOCATION_PERCENTAGE ? (
               <TextInput
-                className="mr-3 h-10 w-20 rounded-full bg-brand-deep text-center font-sans text-sm font-semibold text-text"
+                className="mr-2 h-10 w-16 rounded-md bg-brand-deep py-0 text-center font-sans text-sm font-semibold leading-5 text-text"
                 inputMode="decimal"
                 keyboardType="decimal-pad"
                 onChangeText={(value) => onPercentageChange(item.id, value)}
                 value={values.allocationPercentages[String(item.id)] ?? ""}
               />
             ) : (
-              <View className="mr-3 rounded-full bg-brand-deep px-4 py-2">
-                <Text className="font-sans text-sm font-semibold text-brand-soft">{item.percentage}%</Text>
+              <View className="mr-2 min-w-10 items-center rounded-full bg-brand-deep px-2.5 py-1.5">
+                <Text className="font-sans text-xs font-semibold text-brand-soft">{item.percentage}%</Text>
               </View>
             )}
             {splitType === ALLOCATION_FIXED ? (
               <TextInput
-                className="h-10 w-24 rounded-md border border-surface-border bg-background text-center font-sans text-sm font-semibold text-text"
+                className="h-10 w-[100px] rounded-md border border-surface-border bg-background px-2 py-0 text-center font-sans text-sm font-semibold leading-5 text-text"
                 inputMode="decimal"
                 keyboardType="decimal-pad"
                 onChangeText={(value) => onAmountChange(item.id, value)}
                 value={values.allocationAmounts[String(item.id)] ?? ""}
               />
             ) : (
-              <Text className="w-24 text-right font-sans text-base font-semibold text-text">{formatCurrency(item.amount, currencyCode, locale)}</Text>
+              <Text className="w-20 text-right font-sans text-sm font-semibold text-text">{formatCurrency(item.amount, currencyCode, locale)}</Text>
             )}
           </View>
         ))}
-        <View className="mt-2 flex-row items-center gap-2">
-          <MaterialCommunityIcons name="information-outline" size={theme.icons.sm} color={theme.colors.text.muted} />
+        <View className="mt-1.5 flex-row items-center gap-2">
+          <MaterialCommunityIcons name="information-outline" size={theme.icons.xs} color={theme.colors.text.muted} />
           <Text className="flex-1 font-sans text-xs text-text-muted">Split is based on the amount entered above.</Text>
         </View>
       </View>
       {error ? <Text className="font-sans text-xs text-state-danger">{error}</Text> : null}
-    </View>
-  );
-}
-
-function TrustStrip() {
-  const items = [
-    { icon: "lightning-bolt-outline", title: "Quick & Easy", body: "Save in 5 seconds" },
-    { icon: "shield-lock-outline", title: "100% Secure", body: "Your data is safe" },
-    { icon: "creation-outline", title: "Smart Defaults", body: "Learns your habits" }
-  ] as const;
-
-  return (
-    <View className="flex-row rounded-lg border border-surface-border bg-surface px-3 py-4">
-      {items.map((item, index) => (
-        <View key={item.title} className={index === items.length - 1 ? "flex-1 flex-row gap-2" : "mr-2 flex-1 flex-row gap-2 border-r border-surface-border pr-2"}>
-          <MaterialCommunityIcons name={item.icon} size={theme.icons.sm} color={index === 0 ? theme.colors.state.warning : theme.colors.brand.soft} />
-          <View className="min-w-0 flex-1">
-            <Text className="font-sans text-xs font-semibold text-text" numberOfLines={1}>
-              {item.title}
-            </Text>
-            <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
-              {item.body}
-            </Text>
-          </View>
-        </View>
-      ))}
     </View>
   );
 }

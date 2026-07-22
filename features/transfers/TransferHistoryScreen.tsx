@@ -189,7 +189,7 @@ export function TransferHistoryScreen() {
 
   if ((transfersQuery.isLoading || accountsQuery.isLoading) && !transfersQuery.data) {
     return (
-      <Screen contentClassName="gap-4 pb-44">
+      <Screen contentClassName="gap-4">
         <Text className="font-sans text-3xl font-bold text-text">Transfer History</Text>
         <LoadingSkeleton variant="card" />
         <LoadingSkeleton variant="card" />
@@ -199,7 +199,7 @@ export function TransferHistoryScreen() {
 
   if ((transfersQuery.isError && !transfersQuery.data) || accountsQuery.isError) {
     return (
-      <Screen contentClassName="gap-4 pb-44">
+      <Screen contentClassName="gap-4">
         <Text className="font-sans text-3xl font-bold text-text">Transfer History</Text>
         {transfersQuery.isError ? <ErrorView message="Transfers could not be loaded." onRetry={() => transfersQuery.refetch()} /> : null}
         {accountsQuery.isError ? <ErrorView message="Accounts could not be loaded." onRetry={() => accountsQuery.refetch()} /> : null}
@@ -208,7 +208,7 @@ export function TransferHistoryScreen() {
   }
 
   return (
-    <Screen contentClassName="gap-4 pb-44" onRefresh={() => transfersQuery.refetch()} refreshing={transfersQuery.isRefetching}>
+    <Screen contentClassName="gap-4" onRefresh={() => transfersQuery.refetch()} refreshing={transfersQuery.isRefetching}>
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-row items-center gap-3">
           <Pressable accessibilityLabel="Back to Transfers" accessibilityRole="button" onPress={() => router.back()}>

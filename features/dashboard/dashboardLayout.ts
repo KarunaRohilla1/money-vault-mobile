@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "@/types/domain";
+import { formatIsoDateOnly } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
 
 export const dashboardTypography = {
@@ -12,7 +13,7 @@ export const dashboardTypography = {
 } as const;
 
 export const dashboardLayout = {
-  bottomClearanceClassName: "gap-5 pb-44",
+  bottomClearanceClassName: "gap-5",
   cardClassName: "rounded-xl border border-surface-border bg-surface",
   elevatedCardClassName: "rounded-xl border border-brand-muted bg-surface-raised",
   iconTileClassName: "h-9 w-9 items-center justify-center rounded-lg bg-brand-deep",
@@ -54,4 +55,19 @@ export function dashboardWidthRules(width: number) {
     isNarrow: width < 380,
     snapshotUsesTwoColumns: width >= 360
   };
+}
+
+export function dashboardHeaderDateLabel(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", weekday: "long" }).format(date);
+}
+
+export function dashboardCycleInfoLabel(
+  cycle: {
+    daysCompleted: number;
+    endDate: string;
+    startDate: string;
+  },
+  locale: string
+) {
+  return `Day ${cycle.daysCompleted} - ${formatIsoDateOnly(cycle.startDate, locale, { day: "numeric", month: "short" })} - ${formatIsoDateOnly(cycle.endDate, locale, { day: "numeric", month: "short" })}`;
 }

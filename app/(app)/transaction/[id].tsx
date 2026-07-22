@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
 
-import { TransactionFormScreen } from "@/features/transactions/TransactionFormScreen";
+import { TransactionDetailScreen } from "@/features/transactions/TransactionDetailScreen";
 
-export default function EditTransactionRoute() {
+export default function TransactionDetailRoute() {
   const params = useLocalSearchParams<{ id?: string }>();
   const transactionId = params.id ? Number(params.id) : null;
 
-  return <TransactionFormScreen transactionId={Number.isFinite(transactionId) ? transactionId : null} />;
+  return <TransactionDetailScreen transactionId={Number.isFinite(transactionId) ? transactionId : null} />;
 }

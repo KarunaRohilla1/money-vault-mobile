@@ -32,8 +32,10 @@ export interface RecentActivityApi {
   amount: number;
   categoryName: string;
   date: string;
+  description?: string | null;
   direction?: CashFlowDirection;
   id: number;
+  merchant?: string | null;
   notes?: string | null;
   signedAmount?: number;
   transactionType: string;

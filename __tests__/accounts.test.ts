@@ -2,6 +2,7 @@ import {
   accountBalance,
   accountBalanceLabel,
   accountFormError,
+  accountSummary,
   LEGACY_ACCOUNT_TYPES,
   visibleAccountFormErrors
 } from "@/features/accounts/accountModel";
@@ -75,6 +76,21 @@ describe("accounts parity helpers", () => {
   it("labels credit card balances as due amounts", () => {
     expect(accountBalanceLabel(account)).toBe("Available Balance");
     expect(accountBalanceLabel({ ...account, type: "Credit Card" })).toBe("Due Amount");
+  });
+
+  it("summarizes net worth from cash/bank assets and credit-card liabilities", () => {
+    expect(
+      accountSummary([
+        { ...account, balance: 198800, id: 1, type: "Salary Account" },
+        { ...account, balance: -2000, id: 2, type: "Credit Card" }
+      ])
+    ).toEqual({
+      assetAccounts: 1,
+      assets: 198800,
+      creditCards: 1,
+      liabilities: 2000,
+      netWorth: 196800
+    });
   });
 
   it("scopes dependent query refresh to the active vault", () => {

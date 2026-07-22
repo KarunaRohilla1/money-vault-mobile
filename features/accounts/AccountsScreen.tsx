@@ -10,6 +10,7 @@ import { AccountTypeSelector } from "@/features/accounts/AccountTypeSelector";
 import {
   accountBalance,
   accountBalanceLabel,
+  accountSummary,
   visibleAccountFormErrors,
   type AccountFormTouched,
   type AccountFormValues
@@ -210,80 +211,35 @@ function AccountSection({
 }
 
 function SummaryCard({ accounts, currencyCode, locale }: { accounts: AccountApi[]; currencyCode: string; locale: string }) {
-  const summary = accounts.reduce(
-    (current, account) => {
-      const balance = accountBalance(account);
-
-      if (balance === null) {
-        return current;
-      }
-
-      if (account.type === "Credit Card") {
-        return {
-          ...current,
-          creditCards: current.creditCards + 1,
-          liabilities: current.liabilities + (balance < 0 ? Math.abs(balance) : 0)
-        };
-      }
-
-      return {
-        ...current,
-        assets: current.assets + balance,
-        assetAccounts: current.assetAccounts + 1
-      };
-    },
-    {
-      assetAccounts: 0,
-      assets: 0,
-      creditCards: 0,
-      liabilities: 0
-    }
-  );
+  const summary = accountSummary(accounts);
 
   return (
-    <View className="rounded-lg border border-brand-muted bg-surface-raised p-5">
-      <View className="flex-row items-start justify-between gap-4">
-        <View className="flex-1">
+    <View className="gap-4 rounded-lg border border-brand-muted bg-surface-raised p-5">
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="min-w-0 flex-1">
           <Text className="font-sans text-xs font-semibold uppercase text-brand-soft">Net Worth</Text>
-          <Text className="mt-4 font-sans text-4xl font-bold text-text">
-            {formatCurrency(summary.assets - summary.liabilities, currencyCode, locale)}
+          <Text className="mt-2 font-sans text-4xl font-bold text-text" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
+            {formatCurrency(summary.netWorth, currencyCode, locale)}
           </Text>
-          <View className="mt-5 flex-row items-center gap-6">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-deep">
-                <MaterialCommunityIcons name="bank-outline" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
-              </View>
-              <View>
-                <Text className="font-sans text-lg font-semibold text-text">{summary.assetAccounts}</Text>
-                <Text className="font-sans text-sm text-text-muted">Accounts</Text>
-              </View>
-            </View>
-            <View className="h-14 w-px bg-surface-border" />
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-deep">
-                <MaterialCommunityIcons name="credit-card-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
-              </View>
-              <View>
-                <Text className="font-sans text-lg font-semibold text-text">{summary.creditCards}</Text>
-                <Text className="font-sans text-sm text-text-muted">Cards</Text>
-              </View>
-            </View>
-          </View>
         </View>
-        <View className="h-24 w-24 items-center justify-center rounded-lg bg-brand-deep">
-          <MaterialCommunityIcons name="wallet" size={52} color={theme.colors.brand.soft} />
+        <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
+          <MaterialCommunityIcons name="wallet-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
         </View>
       </View>
-      <View className="mt-6 h-px bg-surface-border" />
-      <View className="mt-5 flex-row gap-3">
-        <View className="flex-1">
-          <Text className="font-sans text-sm text-text">Cash & Bank</Text>
-          <Text className="mt-1 font-sans text-lg font-semibold text-text">{formatCurrency(summary.assets, currencyCode, locale)}</Text>
+
+      <View className="gap-3 rounded-lg border border-surface-border bg-surface p-4">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="font-sans text-sm text-text-muted">Cash & Bank</Text>
+          <Text className="font-sans text-lg font-semibold text-text" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>
+            {formatCurrency(summary.assets, currencyCode, locale)}
+          </Text>
         </View>
-        <View className="w-px bg-surface-border" />
-        <View className="flex-1">
-          <Text className="font-sans text-sm text-text">Credit Card Outstanding</Text>
-          <Text className="mt-1 font-sans text-lg font-semibold text-text">{formatCurrency(summary.liabilities, currencyCode, locale)}</Text>
+        <View className="h-px bg-surface-border" />
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="font-sans text-sm text-text-muted">Credit Card Outstanding</Text>
+          <Text className="font-sans text-lg font-semibold text-accent-rose" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>
+            -{formatCurrency(summary.liabilities, currencyCode, locale)}
+          </Text>
         </View>
       </View>
     </View>
@@ -458,13 +414,13 @@ export function AccountsScreen() {
         <Pressable
           accessibilityLabel="Add Account"
           accessibilityRole="button"
-          className="flex-row items-center gap-3"
+          className="flex-row items-center gap-2 rounded-full border border-brand-muted bg-surface px-2 py-1"
           onPress={openCreateForm}
         >
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-brand">
-            <MaterialCommunityIcons name="plus" size={theme.icons.lg} color={theme.colors.text.inverse} />
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-brand">
+            <MaterialCommunityIcons name="plus" size={theme.icons.md} color={theme.colors.text.inverse} />
           </View>
-          <Text className="font-sans text-base font-semibold text-brand-soft">Add Account</Text>
+          <Text className="pr-2 font-sans text-base font-semibold text-brand-soft">Add Account</Text>
         </Pressable>
       </View>
 

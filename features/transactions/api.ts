@@ -8,12 +8,16 @@ import type { TransactionFiltersApi, TransactionPayloadApi } from "@/services/ap
 function filtersKey(filters: TransactionFiltersApi) {
   return JSON.stringify({
     account: filters.account ?? "",
+    amountMax: filters.amountMax ?? "",
+    amountMin: filters.amountMin ?? "",
     category: filters.category ?? "",
     dateFrom: filters.dateFrom ?? "",
     dateTo: filters.dateTo ?? "",
     month: filters.month ?? "",
     search: filters.search ?? "",
-    sortBy: filters.sortBy ?? "Newest"
+    sharedOnly: filters.sharedOnly ?? false,
+    sortBy: filters.sortBy ?? "Newest",
+    transactionType: filters.transactionType ?? "All"
   });
 }
 
@@ -34,6 +38,14 @@ export function useTransactionsQuery(token: string | null, vaultId: string | nul
     enabled: Boolean(token && vaultId),
     queryFn: async () => apiClient.getTransactions(token ?? "", filters),
     queryKey: queryKeys.transactions.list(vaultId, filtersKey(filters))
+  });
+}
+
+export function useTransactionMonthRangeQuery(token: string | null, vaultId: string | null) {
+  return useQuery({
+    enabled: Boolean(token && vaultId),
+    queryFn: async () => apiClient.getTransactionMonthRange(token ?? ""),
+    queryKey: queryKeys.transactions.monthRange(vaultId)
   });
 }
 

@@ -20,6 +20,9 @@ describe("queryKeys", () => {
     expect(queryKeys.categories.byVault("vault_1")).not.toEqual(queryKeys.categories.byVault("vault_2"));
     expect(queryKeys.planning.current("vault_1")).not.toEqual(queryKeys.planning.current("vault_2"));
     expect(queryKeys.reports.current("vault_1")).not.toEqual(queryKeys.reports.current("vault_2"));
+    expect(queryKeys.reports.summary("vault_1", { cycleStart: "2026-07-10" })).not.toEqual(
+      queryKeys.reports.summary("vault_1", { cycleStart: "2026-06-10" })
+    );
     expect(queryKeys.shared.bills("vault_1")).not.toEqual(queryKeys.shared.bills("vault_2"));
     expect(queryKeys.shared.dashboard("vault_1")).not.toEqual(queryKeys.shared.dashboard("vault_2"));
     expect(queryKeys.shared.dashboard("vault_1", 10)).not.toEqual(queryKeys.shared.dashboard("vault_1", 20));
@@ -27,6 +30,10 @@ describe("queryKeys", () => {
     expect(queryKeys.shared.bills("vault_1", 10)).not.toEqual(queryKeys.shared.bills("vault_1", 20));
     expect(queryKeys.transactions.detail("vault_1", 12)).not.toEqual(queryKeys.transactions.detail("vault_2", 12));
     expect(queryKeys.transactions.list("vault_1", "filters")).not.toEqual(queryKeys.transactions.list("vault_2", "filters"));
+    expect(queryKeys.transactions.month("vault_1", "2026-07")).not.toEqual(queryKeys.transactions.month("vault_2", "2026-07"));
+    expect(queryKeys.transactions.monthRange("vault_1")).not.toEqual(queryKeys.transactions.monthRange("vault_2"));
+    expect(queryKeys.transactions.search("vault_1", "coffee")).not.toEqual(queryKeys.transactions.search("vault_2", "coffee"));
+    expect(queryKeys.transactions.type("vault_1", "Expense")).not.toEqual(queryKeys.transactions.type("vault_2", "Expense"));
     expect(queryKeys.transfers.byVault("vault_1")).not.toEqual(queryKeys.transfers.byVault("vault_2"));
     expect(queryKeys.transfers.lists("vault_1")).not.toEqual(queryKeys.transfers.lists("vault_2"));
     expect(queryKeys.transfers.list("vault_1", "filters")).not.toEqual(queryKeys.transfers.list("vault_2", "filters"));
@@ -41,5 +48,13 @@ describe("queryKeys", () => {
     expect(queryKeys.transfers.lists("vault_1")).toEqual(["transfers", "vault_1", "list"]);
     expect(queryKeys.transfers.list("vault_1", "filters")).toEqual(["transfers", "vault_1", "list", "filters"]);
     expect(queryKeys.transfers.detail("vault_1", "group_1")).toEqual(["transfers", "vault_1", "detail", "group_1"]);
+  });
+
+  it("defines transaction history key examples for month, search, and type", () => {
+    expect(queryKeys.transactions.all("vault_1")).toEqual(["transactions", "all", "vault_1"]);
+    expect(queryKeys.transactions.month("vault_1", "2026-07")).toEqual(["transactions", "month", "vault_1", "2026-07"]);
+    expect(queryKeys.transactions.monthRange("vault_1")).toEqual(["transactions", "monthRange", "vault_1"]);
+    expect(queryKeys.transactions.search("vault_1", "coffee")).toEqual(["transactions", "search", "vault_1", "coffee"]);
+    expect(queryKeys.transactions.type("vault_1", "Transfer")).toEqual(["transactions", "type", "vault_1", "Transfer"]);
   });
 });

@@ -83,3 +83,40 @@ export function accountBalance(account: AccountApi): number | null {
 export function accountBalanceLabel(account: AccountApi): string {
   return account.type === "Credit Card" ? "Due Amount" : "Available Balance";
 }
+
+export function accountSummary(accounts: AccountApi[]) {
+  const summary = accounts.reduce(
+    (current, account) => {
+      const balance = accountBalance(account);
+
+      if (balance === null) {
+        return current;
+      }
+
+      if (account.type === "Credit Card") {
+        return {
+          ...current,
+          creditCards: current.creditCards + 1,
+          liabilities: current.liabilities + (balance < 0 ? Math.abs(balance) : 0)
+        };
+      }
+
+      return {
+        ...current,
+        assets: current.assets + balance,
+        assetAccounts: current.assetAccounts + 1
+      };
+    },
+    {
+      assetAccounts: 0,
+      assets: 0,
+      creditCards: 0,
+      liabilities: 0
+    }
+  );
+
+  return {
+    ...summary,
+    netWorth: summary.assets - summary.liabilities
+  };
+}

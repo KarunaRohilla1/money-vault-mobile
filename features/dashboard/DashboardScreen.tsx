@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Text, useWindowDimensions, View } from "react-native";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import { useRouter } from "expo-router";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 
 import { Screen } from "@/components/layout/Screen";
 import { EmptyState, ErrorView, LoadingSkeleton } from "@/components/ui";
@@ -9,6 +10,8 @@ import { useDashboardQuery } from "@/features/dashboard/api";
 import {
   dashboardLayout,
   dashboardComfortCopy,
+  dashboardCycleInfoLabel,
+  dashboardHeaderDateLabel,
   dashboardMetricLabels,
   dashboardTypography,
   dashboardWidthRules,
@@ -16,6 +19,7 @@ import {
   singleLineMoneyProps
 } from "@/features/dashboard/dashboardLayout";
 import { getDashboardScreenState } from "@/features/dashboard/state";
+import { recentActivityPrimaryText, recentActivitySecondaryText } from "@/features/dashboard/recentActivityDisplay";
 import type { DashboardViewModel } from "@/features/dashboard/types";
 import type { CategorySpendApi, RecentActivityApi } from "@/services/api/types";
 import { formatIsoDateOnly } from "@/lib/date";
@@ -114,15 +118,23 @@ function DashboardLoading() {
   );
 }
 
-function DashboardSectionHeader({ action, title }: { action?: string; title: string }) {
+function DashboardSectionHeader({ action, onActionPress, title }: { action?: string; onActionPress?: () => void; title: string }) {
+  const actionContent = action ? (
+    <>
+      <Text className="font-sans text-sm font-semibold text-brand-soft">{action}</Text>
+      <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.brand.soft} />
+    </>
+  ) : null;
+
   return (
     <View className="flex-row items-center justify-between">
       <Text className={dashboardTypography.sectionTitle}>{title}</Text>
-      {action ? (
-        <View className="flex-row items-center gap-1">
-          <Text className="font-sans text-sm font-semibold text-brand-soft">{action}</Text>
-          <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.brand.soft} />
-        </View>
+      {action && onActionPress ? (
+        <Pressable accessibilityLabel={`${action} ${title}`} accessibilityRole="button" className="flex-row items-center gap-1" onPress={onActionPress}>
+          {actionContent}
+        </Pressable>
+      ) : action ? (
+        <View className="flex-row items-center gap-1">{actionContent}</View>
       ) : null}
     </View>
   );
@@ -145,70 +157,33 @@ function IconTile({ icon, tone = "brand" }: { icon: React.ComponentProps<typeof 
 
 function DashboardHeader({ dashboard, locale }: { dashboard: DashboardViewModel; locale: string }) {
   const initials = dashboard.vault.name.trim().slice(0, 2).toUpperCase() || "MV";
-  const today = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", weekday: "long" }).format(new Date());
+  const today = dashboardHeaderDateLabel(new Date(), locale);
+  const cycleInfo = dashboardCycleInfoLabel(dashboard.cycle, locale);
 
   return (
     <View className="flex-row items-center justify-between gap-3">
       <View className="flex-row flex-1 items-center gap-3">
-        <View className="h-13 w-13 items-center justify-center rounded-full bg-brand-deep">
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-deep">
           <Text className="font-sans text-base font-bold text-brand-soft">{initials}</Text>
         </View>
-        <View className="flex-1">
+        <View className="min-w-0 flex-1">
           <Text className={dashboardTypography.greeting} numberOfLines={1}>
             {greetingForDate()}, {dashboard.vault.name}
           </Text>
-          <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>
+          <Text className="font-sans text-sm font-semibold leading-5 text-text" numberOfLines={1}>
             {today}
           </Text>
           <View className="mt-0.5 flex-row items-center gap-1">
             <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.xs} color={theme.colors.brand.soft} />
             <Text className={dashboardTypography.caption} numberOfLines={1}>
-              Day {dashboard.cycle.daysCompleted} of {dashboard.cycleLabel}
+              {cycleInfo}
             </Text>
           </View>
         </View>
       </View>
-      <View className="h-10 w-10 items-center justify-center rounded-full">
+      <Pressable accessibilityLabel="Notifications" accessibilityRole="button" className="h-11 w-11 items-center justify-center rounded-full bg-surface">
         <MaterialCommunityIcons name="bell-outline" size={theme.icons.md} color={theme.colors.text.DEFAULT} />
-      </View>
-    </View>
-  );
-}
-
-function CycleProgressGraph({ dashboard, graphWidth, locale }: { dashboard: DashboardViewModel; graphWidth: number; locale: string }) {
-  const progress = clampPercent(dashboard.cycle.progressPercent);
-  const markerX = 12 + (graphWidth - 24) * (progress / 100);
-  const graphHeight = 78;
-  const barWidth = graphWidth - 24;
-
-  return (
-    <View className="gap-2">
-      <Svg width={graphWidth} height={graphHeight} viewBox={`0 0 ${graphWidth} ${graphHeight}`}>
-        <Path
-          d={`M12 54 C ${graphWidth * 0.2} 50, ${graphWidth * 0.24} 39, ${graphWidth * 0.38} 42 S ${graphWidth * 0.55} 24, ${graphWidth * 0.68} 30 S ${graphWidth * 0.78} 14, ${graphWidth - 12} 12`}
-          fill="none"
-          stroke={theme.colors.brand.soft}
-          strokeWidth={4}
-          strokeLinecap="round"
-        />
-        <Path
-          d={`M${graphWidth * 0.68} 30 C ${graphWidth * 0.78} 22, ${graphWidth * 0.86} 18, ${graphWidth - 12} 16`}
-          fill="none"
-          stroke={theme.colors.brand.soft}
-          strokeDasharray="5 6"
-          strokeWidth={3}
-          strokeLinecap="round"
-        />
-        <Path d={`M${markerX} 12 L${markerX} 64`} stroke={theme.colors.brand.muted} strokeDasharray="4 4" strokeWidth={1.5} />
-        <Circle cx={markerX} cy={32} r={6} fill={theme.colors.text.DEFAULT} />
-        <Circle cx={markerX} cy={32} r={4} fill={theme.colors.brand.DEFAULT} />
-        <Rect x={12} y={66} width={barWidth} height={8} rx={4} fill={theme.colors.brand.deep} />
-        <Rect x={12} y={66} width={barWidth * (progress / 100)} height={8} rx={4} fill={theme.colors.accent.emerald} />
-      </Svg>
-      <View className="flex-row justify-between">
-        <Text className={dashboardTypography.caption}>{dateLabel(dashboard.cycle.startDate, locale)}</Text>
-        <Text className={dashboardTypography.caption}>{dateLabel(dashboard.cycle.endDate, locale)}</Text>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -216,51 +191,39 @@ function CycleProgressGraph({ dashboard, graphWidth, locale }: { dashboard: Dash
 function SafeToSpendCard({
   currencyCode,
   dashboard,
-  graphWidth,
   isNarrow,
   locale
 }: {
   currencyCode: CurrencyCode;
   dashboard: DashboardViewModel;
-  graphWidth: number;
   isNarrow: boolean;
   locale: string;
 }) {
   const progress = clampPercent(dashboard.cycle.progressPercent);
 
   return (
-    <View className={`${dashboardLayout.elevatedCardClassName} p-4`}>
-      <View className="mb-3 flex-row items-center justify-between gap-3">
-        <View className="flex-row items-center gap-2">
+    <View className={`${dashboardLayout.elevatedCardClassName} p-3.5`}>
+      <View className="mb-2 flex-row items-center justify-between gap-3">
+        <View className="min-w-0 flex-1 flex-row items-center gap-2">
           <Text className={dashboardTypography.cardTitle}>Safe to Spend</Text>
           <MaterialCommunityIcons name="information-outline" size={theme.icons.sm} color={theme.colors.text.muted} />
         </View>
-        <View className="rounded-full bg-brand-deep px-3 py-1">
+        <View className="rounded-full bg-brand-deep px-2.5 py-1">
           <Text className="font-sans text-xs font-bold text-brand-soft">{Math.round(progress)}% of cycle</Text>
         </View>
       </View>
-      <View className="flex-row items-start gap-3">
-        <View className="min-w-0 flex-1 gap-3">
-          <MoneyText
-            value={dashboard.safeToSpend}
-            currencyCode={currencyCode}
-            locale={locale}
-            className={isNarrow ? "font-sans text-3xl font-bold text-text tabular-nums" : dashboardTypography.majorMoney}
-          />
-          <View className="flex-row items-start gap-2">
-            <MaterialCommunityIcons name="check-circle-outline" size={theme.icons.md} color={theme.colors.state.success} />
-            <View className="min-w-0 flex-1">
-              <Text className="font-sans text-sm font-semibold text-state-success" numberOfLines={1}>
-                {dashboardComfortCopy.headline}
-              </Text>
-              <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
-                {dashboardComfortCopy.secondary}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <View className="shrink-0">
-          <CycleProgressGraph dashboard={dashboard} graphWidth={graphWidth} locale={locale} />
+      <View className="min-w-0 gap-2">
+        <MoneyText
+          value={dashboard.safeToSpend}
+          currencyCode={currencyCode}
+          locale={locale}
+          className={isNarrow ? "font-sans text-3xl font-bold text-text tabular-nums" : "font-sans text-4xl font-bold text-text tabular-nums"}
+        />
+        <View className="flex-row items-center gap-2">
+          <MaterialCommunityIcons name="check-circle-outline" size={theme.icons.sm} color={theme.colors.state.success} />
+          <Text className="min-w-0 flex-1 font-sans text-sm text-text-muted" numberOfLines={1}>
+            <Text className="font-semibold text-state-success">{dashboardComfortCopy.headline}</Text> {dashboardComfortCopy.secondary}
+          </Text>
         </View>
       </View>
     </View>
@@ -291,7 +254,6 @@ function MetricCard({
         </Text>
         <MoneyText value={amount} currencyCode={currencyCode} locale={locale} />
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.muted} />
     </View>
   );
 }
@@ -341,6 +303,7 @@ function ActivityRow({ currencyCode, item, locale }: { currencyCode: CurrencyCod
   const signedAmount = recentActivitySignedAmount(item);
   const isCredit = direction === "credit";
   const isDebit = direction === "debit";
+  const secondaryText = recentActivitySecondaryText(item);
 
   return (
     <View className="min-h-16 flex-row items-center border-b border-surface-border py-2.5 last:border-b-0">
@@ -349,11 +312,13 @@ function ActivityRow({ currencyCode, item, locale }: { currencyCode: CurrencyCod
       </View>
       <View className="min-w-0 flex-1">
         <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>
-          {item.notes || item.categoryName}
+          {recentActivityPrimaryText(item)}
         </Text>
-        <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
-          {item.categoryName}
-        </Text>
+        {secondaryText ? (
+          <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
+            {secondaryText}
+          </Text>
+        ) : null}
       </View>
       <View className="mx-2 max-w-24 flex-1 items-center">
         <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
@@ -374,9 +339,21 @@ function ActivityRow({ currencyCode, item, locale }: { currencyCode: CurrencyCod
 }
 
 function RecentActivity({ currencyCode, dashboard, locale }: { currencyCode: CurrencyCode; dashboard: DashboardViewModel; locale: string }) {
+  const router = useRouter();
+  const cycleMonth = dashboard.cycle.startDate.slice(0, 7);
+
   return (
     <View className={dashboardLayout.sectionGapClassName}>
-      <DashboardSectionHeader action="View all" title="Recent Activity" />
+      <DashboardSectionHeader
+        action="View all"
+        title="Recent Activity"
+        onActionPress={() =>
+          router.push({
+            pathname: "/transactions",
+            params: { month: cycleMonth }
+          })
+        }
+      />
       {dashboard.recentActivity.length > 0 ? (
         <View className={`${dashboardLayout.cardClassName} px-4`}>
           {dashboard.recentActivity.map((item) => (
@@ -501,7 +478,7 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
   return (
     <Screen contentClassName={dashboardLayout.bottomClearanceClassName}>
       <DashboardHeader dashboard={dashboard} locale={locale} />
-      <SafeToSpendCard dashboard={dashboard} currencyCode={currencyCode} graphWidth={widthRules.heroGraphWidth} isNarrow={widthRules.isNarrow} locale={locale} />
+      <SafeToSpendCard dashboard={dashboard} currencyCode={currencyCode} isNarrow={widthRules.isNarrow} locale={locale} />
       <FinancialSnapshot dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
       <RecentActivity dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
       <SpendingByCategory categories={dashboard.categories} currencyCode={currencyCode} locale={locale} />

@@ -194,19 +194,43 @@ describe("apiClient", () => {
 
   it("serializes transaction filters without logging financial payloads", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
-    const fetchMock = jest.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify({ month: "2026-07", sections: [], transactionCount: 0 }), { status: 200 }));
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
     await apiClient.getTransactions("jwt-token", {
+      amountMax: "900",
+      amountMin: "100",
       category: "Food",
+      month: "2026-07",
       search: "coffee",
-      sortBy: "Amount High"
+      sharedOnly: true,
+      sortBy: "Amount High",
+      transactionType: "Expense"
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.money-vault.test/api/transactions?category=Food&search=coffee&sortBy=Amount+High",
+      "https://api.money-vault.test/api/transactions?amountMax=900&amountMin=100&category=Food&month=2026-07&search=coffee&sharedOnly=true&sortBy=Amount+High&transactionType=Expense",
       expect.objectContaining({
+        method: "GET"
+      })
+    );
+  });
+
+  it("loads the transaction month range with bearer authorization", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify({ latestMonth: "2026-07", oldestMonth: "2020-01" }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getTransactionMonthRange("jwt-token");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/transactions/month-range",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer jwt-token"
+        }),
         method: "GET"
       })
     );
@@ -356,10 +380,31 @@ describe("apiClient", () => {
       new Response(
         JSON.stringify({
           categoryBreakdown: [],
+          cycleOptions: [],
+          data: {
+            cashOutflowByCategory: [],
+            monthlyReview: [],
+            monthlySummary: [],
+            naturalLanguageResult: null,
+            netPersonalCostByCategory: [],
+            overview: [],
+            sharedInsights: [],
+            summary: {},
+            trend: []
+          },
+          filters: {
+            cycleStart: "2026-07-10",
+            endDate: "2026-08-09",
+            period: "cycle",
+            startDate: "2026-07-10"
+          },
           generatedAt: "2026-07-15T00:00:00Z",
-          monthlyTrend: [],
-          period: {},
-          summary: {}
+          vault: {
+            id: "4",
+            isAdmin: true,
+            name: "Karuna",
+            vaultType: "Individual"
+          }
         }),
         { status: 200 }
       )
@@ -367,10 +412,10 @@ describe("apiClient", () => {
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
-    await apiClient.getReports("jwt-token");
+    await apiClient.getReports("jwt-token", { cycleStart: "2026-07-10" });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.money-vault.test/api/reports",
+      "https://api.money-vault.test/api/reports?cycleStart=2026-07-10",
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer jwt-token"

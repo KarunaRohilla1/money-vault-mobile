@@ -19,6 +19,6 @@ export interface SessionResponse {
 }
 
 export interface SharedVaultActivationRequest {
-  pin: string;
+  pin?: string;
   sharedVaultId: number;
 }

@@ -190,20 +190,21 @@ describe("backend session", () => {
     expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
   });
 
-  it("stores replacement token and clears stale cache when activating a shared vault", async () => {
+  it("stores replacement token and clears stale cache when activating a shared vault without another PIN prompt", async () => {
     queryClient.setQueryData(queryKeys.dashboard.current("1"), { stale: true });
-    jest.spyOn(apiClient, "activateSharedVault").mockResolvedValueOnce({
+    const activateSharedVault = jest.spyOn(apiClient, "activateSharedVault").mockResolvedValueOnce({
       authenticatedVault: vault,
       token: "shared-jwt-token",
       vault: sharedVault
     });
 
-    await expect(activateSharedVaultSession("personal-jwt-token", { pin: "0123", sharedVaultId: 2 })).resolves.toMatchObject({
+    await expect(activateSharedVaultSession("personal-jwt-token", { sharedVaultId: 2 })).resolves.toMatchObject({
       token: "shared-jwt-token",
       vault: sharedVault,
       authenticatedVault: vault
     });
 
+    expect(activateSharedVault).toHaveBeenCalledWith("personal-jwt-token", { sharedVaultId: 2 });
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "shared-jwt-token");
     expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
   });

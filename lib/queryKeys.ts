@@ -19,7 +19,9 @@ export const queryKeys = {
     root: ["planning"] as const
   },
   reports: {
-    current: (vaultId: string | null) => ["reports", "current", vaultId ?? "anonymous"] as const,
+    summary: (vaultId: string | null, filters: { cycleStart?: string | undefined }) =>
+      ["reports", "summary", vaultId ?? "anonymous", filters.cycleStart ?? "current"] as const,
+    current: (vaultId: string | null) => ["reports", "summary", vaultId ?? "anonymous", "current"] as const,
     root: ["reports"] as const
   },
   settings: {
@@ -36,10 +38,15 @@ export const queryKeys = {
     root: ["shared"] as const
   },
   transactions: {
+    all: (vaultId: string | null) => ["transactions", "all", vaultId ?? "anonymous"] as const,
     detail: (vaultId: string | null, transactionId: number | string) =>
       ["transactions", "detail", vaultId ?? "anonymous", String(transactionId)] as const,
     list: (vaultId: string | null, filtersKey = "default") => ["transactions", "list", vaultId ?? "anonymous", filtersKey] as const,
-    root: ["transactions"] as const
+    month: (vaultId: string | null, month: string) => ["transactions", "month", vaultId ?? "anonymous", month] as const,
+    monthRange: (vaultId: string | null) => ["transactions", "monthRange", vaultId ?? "anonymous"] as const,
+    root: ["transactions"] as const,
+    search: (vaultId: string | null, search: string) => ["transactions", "search", vaultId ?? "anonymous", search] as const,
+    type: (vaultId: string | null, transactionType: string) => ["transactions", "type", vaultId ?? "anonymous", transactionType] as const
   },
   transfers: {
     all: ["transfers"] as const,

@@ -1,5 +1,7 @@
 import {
   dashboardComfortCopy,
+  dashboardCycleInfoLabel,
+  dashboardHeaderDateLabel,
   dashboardLayout,
   dashboardMetricLabels,
   dashboardVisualRules,
@@ -24,8 +26,8 @@ describe("dashboard responsive layout", () => {
     expect(singleLineMoneyProps.minimumFontScale).toBeLessThan(0.8);
   });
 
-  it("reserves bottom clearance for the floating tab bar and Android navigation", () => {
-    expect(dashboardLayout.bottomClearanceClassName).toContain("pb-44");
+  it("does not reserve bottom navigation clearance inside the Dashboard screen", () => {
+    expect(dashboardLayout.bottomClearanceClassName).toBe("gap-5");
   });
 
   it("keeps responsive graph sizing for narrow and normal Android widths", () => {
@@ -69,5 +71,19 @@ describe("dashboard responsive layout", () => {
 
   it("does not manually truncate spending category labels", () => {
     expect(dashboardVisualRules.categoryLabelsAreManualTruncated).toBe(false);
+  });
+
+  it("formats compact Dashboard header date and cycle information", () => {
+    expect(dashboardHeaderDateLabel(new Date("2026-07-22T08:00:00Z"), "en-IN")).toContain("22 July");
+    expect(
+      dashboardCycleInfoLabel(
+        {
+          daysCompleted: 5,
+          endDate: "2026-07-31",
+          startDate: "2026-07-18"
+        },
+        "en-IN"
+      )
+    ).toBe("Day 5 - 18 Jul - 31 Jul");
   });
 });
