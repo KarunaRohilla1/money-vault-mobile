@@ -1,7 +1,7 @@
 import { invalidateTransactionDependents } from "@/features/transactions/api";
 import { transactionIconName } from "@/features/transactions/transactionIconModel";
 import { buildMonths, groupMonthsByYear, transactionsToCsv } from "@/features/transactions/transactionHistoryModel";
-import { transactionLayout, transactionSpacing, transactionWidthRules } from "@/features/transactions/transactionLayout";
+import { transactionLayout, transactionRowWidthRules, transactionSpacing, transactionWidthRules } from "@/features/transactions/transactionLayout";
 import {
   ALLOCATION_EQUAL,
   ALLOCATION_FIXED,
@@ -241,10 +241,15 @@ describe("transaction history helpers", () => {
     expect(transactionLayout.dateHeaderClassName).not.toContain("border");
     expect(transactionLayout.dateHeaderClassName).not.toContain("mx-");
     expect(transactionLayout.rowContainerClassName).toBe("");
-    expect(transactionLayout.pagePaddingClassName).toBe("px-4");
+    expect(transactionLayout.pageClassName).toContain("px-4");
+    expect(transactionLayout.listContentClassName).toBe(transactionLayout.bottomPaddingClassName);
+    expect(transactionLayout.listContentClassName).not.toContain("px-");
+    expect(transactionLayout.listContentClassName).not.toContain("mx-");
     expect(transactionLayout.transactionCardClassName).toContain("min-h-[76px]");
     expect(transactionLayout.transactionCardClassName).toContain("py-3.5");
-    expect(transactionLayout.transactionDividerClassName).toContain("ml-14");
+    expect("transactionDividerClassName" in transactionLayout).toBe(false);
+    expect(transactionLayout.sectionFooterDividerClassName).toContain("h-px");
+    expect(transactionLayout.sectionFooterDividerClassName).toContain("bg-surface-border/70");
     expect(transactionLayout.sharedBadgeClassName).toContain("px-1.5");
   });
 
@@ -254,7 +259,6 @@ describe("transaction history helpers", () => {
     expect(transactionSpacing.chipHorizontalPadding).toBe(12);
     expect(transactionSpacing.iconContainerSize).toBe(44);
     expect(transactionSpacing.iconToContentGap).toBe(12);
-    expect(transactionSpacing.dividerStartOffset).toBe(56);
     expect(transactionSpacing.bottomContentPadding).toBe(112);
   });
 
@@ -264,6 +268,30 @@ describe("transaction history helpers", () => {
       pageHorizontalPadding: 16,
       rowUsesFullContentWidth: true
     });
+  });
+
+  it("keeps long transaction titles readable at 320dp", () => {
+    expect(transactionRowWidthRules(320).titleWidth).toBeGreaterThanOrEqual(86);
+  });
+
+  it("keeps Shared badges from consuming the whole title lane at 320dp", () => {
+    expect(transactionRowWidthRules(320, { hasSharedBadge: true }).titleWidth).toBeGreaterThanOrEqual(26);
+  });
+
+  it("keeps large INR amounts and negative balances in a compact right lane", () => {
+    const narrowRules = transactionRowWidthRules(320);
+    const wideRules = transactionRowWidthRules(430);
+
+    expect(narrowRules.amountColumnMaxWidth).toBe(103);
+    expect(wideRules.amountColumnMaxWidth).toBe(128);
+    expect(narrowRules.balanceSharesAmountColumn).toBe(true);
+  });
+
+  it("keeps bottom clearance and debug controls aligned with production layout", () => {
+    const rules = transactionRowWidthRules(390);
+
+    expect(transactionSpacing.bottomContentPadding).toBeGreaterThanOrEqual(96);
+    expect(rules.productionDebugOverlayEnabled).toBe(false);
   });
 
   it("uses neutral category-appropriate icons instead of category artwork", () => {

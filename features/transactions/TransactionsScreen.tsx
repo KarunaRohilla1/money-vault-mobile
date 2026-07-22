@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, SectionList, Share, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { BottomSheet, CurrencyText, EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
@@ -18,8 +18,8 @@ import { theme } from "@/theme";
 
 type TransactionTypeFilter = NonNullable<TransactionFiltersApi["transactionType"]>;
 type SortFilter = "Newest" | "Oldest" | "Amount High" | "Amount Low";
-type ListItem = { key: string; section: TransactionHistorySectionApi; type: "section" } | { item: TransactionHistoryItemApi; key: string; type: "transaction" };
 const EMPTY_SECTIONS: TransactionHistorySectionApi[] = [];
+type TransactionSection = TransactionHistorySectionApi & { data: TransactionHistoryItemApi[] };
 
 interface AdvancedFilters {
   account?: string | undefined;
@@ -163,7 +163,6 @@ const TransactionRow = memo(function TransactionRow({
           <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.subtle} />
         </View>
       </View>
-      <View className={transactionLayout.transactionDividerClassName} />
     </Pressable>
   );
 });
@@ -223,14 +222,7 @@ function TransactionsScreenContent({ vaultId }: { vaultId: string | null }) {
   const filterCount = activeFilterCount(filters);
   const hasActiveFilters = Boolean(search.trim()) || transactionType !== "All" || filterCount > 0;
   const sections = transactionsQuery.data?.sections ?? EMPTY_SECTIONS;
-  const listData = useMemo<ListItem[]>(
-    () =>
-      sections.flatMap((section) => [
-        { key: `section:${section.date}`, section, type: "section" as const },
-        ...section.transactions.map((item) => ({ item, key: `transaction:${item.id}`, type: "transaction" as const }))
-      ]),
-    [sections]
-  );
+  const listSections = useMemo<TransactionSection[]>(() => sections.map((section) => ({ ...section, data: section.transactions })), [sections]);
 
   const clearAll = () => {
     setSearch("");
@@ -316,47 +308,45 @@ function TransactionsScreenContent({ vaultId }: { vaultId: string | null }) {
   );
 
   return (
-    <Screen scroll={false} contentClassName="flex-1 gap-0 px-0 pb-0 pt-0">
-      <FlatList
-        data={transactionsQuery.isError ? [] : listData}
+    <Screen scroll={false} contentClassName={transactionLayout.pageClassName}>
+      <SectionList
+        sections={transactionsQuery.isError ? [] : listSections}
         initialNumToRender={18}
-        keyExtractor={(item) => item.key}
+        keyExtractor={(item) => `transaction:${item.id}`}
         ListHeaderComponent={listHeader}
         maxToRenderPerBatch={18}
         onRefresh={() => transactionsQuery.refetch()}
         refreshing={transactionsQuery.isRefetching}
-        renderItem={({ item }) => {
-          if (item.type === "section") {
-            return (
-              <View className={transactionLayout.dateHeaderClassName}>
-                <View className="flex-row items-center gap-2">
-                  <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
-                  <Text className="font-sans text-base font-semibold text-text">{item.section.label}</Text>
-                </View>
-                {item.section.summary ? (
-                  <Text className={item.section.received > item.section.spent ? "font-sans text-sm font-semibold text-state-success" : "font-sans text-sm font-semibold text-accent-rose"}>
-                    {item.section.summary}
-                  </Text>
-                ) : null}
-              </View>
-            );
-          }
-
-          return (
-            <View className={transactionLayout.rowContainerClassName}>
-              <TransactionRow
-                item={item.item}
-                currencyCode={currencyCode}
-                locale={locale}
-                onPress={() => router.push(`/transaction/${item.item.transactionId ?? item.item.id}` as never)}
-              />
+        renderSectionHeader={({ section }) => (
+          <View className={transactionLayout.dateHeaderClassName}>
+            <View className="min-w-0 flex-1 flex-row items-center gap-2.5">
+              <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
+              <Text className="min-w-0 flex-1 font-sans text-base font-semibold text-text" numberOfLines={1}>
+                {section.label}
+              </Text>
             </View>
-          );
-        }}
+            {section.summary ? (
+              <Text className={section.received > section.spent ? "ml-3 font-sans text-sm font-semibold text-state-success" : "ml-3 font-sans text-sm font-semibold text-accent-rose"} numberOfLines={1}>
+                {section.summary}
+              </Text>
+            ) : null}
+          </View>
+        )}
+        renderSectionFooter={() => <View className={transactionLayout.sectionFooterDividerClassName} />}
+        renderItem={({ item }) => (
+          <View className={transactionLayout.rowContainerClassName}>
+            <TransactionRow
+              item={item}
+              currencyCode={currencyCode}
+              locale={locale}
+              onPress={() => router.push(`/transaction/${item.transactionId ?? item.id}` as never)}
+            />
+          </View>
+        )}
         showsVerticalScrollIndicator={false}
         updateCellsBatchingPeriod={40}
         windowSize={9}
-        contentContainerClassName={`${transactionLayout.pagePaddingClassName} ${transactionLayout.bottomPaddingClassName}`}
+        contentContainerClassName={transactionLayout.listContentClassName}
       />
 
       <BottomSheet visible={monthPickerVisible} title="Select Month" onClose={() => setMonthPickerVisible(false)}>

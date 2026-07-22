@@ -1,15 +1,15 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, TextInput, useWindowDimensions, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { Screen } from "@/components/layout/Screen";
-import { EmptyState, ErrorView, LoadingSkeleton } from "@/components/ui";
+import { BottomSheet, EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { recentActivityDirection, recentActivitySignedAmount } from "@/features/dashboard/activityDirection";
 import { useDashboardQuery } from "@/features/dashboard/api";
 import {
   dashboardLayout,
-  dashboardComfortCopy,
   dashboardCycleInfoLabel,
   dashboardHeaderDateLabel,
   dashboardMetricLabels,
@@ -18,10 +18,21 @@ import {
   formatDashboardMoney,
   singleLineMoneyProps
 } from "@/features/dashboard/dashboardLayout";
+import { getSafeToSpendStatus } from "@/features/dashboard/safeToSpendStatus";
+import {
+  buildSettlementPayload,
+  firstOutstandingSettlementItem,
+  firstSettlementAccountId,
+  hasOutstandingSettlement,
+  settlementAccountError,
+  settlementItemLabel
+} from "@/features/dashboard/settlement";
 import { getDashboardScreenState } from "@/features/dashboard/state";
 import { recentActivityPrimaryText, recentActivitySecondaryText } from "@/features/dashboard/recentActivityDisplay";
 import type { DashboardViewModel } from "@/features/dashboard/types";
+import { useMarkSharedSettlementMutation, useSharedSettlementsQuery } from "@/features/shared/api";
 import type { CategorySpendApi, RecentActivityApi } from "@/services/api/types";
+import type { SharedSettlementAccountApi, SharedSettlementItemApi } from "@/services/api/types";
 import { formatIsoDateOnly } from "@/lib/date";
 import type { CurrencyCode } from "@/types/domain";
 import { useAuthStore } from "@/stores/authStore";
@@ -105,6 +116,10 @@ function clampPercent(value: number) {
 
 function dateLabel(value: string, locale: string) {
   return formatIsoDateOnly(value, locale, { day: "numeric", month: "short" });
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function DashboardLoading() {
@@ -200,13 +215,13 @@ function SafeToSpendCard({
   locale: string;
 }) {
   const progress = clampPercent(dashboard.cycle.progressPercent);
+  const status = getSafeToSpendStatus({ safeToSpend: dashboard.safeToSpend });
 
   return (
     <View className={`${dashboardLayout.elevatedCardClassName} p-3.5`}>
       <View className="mb-2 flex-row items-center justify-between gap-3">
         <View className="min-w-0 flex-1 flex-row items-center gap-2">
           <Text className={dashboardTypography.cardTitle}>Safe to Spend</Text>
-          <MaterialCommunityIcons name="information-outline" size={theme.icons.sm} color={theme.colors.text.muted} />
         </View>
         <View className="rounded-full bg-brand-deep px-2.5 py-1">
           <Text className="font-sans text-xs font-bold text-brand-soft">{Math.round(progress)}% of cycle</Text>
@@ -219,10 +234,9 @@ function SafeToSpendCard({
           locale={locale}
           className={isNarrow ? "font-sans text-3xl font-bold text-text tabular-nums" : "font-sans text-4xl font-bold text-text tabular-nums"}
         />
-        <View className="flex-row items-center gap-2">
-          <MaterialCommunityIcons name="check-circle-outline" size={theme.icons.sm} color={theme.colors.state.success} />
-          <Text className="min-w-0 flex-1 font-sans text-sm text-text-muted" numberOfLines={1}>
-            <Text className="font-semibold text-state-success">{dashboardComfortCopy.headline}</Text> {dashboardComfortCopy.secondary}
+        <View className="flex-row items-center">
+          <Text className="min-w-0 flex-1 font-sans text-sm leading-5 text-text-muted">
+            {status.message}
           </Text>
         </View>
       </View>
@@ -258,28 +272,59 @@ function MetricCard({
   );
 }
 
-function FullWidthMetricRow({ currencyCode, dashboard, locale }: { currencyCode: CurrencyCode; dashboard: DashboardViewModel; locale: string }) {
-  const isSettled = dashboard.settlement.amount === 0;
+function FullWidthMetricRow({
+  currencyCode,
+  dashboard,
+  isSettling,
+  locale,
+  onSettlePress
+}: {
+  currencyCode: CurrencyCode;
+  dashboard: DashboardViewModel;
+  isSettling: boolean;
+  locale: string;
+  onSettlePress: () => void;
+}) {
+  const isSettled = !hasOutstandingSettlement(dashboard.settlement);
 
   return (
-    <View className="min-h-20 flex-row items-center gap-3 rounded-lg border border-surface-border bg-surface p-3">
-      <IconTile icon="account-group-outline" />
-      <View className="min-w-0 flex-1">
-        <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
-          Shared Balance
-        </Text>
-        <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
-          {isSettled ? "All Settled" : dashboard.settlement.label}
-        </Text>
+    <View className="min-h-24 gap-3 rounded-lg border border-surface-border bg-surface p-3">
+      <View className="flex-row items-center gap-3">
+        <IconTile icon="handshake-outline" />
+        <View className="min-w-0 flex-1">
+          <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
+            Outstanding Settlements
+          </Text>
+          <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
+            {isSettled ? "All Settled" : dashboard.settlement.label}
+          </Text>
+        </View>
+        <View className="max-w-32 items-end">
+          <MoneyText value={dashboard.settlement.amount} currencyCode={currencyCode} locale={locale} className="font-sans text-lg font-semibold text-text tabular-nums" />
+        </View>
       </View>
-      <View className="max-w-32 items-end">
-        <MoneyText value={dashboard.settlement.amount} currencyCode={currencyCode} locale={locale} className="font-sans text-lg font-semibold text-text tabular-nums" />
-      </View>
+      {!isSettled ? (
+        <SecondaryButton className="h-10 rounded-lg border-brand bg-brand-deep" disabled={isSettling} icon="check-circle-outline" onPress={onSettlePress}>
+          Mark Settled
+        </SecondaryButton>
+      ) : null}
     </View>
   );
 }
 
-function FinancialSnapshot({ currencyCode, dashboard, locale }: { currencyCode: CurrencyCode; dashboard: DashboardViewModel; locale: string }) {
+function FinancialSnapshot({
+  currencyCode,
+  dashboard,
+  isSettling,
+  locale,
+  onSettlePress
+}: {
+  currencyCode: CurrencyCode;
+  dashboard: DashboardViewModel;
+  isSettling: boolean;
+  locale: string;
+  onSettlePress: () => void;
+}) {
   return (
     <View className={dashboardLayout.sectionGapClassName}>
       <DashboardSectionHeader title="Financial Snapshot" />
@@ -292,7 +337,7 @@ function FinancialSnapshot({ currencyCode, dashboard, locale }: { currencyCode: 
           <MetricCard amount={dashboard.remainingCommitments} currencyCode={currencyCode} icon="calendar-month-outline" label={dashboardMetricLabels[2]} locale={locale} tone="warning" />
           <MetricCard amount={dashboard.creditCardDue} currencyCode={currencyCode} icon="credit-card-outline" label={dashboardMetricLabels[3]} locale={locale} tone="danger" />
         </View>
-        <FullWidthMetricRow currencyCode={currencyCode} dashboard={dashboard} locale={locale} />
+        <FullWidthMetricRow currencyCode={currencyCode} dashboard={dashboard} isSettling={isSettling} locale={locale} onSettlePress={onSettlePress} />
       </View>
     </View>
   );
@@ -469,20 +514,313 @@ function SpendingByCategory({ categories, currencyCode, locale }: { categories: 
   );
 }
 
+function SettlementChoice({
+  active,
+  label,
+  onPress
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      className={active ? "rounded-lg border border-brand bg-brand-deep p-3" : "rounded-lg border border-surface-border bg-surface p-3"}
+      onPress={onPress}
+    >
+      <Text className="font-sans text-sm font-semibold text-text">{label}</Text>
+    </Pressable>
+  );
+}
+
+function AccountChoice({
+  account,
+  active,
+  currencyCode,
+  locale,
+  onPress
+}: {
+  account: SharedSettlementAccountApi;
+  active: boolean;
+  currencyCode: CurrencyCode;
+  locale: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      className={active ? "rounded-lg border border-brand bg-brand-deep p-3" : "rounded-lg border border-surface-border bg-surface p-3"}
+      onPress={onPress}
+    >
+      <View className="flex-row items-center justify-between gap-3">
+        <View className="min-w-0 flex-1">
+          <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>
+            {account.name}
+          </Text>
+          <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
+            {account.type}
+          </Text>
+        </View>
+        {typeof account.balance === "number" ? (
+          <MoneyText value={account.balance} currencyCode={currencyCode} locale={locale} className="font-sans text-sm font-semibold text-text tabular-nums" />
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+function SettlementSheet({
+  amount,
+  currencyCode,
+  date,
+  error,
+  fromAccountId,
+  isLoading,
+  isSaving,
+  items,
+  locale,
+  onAmountChange,
+  onClose,
+  onDateChange,
+  onFromAccountChange,
+  onItemChange,
+  onSubmit,
+  onToAccountChange,
+  selectedItem,
+  toAccountId,
+  visible
+}: {
+  amount: string;
+  currencyCode: CurrencyCode;
+  date: string;
+  error: string | null;
+  fromAccountId: number | null;
+  isLoading: boolean;
+  isSaving: boolean;
+  items: SharedSettlementItemApi[];
+  locale: string;
+  onAmountChange: (value: string) => void;
+  onClose: () => void;
+  onDateChange: (value: string) => void;
+  onFromAccountChange: (value: number) => void;
+  onItemChange: (item: SharedSettlementItemApi) => void;
+  onSubmit: () => void;
+  onToAccountChange: (value: number) => void;
+  selectedItem: SharedSettlementItemApi | null;
+  toAccountId: number | null;
+  visible: boolean;
+}) {
+  return (
+    <BottomSheet visible={visible} title="Mark Settled" onClose={onClose}>
+      <View className="gap-4">
+        {isLoading ? (
+          <LoadingSkeleton variant="card" />
+        ) : selectedItem ? (
+          <>
+            {items.length > 1 ? (
+              <View className="gap-2">
+                <Text className="font-sans text-xs font-semibold uppercase text-text-muted">Settlement</Text>
+                {items.map((item, index) => (
+                  <SettlementChoice
+                    key={`${item.shared_vault_id}:${item.from_vault_id}:${item.to_vault_id}:${index}`}
+                    active={item === selectedItem}
+                    label={settlementItemLabel(item, formatDashboardMoney(item.amount, currencyCode, locale))}
+                    onPress={() => onItemChange(item)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View className="rounded-lg border border-surface-border bg-surface p-3">
+                <Text className="font-sans text-sm font-semibold text-text">
+                  {settlementItemLabel(selectedItem, formatDashboardMoney(selectedItem.amount, currencyCode, locale))}
+                </Text>
+              </View>
+            )}
+
+            <View className="gap-2">
+              <Text className="font-sans text-xs font-semibold uppercase text-text-muted">Paying Account</Text>
+              {selectedItem.from_accounts.map((account) => (
+                <AccountChoice
+                  key={account.id}
+                  account={account}
+                  active={account.id === fromAccountId}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  onPress={() => onFromAccountChange(account.id)}
+                />
+              ))}
+            </View>
+
+            <View className="gap-2">
+              <Text className="font-sans text-xs font-semibold uppercase text-text-muted">Receiving Account</Text>
+              {selectedItem.to_accounts.map((account) => (
+                <AccountChoice
+                  key={account.id}
+                  account={account}
+                  active={account.id === toAccountId}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  onPress={() => onToAccountChange(account.id)}
+                />
+              ))}
+            </View>
+
+            <View className="gap-2">
+              <Text className="font-sans text-xs font-semibold uppercase text-text-muted">Amount</Text>
+              <TextInput
+                className="h-12 rounded-lg border border-surface-border bg-background px-3 font-sans text-base text-text"
+                inputMode="decimal"
+                keyboardType="decimal-pad"
+                value={amount}
+                onChangeText={onAmountChange}
+              />
+            </View>
+
+            <View className="gap-2">
+              <Text className="font-sans text-xs font-semibold uppercase text-text-muted">Date</Text>
+              <TextInput
+                className="h-12 rounded-lg border border-surface-border bg-background px-3 font-sans text-base text-text"
+                inputMode="text"
+                value={date}
+                onChangeText={onDateChange}
+              />
+            </View>
+          </>
+        ) : (
+          <Text className="font-sans text-sm text-text-muted">No outstanding settlement to mark.</Text>
+        )}
+
+        {error ? <Text className="font-sans text-sm font-semibold text-accent-rose">{error}</Text> : null}
+
+        <View className="flex-row gap-3">
+          <SecondaryButton className="flex-1" disabled={isSaving} onPress={onClose}>
+            Cancel
+          </SecondaryButton>
+          <PrimaryButton className="flex-1" loading={isSaving} disabled={!selectedItem || isSaving} icon="check-circle-outline" onPress={onSubmit}>
+            Mark Settled
+          </PrimaryButton>
+        </View>
+      </View>
+    </BottomSheet>
+  );
+}
+
 function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
+  const token = useAuthStore((state) => state.token);
+  const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const currencyCode = useSettingsStore((state) => state.currencyCode) as CurrencyCode;
   const locale = useSettingsStore((state) => state.locale);
   const { width } = useWindowDimensions();
   const widthRules = dashboardWidthRules(width);
+  const shouldLoadSettlementDetails = hasOutstandingSettlement(dashboard.settlement);
+  const settlementsQuery = useSharedSettlementsQuery(shouldLoadSettlementDetails ? token : null, vaultId);
+  const markSettlement = useMarkSharedSettlementMutation(token, vaultId);
+  const settlementItems = settlementsQuery.data?.data.items.filter((item) => item.amount > 0) ?? [];
+  const [settlementVisible, setSettlementVisible] = useState(false);
+  const [selectedSettlementIndex, setSelectedSettlementIndex] = useState(0);
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [settlementDate, setSettlementDate] = useState(todayIso());
+  const [fromAccountId, setFromAccountId] = useState<number | null>(null);
+  const [toAccountId, setToAccountId] = useState<number | null>(null);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
+  const selectedSettlementItem = settlementItems[selectedSettlementIndex] ?? firstOutstandingSettlementItem(settlementItems);
+
+  function resetSettlementForm(item: SharedSettlementItemApi | null) {
+    setSettlementAmount(item ? String(item.amount) : "");
+    setSettlementDate(todayIso());
+    setFromAccountId(item ? firstSettlementAccountId(item.from_accounts) : null);
+    setToAccountId(item ? firstSettlementAccountId(item.to_accounts) : null);
+    setSettlementError(item ? settlementAccountError(item) : null);
+  }
+
+  function selectSettlementItem(item: SharedSettlementItemApi) {
+    const index = settlementItems.indexOf(item);
+    setSelectedSettlementIndex(index >= 0 ? index : 0);
+    resetSettlementForm(item);
+  }
+
+  function openSettlementSheet() {
+    setSettlementVisible(true);
+    resetSettlementForm(selectedSettlementItem);
+  }
+
+  function closeSettlementSheet() {
+    setSettlementVisible(false);
+    setSettlementError(null);
+  }
+
+  async function submitSettlement() {
+    try {
+      if (selectedSettlementItem && Number(settlementAmount) > selectedSettlementItem.amount) {
+        setSettlementError("Amount cannot exceed the outstanding settlement.");
+        return;
+      }
+
+      const payload = buildSettlementPayload({
+        amount: Number(settlementAmount),
+        fromAccountId,
+        item: selectedSettlementItem,
+        settlementDate,
+        toAccountId
+      });
+
+      await markSettlement.mutateAsync(payload);
+      closeSettlementSheet();
+    } catch (error) {
+      setSettlementError(error instanceof Error ? error.message : "Unable to mark settlement.");
+    }
+  }
 
   return (
-    <Screen contentClassName={dashboardLayout.bottomClearanceClassName}>
-      <DashboardHeader dashboard={dashboard} locale={locale} />
-      <SafeToSpendCard dashboard={dashboard} currencyCode={currencyCode} isNarrow={widthRules.isNarrow} locale={locale} />
-      <FinancialSnapshot dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
-      <RecentActivity dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
-      <SpendingByCategory categories={dashboard.categories} currencyCode={currencyCode} locale={locale} />
-    </Screen>
+    <>
+      <Screen contentClassName={dashboardLayout.bottomClearanceClassName}>
+        <DashboardHeader dashboard={dashboard} locale={locale} />
+        <SafeToSpendCard dashboard={dashboard} currencyCode={currencyCode} isNarrow={widthRules.isNarrow} locale={locale} />
+        <FinancialSnapshot
+          dashboard={dashboard}
+          currencyCode={currencyCode}
+          isSettling={markSettlement.isPending || settlementsQuery.isLoading}
+          locale={locale}
+          onSettlePress={openSettlementSheet}
+        />
+        <RecentActivity dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
+        <SpendingByCategory categories={dashboard.categories} currencyCode={currencyCode} locale={locale} />
+      </Screen>
+      <SettlementSheet
+        amount={settlementAmount}
+        currencyCode={currencyCode}
+        date={settlementDate}
+        error={settlementError}
+        fromAccountId={fromAccountId}
+        isLoading={settlementsQuery.isLoading}
+        isSaving={markSettlement.isPending}
+        items={settlementItems}
+        locale={locale}
+        onAmountChange={(value) => {
+          setSettlementAmount(value);
+          setSettlementError(null);
+        }}
+        onClose={closeSettlementSheet}
+        onDateChange={(value) => {
+          setSettlementDate(value);
+          setSettlementError(null);
+        }}
+        onFromAccountChange={(value) => {
+          setFromAccountId(value);
+          setSettlementError(null);
+        }}
+        onItemChange={selectSettlementItem}
+        onSubmit={() => void submitSettlement()}
+        onToAccountChange={(value) => {
+          setToAccountId(value);
+          setSettlementError(null);
+        }}
+        selectedItem={selectedSettlementItem}
+        toAccountId={toAccountId}
+        visible={settlementVisible}
+      />
+    </>
   );
 }
 

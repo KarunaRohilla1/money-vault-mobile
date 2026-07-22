@@ -6,11 +6,14 @@ import { apiClient } from "@/services/api/client";
 import type { SharedSettlementPayloadApi } from "@/services/api/types";
 
 function invalidateShared(vaultId: string | null, sharedVaultId: number | null = null) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
+  queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.dashboard(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.bills(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.expenses(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.settlements(vaultId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
 }
 
 export function useSharedDashboardQuery(token: string | null, vaultId: string | null, sharedVaultId: number | null = null) {

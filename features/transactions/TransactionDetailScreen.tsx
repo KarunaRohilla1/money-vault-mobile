@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
-import { BottomSheet, CurrencyText, EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { BottomSheet, CurrencyText, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { useDeleteTransactionMutation, useTransactionDetailQuery } from "@/features/transactions/api";
 import { formatIsoDateOnly } from "@/lib/date";
 import { useAuthStore } from "@/stores/authStore";
@@ -114,8 +114,6 @@ export function TransactionDetailScreen({ transactionId }: TransactionDetailScre
         <DetailRow label="Created" value={transaction.createdAt} />
         <DetailRow label="Updated" value={transaction.updatedAt} />
       </View>
-
-      <EmptyState icon="paperclip" title="No attachments" message="Attachments are not available for this transaction." />
 
       <View className="gap-3">
         <PrimaryButton onPress={() => router.push(`/transaction/edit/${transaction.id}` as never)}>Edit</PrimaryButton>

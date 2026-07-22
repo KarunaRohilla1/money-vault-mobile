@@ -1,5 +1,4 @@
 import {
-  dashboardComfortCopy,
   dashboardCycleInfoLabel,
   dashboardHeaderDateLabel,
   dashboardLayout,
@@ -9,6 +8,7 @@ import {
   formatDashboardMoney,
   singleLineMoneyProps
 } from "@/features/dashboard/dashboardLayout";
+import { getSafeToSpendStatus } from "@/features/dashboard/safeToSpendStatus";
 
 describe("dashboard responsive layout", () => {
   it("formats dashboard money with Indian grouping and preserves fractional values", () => {
@@ -52,14 +52,6 @@ describe("dashboard responsive layout", () => {
     expect(dashboardVisualRules.showSavingsGoalSection).toBe(false);
   });
 
-  it("keeps the comfort copy concise and non-duplicated", () => {
-    expect(dashboardComfortCopy).toEqual({
-      headline: "You're comfortable",
-      secondary: "within your spending plan."
-    });
-    expect(dashboardComfortCopy.secondary).not.toContain(dashboardComfortCopy.headline);
-  });
-
   it("exposes all financial snapshot metrics without narrow-column abbreviations", () => {
     expect(dashboardMetricLabels).toEqual([
       "Available Balance",
@@ -85,5 +77,17 @@ describe("dashboard responsive layout", () => {
         "en-IN"
       )
     ).toBe("Day 5 - 18 Jul - 31 Jul");
+  });
+
+  it.each([
+    [-1, "⚠️ Tight cycle. Be mindful of discretionary spending.", "warning"],
+    [0, "⚠️ Tight cycle. Be mindful of discretionary spending.", "warning"],
+    [4999.99, "⚠️ Tight cycle. Be mindful of discretionary spending.", "warning"],
+    [5000, "✅ You're comfortably within budget.", "positive"],
+    [14999.99, "✅ You're comfortably within budget.", "positive"],
+    [15000, "🎉 Plenty of room left this cycle.", "positive"],
+    [50000, "🎉 Plenty of room left this cycle.", "positive"]
+  ] as const)("ports the legacy Safe to Spend status for %s", (safeToSpend, message, tone) => {
+    expect(getSafeToSpendStatus({ safeToSpend })).toEqual({ message, tone });
   });
 });

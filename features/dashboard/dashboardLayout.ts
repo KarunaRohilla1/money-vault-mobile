@@ -26,11 +26,6 @@ export const singleLineMoneyProps = {
   numberOfLines: 1
 } as const;
 
-export const dashboardComfortCopy = {
-  headline: "You're comfortable",
-  secondary: "within your spending plan."
-} as const;
-
 export const dashboardMetricLabels = [
   "Available Balance",
   "Expenses This Cycle",
