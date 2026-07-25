@@ -80,6 +80,28 @@ describe("dashboard adapter", () => {
     expect(viewModel.safeToSpend).toBe(300);
   });
 
+
+  it("passes through Safe to Spend breakdown items", () => {
+    const response: DashboardApiResponse = {
+      ...baseResponse,
+      data: {
+        ...baseResponse.data,
+        safeToSpendBreakdown: {
+          items: [
+            { amount: 900, key: "available_cash", label: "Available Cash", operation: "add" },
+            { amount: 100, key: "you_owe", label: "You Owe", operation: "subtract" },
+            { amount: 500, key: "remaining_commitments", label: "Remaining Commitments", operation: "subtract" }
+          ],
+          total: 300
+        }
+      }
+    };
+
+    const viewModel = adaptDashboardResponse(response);
+
+    expect(viewModel.safeToSpend).toBe(300);
+    expect(viewModel.safeToSpendBreakdown).toEqual(response.data.safeToSpendBreakdown);
+  });
   it("limits recent activity to five rows", () => {
     const viewModel = adaptDashboardResponse(baseResponse);
 

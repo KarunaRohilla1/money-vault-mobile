@@ -8,6 +8,9 @@ import type { CategoryPayloadApi } from "@/services/api/types";
 function invalidateCategoryDependents(vaultId: string | null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.categories.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.planning.root });
+  queryClient.invalidateQueries({ queryKey: queryKeys.reports.root });
+  queryClient.invalidateQueries({ queryKey: queryKeys.shared.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
 }
 

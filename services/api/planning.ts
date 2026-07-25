@@ -1,6 +1,7 @@
 import { request } from "@/services/api/core";
 import type {
   PlanningApiResponse,
+  PlanningClosePayloadApi,
   PlanningItemPayloadApi,
   PlanningStatusPayloadApi,
   SuccessApiResponse
@@ -83,8 +84,9 @@ export function setIncomeStatus(token: string, templateId: number, body: Plannin
   });
 }
 
-export function closeActivePlanningCycle(token: string) {
-  return request<PlanningApiResponse["cycle"]>({
+export function closeActivePlanningCycle(token: string, body?: PlanningClosePayloadApi) {
+  return request<PlanningApiResponse["cycle"], PlanningClosePayloadApi>({
+    ...(body ? { body } : {}),
     method: "POST",
     path: "/api/planning/cycles/close-active",
     token

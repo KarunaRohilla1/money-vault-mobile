@@ -63,6 +63,20 @@ export interface SetupStatusApi {
   isComplete: boolean;
 }
 
+export type SafeToSpendFormulaOperationApi = "add" | "subtract";
+
+export interface SafeToSpendBreakdownItemApi {
+  amount: number;
+  key: string;
+  label: string;
+  operation: SafeToSpendFormulaOperationApi;
+}
+
+export interface SafeToSpendBreakdownApi {
+  items: SafeToSpendBreakdownItemApi[];
+  total: number;
+}
+
 export interface DashboardDataApi {
   creditCardDue: number;
   cycle: FinancialCycleApi;
@@ -70,6 +84,7 @@ export interface DashboardDataApi {
   primaryAccount: PrimaryAccountApi;
   recentActivity: RecentActivityApi[];
   remainingCommitments: number;
+  safeToSpendBreakdown?: SafeToSpendBreakdownApi | null;
   safeToSpend: number;
   setup: SetupStatusApi;
   settlement: SettlementApi;

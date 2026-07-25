@@ -14,6 +14,16 @@ export interface PlanningCycleApi {
   vaultId: number;
 }
 
+
+export interface PlanningCycleProgressApi {
+  currentDay: number;
+  daysCompleted: number;
+  daysRemaining: number;
+  progressPercent: number;
+  startLabel: string;
+  status: string;
+  totalDays: number;
+}
 export interface PlanningTotalsApi {
   commitmentsCompleted: number;
   commitmentsPlanned: number;
@@ -27,6 +37,15 @@ export interface PlanningTotalsApi {
   savingsGoal: number;
 }
 
+
+export interface PlanningCompletionApi {
+  attentionCount: number;
+  commitmentCompletionPercent: number;
+  incomeCompletionPercent: number;
+  status: "on_track" | "warning" | "behind";
+  statusLabel: string;
+  subtitle: string;
+}
 export interface PlanningItemApi {
   accountId?: number | null;
   accountName?: string | null;
@@ -37,10 +56,35 @@ export interface PlanningItemApi {
   status: PlanningStatusApi;
 }
 
+
+export interface PlanningActivityApi extends PlanningItemApi {
+  actualAmount: number;
+  completeLabel: string;
+  completeStatus: "RECEIVED" | "PAID";
+  dueDate: string;
+  effectiveExpectedAmount: number;
+  icon: string;
+  kind: "income" | "commitment";
+  statusLabel: string;
+  timelineLabel: string;
+}
+
+export interface PlanningCloseReadinessApi {
+  canClose: boolean;
+  completedCount: number;
+  pendingCount: number;
+  reviewRequired: boolean;
+  totalCount: number;
+}
 export interface PlanningApiResponse {
+  activities?: PlanningActivityApi[];
+  closeReadiness?: PlanningCloseReadinessApi;
+  completion?: PlanningCompletionApi;
   commitments: PlanningItemApi[];
   cycle: PlanningCycleApi;
+  cycleProgress?: PlanningCycleProgressApi;
   incomeTemplates: PlanningItemApi[];
+  timeline?: PlanningActivityApi[];
   totals: PlanningTotalsApi;
 }
 
@@ -57,4 +101,15 @@ export interface PlanningStatusPayloadApi {
   notes?: string;
   status: string;
   year: number;
+}
+
+export interface PlanningCloseItemPayloadApi {
+  action: "Paid" | "Cancelled" | "Carry Forward";
+  amount: number;
+  id: number;
+  type: "income" | "commitment";
+}
+
+export interface PlanningClosePayloadApi {
+  items: PlanningCloseItemPayloadApi[];
 }

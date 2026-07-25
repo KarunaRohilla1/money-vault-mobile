@@ -18,7 +18,9 @@ import {
   formatDashboardMoney,
   singleLineMoneyProps
 } from "@/features/dashboard/dashboardLayout";
+import { SafeToSpendExplanation } from "@/features/dashboard/SafeToSpendExplanation";
 import { getSafeToSpendStatus } from "@/features/dashboard/safeToSpendStatus";
+import { hasSafeToSpendBreakdown } from "@/features/dashboard/safeToSpendExplanationModel";
 import {
   buildSettlementPayload,
   firstOutstandingSettlementItem,
@@ -207,12 +209,14 @@ function SafeToSpendCard({
   currencyCode,
   dashboard,
   isNarrow,
-  locale
+  locale,
+  onExplanationPress
 }: {
   currencyCode: CurrencyCode;
   dashboard: DashboardViewModel;
   isNarrow: boolean;
   locale: string;
+  onExplanationPress?: () => void;
 }) {
   const progress = clampPercent(dashboard.cycle.progressPercent);
   const status = getSafeToSpendStatus({ safeToSpend: dashboard.safeToSpend });
@@ -222,6 +226,11 @@ function SafeToSpendCard({
       <View className="mb-2 flex-row items-center justify-between gap-3">
         <View className="min-w-0 flex-1 flex-row items-center gap-2">
           <Text className={dashboardTypography.cardTitle}>Safe to Spend</Text>
+          {onExplanationPress ? (
+            <Pressable accessibilityLabel="How is Safe to Spend calculated?" accessibilityRole="button" className="h-7 w-7 items-center justify-center rounded-full bg-brand-deep" onPress={onExplanationPress}>
+              <MaterialCommunityIcons name="information-outline" size={theme.icons.xs} color={theme.colors.brand.soft} />
+            </Pressable>
+          ) : null}
         </View>
         <View className="rounded-full bg-brand-deep px-2.5 py-1">
           <Text className="font-sans text-xs font-bold text-brand-soft">{Math.round(progress)}% of cycle</Text>
@@ -472,14 +481,15 @@ function DonutChart({ categories, currencyCode, locale }: { categories: Category
   );
 }
 
-function SpendingByCategory({ categories, currencyCode, locale }: { categories: CategorySpendApi[]; currencyCode: CurrencyCode; locale: string }) {
+function SpendingByCategory({ categories, currencyCode, locale, onExplanationPress }: { categories: CategorySpendApi[]; currencyCode: CurrencyCode; locale: string; onExplanationPress?: () => void }) {
   const total = categories.reduce((sum, item) => sum + item.amount, 0);
 
   if (categories.length === 0) {
     return (
       <View className={dashboardLayout.sectionGapClassName}>
         <DashboardSectionHeader title="Spending by Category" />
-        <EmptyState icon="chart-donut" title="No category spending" message="No category spending was returned for this cycle." />
+<EmptyState icon="chart-donut" title="No category spending" message="No category spending was returned for this cycle." />
+        {onExplanationPress ? <SafeToSpendExplanationRow onPress={onExplanationPress} /> : null}
       </View>
     );
   }
@@ -510,7 +520,27 @@ function SpendingByCategory({ categories, currencyCode, locale }: { categories: 
           </View>
         </View>
       </View>
+      {onExplanationPress ? <SafeToSpendExplanationRow onPress={onExplanationPress} /> : null}
     </View>
+  );
+}
+
+function SafeToSpendExplanationRow({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel="How is Safe to Spend calculated?"
+      accessibilityRole="button"
+      className="min-h-12 flex-row items-center justify-between gap-3 rounded-lg border border-surface-border bg-surface px-4 py-3"
+      onPress={onPress}
+    >
+      <View className="min-w-0 flex-1 flex-row items-center gap-2">
+        <MaterialCommunityIcons name="information-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
+        <Text className="min-w-0 flex-1 font-sans text-sm font-semibold text-text" numberOfLines={2}>
+          How is Safe to Spend calculated?
+        </Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.muted} />
+    </Pressable>
   );
 }
 
@@ -724,7 +754,14 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
   const [fromAccountId, setFromAccountId] = useState<number | null>(null);
   const [toAccountId, setToAccountId] = useState<number | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
+  const [safeToSpendExplanationVisible, setSafeToSpendExplanationVisible] = useState(false);
   const selectedSettlementItem = settlementItems[selectedSettlementIndex] ?? firstOutstandingSettlementItem(settlementItems);
+  const hasSafeToSpendDetails = hasSafeToSpendBreakdown(dashboard.safeToSpendBreakdown);
+  const openSafeToSpendExplanation = hasSafeToSpendDetails ? () => setSafeToSpendExplanationVisible(true) : undefined;
+
+  if (__DEV__ && !hasSafeToSpendDetails) {
+    console.warn("Safe to Spend breakdown is missing for the current dashboard response.");
+  }
 
   function resetSettlementForm(item: SharedSettlementItemApi | null) {
     setSettlementAmount(item ? String(item.amount) : "");
@@ -776,7 +813,13 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
     <>
       <Screen contentClassName={dashboardLayout.bottomClearanceClassName}>
         <DashboardHeader dashboard={dashboard} locale={locale} />
-        <SafeToSpendCard dashboard={dashboard} currencyCode={currencyCode} isNarrow={widthRules.isNarrow} locale={locale} />
+        <SafeToSpendCard
+          dashboard={dashboard}
+          currencyCode={currencyCode}
+          isNarrow={widthRules.isNarrow}
+          locale={locale}
+          {...(openSafeToSpendExplanation ? { onExplanationPress: openSafeToSpendExplanation } : {})}
+        />
         <FinancialSnapshot
           dashboard={dashboard}
           currencyCode={currencyCode}
@@ -785,8 +828,22 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
           onSettlePress={openSettlementSheet}
         />
         <RecentActivity dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
-        <SpendingByCategory categories={dashboard.categories} currencyCode={currencyCode} locale={locale} />
+        <SpendingByCategory
+          categories={dashboard.categories}
+          currencyCode={currencyCode}
+          locale={locale}
+          {...(openSafeToSpendExplanation ? { onExplanationPress: openSafeToSpendExplanation } : {})}
+        />
       </Screen>
+      {hasSafeToSpendDetails && dashboard.safeToSpendBreakdown ? (
+        <SafeToSpendExplanation
+          breakdown={dashboard.safeToSpendBreakdown}
+          currencyCode={currencyCode}
+          onClose={() => setSafeToSpendExplanationVisible(false)}
+          safeToSpend={dashboard.safeToSpend}
+          visible={safeToSpendExplanationVisible}
+        />
+      ) : null}
       <SettlementSheet
         amount={settlementAmount}
         currencyCode={currencyCode}

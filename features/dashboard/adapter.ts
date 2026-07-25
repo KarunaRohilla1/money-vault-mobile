@@ -34,6 +34,25 @@ function validateSetup(value: unknown) {
   );
 }
 
+function validateSafeToSpendBreakdown(value: unknown) {
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  if (!isRecord(value) || !hasNumber(value, "total") || !Array.isArray(value.items)) {
+    return false;
+  }
+
+  return value.items.every(
+    (component) =>
+      isRecord(component) &&
+      hasString(component, "key") &&
+      hasString(component, "label") &&
+      hasNumber(component, "amount") &&
+      (component.operation === "add" || component.operation === "subtract")
+  );
+}
+
 function validateDashboardResponse(response: DashboardApiResponse) {
   if (!isRecord(response) || !isRecord(response.vault) || !isRecord(response.data) || !hasString(response, "generatedAt")) {
     throwInvalidDashboardResponse();
@@ -56,6 +75,7 @@ function validateDashboardResponse(response: DashboardApiResponse) {
     !hasNumber(data, "expensesThisCycle") ||
     !hasNumber(data, "remainingCommitments") ||
     !hasNumber(data, "safeToSpend") ||
+    !validateSafeToSpendBreakdown(data.safeToSpendBreakdown) ||
     !hasString(data.cycle, "displayName") ||
     !hasNumber(data.primaryAccount, "balance") ||
     !hasString(data.primaryAccount, "name") ||
@@ -89,6 +109,7 @@ export function adaptDashboardResponse(response: DashboardApiResponse): Dashboar
     recentActivity: response.data.recentActivity.slice(0, 5),
     remainingCommitments: response.data.remainingCommitments,
     safeToSpend: response.data.safeToSpend,
+    safeToSpendBreakdown: response.data.safeToSpendBreakdown ?? null,
     setup: response.data.setup,
     settlement: response.data.settlement,
     summary: response.data.summary,

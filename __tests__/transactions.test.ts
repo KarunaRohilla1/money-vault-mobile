@@ -1,5 +1,18 @@
 import { invalidateTransactionDependents } from "@/features/transactions/api";
 import { transactionIconName } from "@/features/transactions/transactionIconModel";
+import {
+  activeFilterCount,
+  applyDatePreset,
+  clearFilters,
+  dedupeCategoriesById,
+  EMPTY_FILTERS,
+  filterCategoriesForSearch,
+  filterValidationError,
+  selectedCategories,
+  toApiFilters,
+  toggleId,
+  transactionDisplayText
+} from "@/features/transactions/transactionFilterModel";
 import { buildMonths, groupMonthsByYear, transactionsToCsv } from "@/features/transactions/transactionHistoryModel";
 import { transactionLayout, transactionRowWidthRules, transactionSpacing, transactionWidthRules } from "@/features/transactions/transactionLayout";
 import {
@@ -18,6 +31,7 @@ import {
 } from "@/features/transactions/transactionFormModel";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
+import type { AccountApi, CategoryApi, TransactionHistoryItemApi } from "@/services/api/types";
 
 const participants: SplitParticipant[] = [
   { id: 4, isCurrent: true, name: "Karuna Rohilla" },
@@ -298,5 +312,114 @@ describe("transaction history helpers", () => {
     expect(transactionIconName({ category: "Dining", title: "Lunch", transactionType: "Expense", type: "expense" })).toBe("silverware-fork-knife");
     expect(transactionIconName({ category: "Subscriptions", title: "Music plan", transactionType: "Expense", type: "expense" })).toBe("calendar-refresh-outline");
     expect(transactionIconName({ category: "Transfer", title: "Move money", transactionType: "Transfer", type: "transfer" })).toBe("swap-horizontal");
+  });
+});
+
+describe("transaction filters", () => {
+  const accounts: AccountApi[] = [
+    { balance: 82300, id: 1, isPrimary: true, name: "HDFC Salary", openingBalance: 82300, type: "Savings Account" },
+    { balance: 24500, id: 2, isPrimary: false, name: "ICICI Savings", openingBalance: 24500, type: "Savings Account" }
+  ];
+
+  const categories: CategoryApi[] = [
+    { categoryType: "Expense", emoji: "coffee", id: 10, isSystem: true, name: "Coffee" },
+    { categoryType: "Expense", emoji: "dining", id: 11, isSystem: true, name: "Dining" },
+    { categoryType: "Expense", emoji: "coffee", id: 12, isSystem: false, name: "Coffee" },
+    { categoryType: "Expense", emoji: "coffee", id: 10, isSystem: true, name: "Coffee Duplicate" }
+  ];
+
+  it("clears every optional filter into an inactive state", () => {
+    expect(clearFilters()).toEqual(EMPTY_FILTERS);
+    expect(activeFilterCount(clearFilters(), "All")).toBe(0);
+  });
+
+  it("tracks filters by stable ids and dedupes categories by id only", () => {
+    expect(toggleId(["10"], "12")).toEqual(["10", "12"]);
+    expect(toggleId(["10", "12"], "10")).toEqual(["12"]);
+    expect(dedupeCategoriesById(categories).map((category) => `${category.id}:${category.name}`)).toEqual(["10:Coffee", "11:Dining", "12:Coffee"]);
+    expect(selectedCategories(categories, ["10", "12"]).map((category) => category.name)).toEqual(["Coffee", "Coffee"]);
+  });
+
+  it("searches categories without collapsing same-name categories with different ids", () => {
+    expect(filterCategoriesForSearch(categories, "coffee").map((category) => category.id)).toEqual([10, 12]);
+  });
+
+  it("keeps draft filters separate from the applied API filter until Apply", () => {
+    const applied = clearFilters();
+    const draft = { ...clearFilters(), accountIds: ["2"], categoryIds: ["11"], sharedOnly: true };
+
+    expect(toApiFilters({ accounts, categories, filters: applied, month: "2026-07", search: "", transactionType: "All" })).toEqual({
+      month: "2026-07",
+      sortBy: "Newest",
+      transactionType: "All"
+    });
+    expect(toApiFilters({ accounts, categories, filters: draft, month: "2026-07", search: " coffee ", transactionType: "Expense" })).toMatchObject({
+      account: "ICICI Savings",
+      category: "Dining",
+      month: "2026-07",
+      search: "coffee",
+      sharedOnly: true,
+      transactionType: "Expense"
+    });
+  });
+
+  it("validates date and amount ranges before applying filters", () => {
+    expect(filterValidationError({ ...clearFilters(), dateFrom: "2026-07-31", dateTo: "2026-07-01" })).toBe("From date cannot be after to date.");
+    expect(filterValidationError({ ...clearFilters(), amountMin: "-1" })).toBe("Enter a valid non-negative amount.");
+    expect(filterValidationError({ ...clearFilters(), amountMin: "500", amountMax: "100" })).toBe("Minimum amount cannot be greater than maximum.");
+    expect(filterValidationError({ ...clearFilters(), amountMin: "", amountMax: "100" })).toBeNull();
+  });
+
+  it("applies date presets using API-safe date strings", () => {
+    expect(applyDatePreset(clearFilters(), "This month", "2026-07").dateFrom).toBe("2026-07-01");
+    expect(applyDatePreset(clearFilters(), "This month", "2026-07").dateTo).toBe("2026-07-31");
+    expect(applyDatePreset(clearFilters(), "Last month", "2026-07", new Date(2026, 6, 23))).toMatchObject({
+      dateFrom: "2026-06-01",
+      dateTo: "2026-06-30"
+    });
+  });
+});
+
+describe("transaction row display text", () => {
+  const baseItem: TransactionHistoryItemApi = {
+    account: "HDFC Salary",
+    amount: 220,
+    category: "Coffee",
+    categoryIcon: "coffee",
+    date: "2026-07-10",
+    direction: "debit",
+    id: "1",
+    merchant: null,
+    runningBalance: 42880,
+    shared: false,
+    title: "Coffee",
+    transactionId: 1,
+    transactionType: "Expense",
+    type: "expense"
+  };
+
+  it("does not repeat the category as both primary and secondary text", () => {
+    expect(transactionDisplayText(baseItem)).toEqual({
+      primary: "Coffee",
+      secondary: null
+    });
+  });
+
+  it("uses merchant as primary and category as secondary when both are meaningful", () => {
+    expect(transactionDisplayText({ ...baseItem, merchant: "Starbucks" })).toEqual({
+      primary: "Starbucks",
+      secondary: "Coffee"
+    });
+  });
+
+  it("falls back to category and then Transaction without inventing placeholder secondary text", () => {
+    expect(transactionDisplayText({ ...baseItem, category: "Groceries", title: "" })).toEqual({
+      primary: "Groceries",
+      secondary: null
+    });
+    expect(transactionDisplayText({ ...baseItem, category: "", title: "" })).toEqual({
+      primary: "Transaction",
+      secondary: null
+    });
   });
 });

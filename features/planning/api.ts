@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { apiClient } from "@/services/api/client";
-import type { PlanningItemPayloadApi, PlanningStatusPayloadApi } from "@/services/api/types";
+import type { PlanningClosePayloadApi, PlanningItemPayloadApi, PlanningStatusPayloadApi } from "@/services/api/types";
 
 function invalidatePlanningDependents(vaultId: string | null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.planning.root });
@@ -82,7 +82,7 @@ export function useDeleteIncomeTemplateMutation(token: string | null, vaultId: s
 
 export function useCloseActiveCycleMutation(token: string | null, vaultId: string | null) {
   return useMutation({
-    mutationFn: async () => apiClient.closeActivePlanningCycle(token ?? ""),
+    mutationFn: async (body?: PlanningClosePayloadApi) => apiClient.closeActivePlanningCycle(token ?? "", body),
     onSuccess: () => invalidatePlanningDependents(vaultId)
   });
 }

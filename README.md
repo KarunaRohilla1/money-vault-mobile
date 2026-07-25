@@ -122,3 +122,23 @@ theme/
 types/
 assets/
 ```
+
+## Planning Architecture
+
+Planning follows the same API-first boundary as Dashboard:
+
+```text
+FastAPI Planning DTO -> services/api/planning.ts -> features/planning/planningModel.ts adapter -> Planning UI components
+```
+
+The backend owns Planning financial logic, including cycle progress, chronological activities, timeline ordering, completion percentages, projected savings, remaining commitments, close-cycle readiness, and close-cycle review/finalization. The mobile app renders the returned view model and only keeps local UI draft state for forms, sheets, and modals.
+
+Primary endpoints consumed by mobile:
+
+- `GET /api/planning` returns the cycle, totals, recurring templates, backend-built activities, timeline, cycle progress, completion status, and close readiness.
+- `POST /api/planning/commitments` / `PUT /api/planning/commitments/{id}` / `DELETE /api/planning/commitments/{id}` manage recurring commitments.
+- `POST /api/planning/income-templates` / `PUT /api/planning/income-templates/{id}` / `DELETE /api/planning/income-templates/{id}` manage recurring income.
+- `POST /api/planning/commitments/{id}/status` and `POST /api/planning/income-templates/{id}/status` update actual activity state through backend validation.
+- `POST /api/planning/cycles/close-active` accepts the close review payload and reuses the legacy `finalize_month` / `close_active_cycle` workflow.
+
+React Query hooks in `features/planning/api.ts` invalidate Planning, Dashboard, Accounts, and Transactions after mutations so the financial surfaces stay synchronized.

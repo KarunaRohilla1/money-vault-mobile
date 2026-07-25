@@ -1,14 +1,22 @@
 import {
   buildCloseReviewItems,
   buildPlanningActivities,
+  closeReviewPayload,
   closeActionStatus,
   cycleCompletionLabel,
   cycleProgressPercent,
   daysRemainingLabel,
   effectiveExpectedAmount,
+  EMPTY_PLANNING_FORM,
+  needsAttentionActivities,
   pendingCloseActivities,
+  recurringPlanSummary,
+  shouldShowCloseCycleCard,
   statusLabel,
-  validateCloseReview
+  statusPayloadForActivity,
+  upcomingActivities,
+  validateCloseReview,
+  validatePlanningForm
 } from "@/features/planning/planningModel";
 import type { PlanningApiResponse, PlanningItemApi } from "@/services/api/types";
 
@@ -115,5 +123,130 @@ describe("planning model", () => {
     expect(cycleProgressPercent(cycle)).toBe(23);
     expect(cycleCompletionLabel(cycle)).toBe("7/30 days");
     expect(daysRemainingLabel(cycle)).toBe("23 days");
+  });
+
+  it("orders unresolved activities by urgency", () => {
+    const urgentPlanning: PlanningApiResponse = {
+      ...planning,
+      commitments: [
+        { ...commitmentItem, dueDay: 8, id: 21, name: "Later", status: { actualAmount: null, status: "PENDING" } },
+        { ...commitmentItem, dueDay: 1, id: 22, name: "Overdue", status: { actualAmount: null, status: "PENDING" } }
+      ],
+      incomeTemplates: [{ ...incomeItem, dueDay: 4, id: 11, name: "Tomorrow" }]
+    };
+
+    const activities = buildPlanningActivities(urgentPlanning);
+    const attention = needsAttentionActivities(activities, urgentPlanning.cycle, new Date(2026, 6, 3));
+
+    expect(attention.map((activity) => activity.name)).toEqual(["Overdue", "Tomorrow"]);
+  });
+
+  it("hides needs attention when no unresolved item is urgent", () => {
+    const calmPlanning: PlanningApiResponse = {
+      ...planning,
+      commitments: [{ ...commitmentItem, dueDay: 20, id: 21, status: { actualAmount: null, status: "PENDING" } }],
+      incomeTemplates: []
+    };
+
+    expect(needsAttentionActivities(buildPlanningActivities(calmPlanning), calmPlanning.cycle, new Date(2026, 6, 3))).toEqual([]);
+  });
+
+  it("shows upcoming items without duplicating attention items", () => {
+    const mixedPlanning: PlanningApiResponse = {
+      ...planning,
+      commitments: [
+        { ...commitmentItem, dueDay: 1, id: 21, name: "Overdue", status: { actualAmount: null, status: "PENDING" } },
+        { ...commitmentItem, dueDay: 8, id: 22, name: "Upcoming", status: { actualAmount: null, status: "PENDING" } }
+      ],
+      incomeTemplates: []
+    };
+    const activities = buildPlanningActivities(mixedPlanning);
+    const attention = needsAttentionActivities(activities, mixedPlanning.cycle, new Date(2026, 6, 3));
+
+    expect(upcomingActivities(activities, mixedPlanning.cycle, attention, 5, new Date(2026, 6, 3)).map((activity) => activity.name)).toEqual(["Upcoming"]);
+  });
+
+  it("summarizes recurring plan counts and totals", () => {
+    expect(recurringPlanSummary(planning)).toEqual({
+      commitmentCount: 1,
+      commitmentTotal: 1200,
+      incomeCount: 1,
+      incomeTotal: 3000
+    });
+  });
+
+  it("shows close-cycle card near cycle end or when all items are resolved", () => {
+    expect(shouldShowCloseCycleCard(planning.cycle, { daysRemaining: 4 }, 2)).toBe(true);
+    expect(shouldShowCloseCycleCard(planning.cycle, { daysRemaining: 12 }, 0)).toBe(true);
+    expect(shouldShowCloseCycleCard(planning.cycle, { daysRemaining: 12 }, 2)).toBe(false);
+    expect(shouldShowCloseCycleCard({ ...planning.cycle, status: "Completed" }, { daysRemaining: 0 }, 0)).toBe(false);
+  });
+
+  it("uses backend-provided activities before rebuilding them on mobile", () => {
+    const backendPlanning: PlanningApiResponse = {
+      ...planning,
+      activities: [
+        {
+          ...incomeItem,
+          actualAmount: 3000,
+          completeLabel: "Received",
+          completeStatus: "RECEIVED",
+          dueDate: "2026-07-01",
+          effectiveExpectedAmount: 3500,
+          icon: "cash",
+          kind: "income",
+          statusLabel: "Completed",
+          timelineLabel: "Today"
+        }
+      ]
+    };
+
+    expect(buildPlanningActivities(backendPlanning)).toMatchObject([
+      {
+        actualAmount: 3000,
+        expectedAmount: 3500,
+        statusLabel: "Completed",
+        timelineLabel: "Today"
+      }
+    ]);
+  });
+
+  it("builds a backend close-cycle review payload", () => {
+    const [item] = buildCloseReviewItems(buildPlanningActivities(planning));
+    if (!item) {
+      throw new Error("Expected a pending item.");
+    }
+
+    expect(closeReviewPayload([{ ...item, action: "Carry Forward", amount: "3000" }])).toEqual({
+      items: [
+        {
+          action: "Carry Forward",
+          amount: 3000,
+          id: 10,
+          type: "income"
+        }
+      ]
+    });
+  });
+  it("validates planning form input", () => {
+    expect(validatePlanningForm(EMPTY_PLANNING_FORM)).toBe("Name is required.");
+    expect(validatePlanningForm({ ...EMPTY_PLANNING_FORM, name: "Rent" })).toBe("Choose an account.");
+    expect(validatePlanningForm({ ...EMPTY_PLANNING_FORM, accountId: 1, amount: "0", name: "Rent" })).toBe("Amount must be greater than zero.");
+    expect(validatePlanningForm({ ...EMPTY_PLANNING_FORM, accountId: 1, amount: "10", dueDay: "32", name: "Rent" })).toBe("Due day must be between 1 and 31.");
+    expect(validatePlanningForm({ ...EMPTY_PLANNING_FORM, accountId: 1, amount: "10", dueDay: "10", name: "Rent" })).toBeNull();
+  });
+
+  it("builds status payloads for primary status actions", () => {
+    const [activity] = buildPlanningActivities(planning);
+    if (!activity) {
+      throw new Error("Expected activity.");
+    }
+
+    expect(statusPayloadForActivity(activity, planning.cycle, activity.completeStatus, activity.actualAmount)).toEqual({
+      actualAmount: 3000,
+      month: 7,
+      status: "RECEIVED",
+      year: 2026
+    });
   });
 });

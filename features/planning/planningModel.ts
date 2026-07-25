@@ -1,4 +1,4 @@
-import type { FinancialCycleApi, PlanningApiResponse, PlanningItemApi, PlanningStatusPayloadApi } from "@/services/api/types";
+import type { FinancialCycleApi, PlanningActivityApi, PlanningApiResponse, PlanningItemApi, PlanningStatusPayloadApi } from "@/services/api/types";
 
 export type PlanningActivityKind = "income" | "commitment";
 export type CloseAction = "Paid" | "Cancelled" | "Carry Forward" | null;
@@ -17,6 +17,7 @@ export interface PlanningActivityViewModel {
   name: string;
   status: string;
   statusLabel: string;
+  timelineLabel?: string;
 }
 
 export interface CloseReviewItem {
@@ -24,6 +25,24 @@ export interface CloseReviewItem {
   activity: PlanningActivityViewModel;
   amount: string;
 }
+
+export interface PlanningFormState {
+  accountId: number | null;
+  amount: string;
+  dueDay: string;
+  id: number | null;
+  kind: PlanningActivityKind;
+  name: string;
+}
+
+export const EMPTY_PLANNING_FORM: PlanningFormState = {
+  accountId: null,
+  amount: "",
+  dueDay: "1",
+  id: null,
+  kind: "commitment",
+  name: ""
+};
 
 const incomeIcon = "$";
 
@@ -76,6 +95,10 @@ export function actualActivityAmount(item: PlanningItemApi, completeStatus: "REC
 }
 
 export function buildPlanningActivities(planning: PlanningApiResponse): PlanningActivityViewModel[] {
+  if (planning.activities?.length) {
+    return planning.activities.map((item) => buildBackendActivity(item));
+  }
+
   const income = planning.incomeTemplates.map((item) => buildActivity(item, "income"));
   const commitments = planning.commitments.map((item) => buildActivity(item, "commitment"));
 
@@ -84,6 +107,89 @@ export function buildPlanningActivities(planning: PlanningApiResponse): Planning
 
 export function pendingCloseActivities(activities: PlanningActivityViewModel[]) {
   return activities.filter((activity) => activity.status === "PENDING" || activity.status === "CARRIED_FORWARD");
+}
+
+export function unresolvedPlanningActivities(activities: PlanningActivityViewModel[]) {
+  return activities.filter((activity) => activity.status === "PENDING" || activity.status === "CARRIED_FORWARD");
+}
+
+export function urgencyRank(activity: PlanningActivityViewModel, cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear">, today = new Date()) {
+  const dueDate = new Date(cycle.startYear, cycle.startMonth - 1, activity.dueDay);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.round((dueDate.getTime() - todayStart.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    return -1000 + diffDays;
+  }
+
+  if (diffDays <= 3) {
+    return diffDays;
+  }
+
+  return 100 + diffDays;
+}
+
+export function needsAttentionActivities(activities: PlanningActivityViewModel[], cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear">, today = new Date()) {
+  return unresolvedPlanningActivities(activities)
+    .filter((activity) => urgencyRank(activity, cycle, today) <= 3)
+    .sort((left, right) => urgencyRank(left, cycle, today) - urgencyRank(right, cycle, today) || left.dueDay - right.dueDay);
+}
+
+export function upcomingActivities(
+  activities: PlanningActivityViewModel[],
+  cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear">,
+  attention: PlanningActivityViewModel[],
+  limit = 5,
+  today = new Date()
+) {
+  const attentionKeys = new Set(attention.map((activity) => `${activity.kind}:${activity.id}`));
+
+  return unresolvedPlanningActivities(activities)
+    .filter((activity) => !attentionKeys.has(`${activity.kind}:${activity.id}`))
+    .sort((left, right) => urgencyRank(left, cycle, today) - urgencyRank(right, cycle, today) || left.dueDay - right.dueDay)
+    .slice(0, limit);
+}
+
+
+export function planningTimelineActivities(planning: PlanningApiResponse, fallback: PlanningActivityViewModel[]) {
+  if (planning.timeline?.length) {
+    return planning.timeline.map((item) => buildBackendActivity(item));
+  }
+
+  return fallback;
+}
+
+export function closeReviewPayload(items: CloseReviewItem[]) {
+  return {
+    items: items
+      .filter((item) => item.action !== null)
+      .map((item) => ({
+        action: item.action as Exclude<CloseAction, null>,
+        amount: item.action === "Cancelled" ? 0 : Number(item.amount),
+        id: item.activity.id,
+        type: item.activity.kind
+      }))
+  };
+}
+export function recurringPlanSummary(planning: Pick<PlanningApiResponse, "commitments" | "incomeTemplates">) {
+  return {
+    commitmentCount: planning.commitments.length,
+    commitmentTotal: planning.commitments.reduce((total, item) => total + item.amount, 0),
+    incomeCount: planning.incomeTemplates.length,
+    incomeTotal: planning.incomeTemplates.reduce((total, item) => total + item.amount, 0)
+  };
+}
+
+export function shouldShowCloseCycleCard(
+  cycle: PlanningApiResponse["cycle"],
+  dashboardCycle: Partial<Pick<FinancialCycleApi, "daysRemaining">> | null | undefined,
+  unresolvedCount: number
+) {
+  if (cycle.status !== "Current") {
+    return false;
+  }
+
+  return unresolvedCount === 0 || (dashboardCycle?.daysRemaining ?? 99) <= 5;
 }
 
 export function buildCloseReviewItems(activities: PlanningActivityViewModel[]): CloseReviewItem[] {
@@ -132,6 +238,29 @@ export function statusPayloadForActivity(activity: PlanningActivityViewModel, cy
   };
 }
 
+export function validatePlanningForm(form: PlanningFormState) {
+  const amount = Number(form.amount);
+  const dueDay = Number(form.dueDay);
+
+  if (!form.name.trim()) {
+    return "Name is required.";
+  }
+
+  if (!form.accountId) {
+    return "Choose an account.";
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "Amount must be greater than zero.";
+  }
+
+  if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+    return "Due day must be between 1 and 31.";
+  }
+
+  return null;
+}
+
 type CycleProgressFields = Pick<FinancialCycleApi, "daysCompleted" | "progressPercent" | "totalDays"> & Partial<Pick<FinancialCycleApi, "daysRemaining">>;
 
 export function cycleProgressPercent(cycle?: CycleProgressFields | null) {
@@ -175,6 +304,25 @@ export function upcomingTimelineLabel(activity: PlanningActivityViewModel, cycle
   return `Due day ${activity.dueDay}`;
 }
 
+
+function buildBackendActivity(item: PlanningActivityApi): PlanningActivityViewModel {
+  return {
+    actualAmount: item.actualAmount,
+    accountId: item.accountId ?? null,
+    accountName: item.accountName ?? null,
+    completeLabel: item.completeLabel,
+    completeStatus: item.completeStatus,
+    dueDay: item.dueDay,
+    expectedAmount: item.effectiveExpectedAmount,
+    icon: item.icon,
+    id: item.id,
+    kind: item.kind,
+    name: item.name,
+    status: item.status.status,
+    statusLabel: item.statusLabel,
+    timelineLabel: item.timelineLabel
+  };
+}
 function buildActivity(item: PlanningItemApi, kind: PlanningActivityKind): PlanningActivityViewModel {
   const completeStatus = kind === "income" ? "RECEIVED" : "PAID";
 

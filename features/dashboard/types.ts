@@ -1,5 +1,5 @@
 import type { AuthenticatedVault, JsonObject } from "@/types/domain";
-import type { CategorySpendApi, FinancialCycleApi, RecentActivityApi, SettlementApi } from "@/services/api/types";
+import type { CategorySpendApi, FinancialCycleApi, RecentActivityApi, SafeToSpendBreakdownApi, SettlementApi } from "@/services/api/types";
 
 export interface DashboardViewModel {
   categories: CategorySpendApi[];
@@ -13,6 +13,7 @@ export interface DashboardViewModel {
   recentActivity: RecentActivityApi[];
   remainingCommitments: number;
   safeToSpend: number;
+  safeToSpendBreakdown: SafeToSpendBreakdownApi | null;
   setup: {
     accounts: number;
     commitments: number;
