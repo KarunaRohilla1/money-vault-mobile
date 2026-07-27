@@ -5,13 +5,44 @@ export interface PlanningStatusApi {
 }
 
 export interface PlanningCycleApi {
+  closedAt?: string | null;
+  currentDay?: number;
+  daysCompleted?: number;
+  daysRemaining?: number;
+  displayLabel?: string;
+  displayMonth?: string;
   endDate: string;
   id: number;
+  isCompleted?: boolean;
+  isCurrent?: boolean;
+  isUpcoming?: boolean;
+  previousCycleStart?: string;
+  progressPercent?: number;
   startDate: string;
   startMonth: number;
   startYear: number;
   status: string;
+  totalDays?: number;
+  nextCycleStart?: string;
   vaultId: number;
+}
+
+export interface PlanningCycleOptionApi {
+  endDate: string;
+  key: string;
+  label: string;
+  startDate: string;
+  status: string;
+  year: number;
+}
+
+export interface PlanningCycleNavigationApi {
+  currentCycleStart: string;
+  cycles: PlanningCycleOptionApi[];
+  hasNextYear?: boolean;
+  hasPreviousYear?: boolean;
+  status?: string;
+  year?: number | null;
 }
 
 
@@ -82,6 +113,7 @@ export interface PlanningApiResponse {
   completion?: PlanningCompletionApi;
   commitments: PlanningItemApi[];
   cycle: PlanningCycleApi;
+  cycleNavigation?: PlanningCycleNavigationApi;
   cycleProgress?: PlanningCycleProgressApi;
   incomeTemplates: PlanningItemApi[];
   timeline?: PlanningActivityApi[];

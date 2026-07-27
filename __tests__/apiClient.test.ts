@@ -412,10 +412,10 @@ describe("apiClient", () => {
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
-    await apiClient.getReports("jwt-token", { cycleStart: "2026-07-10" });
+    await apiClient.getReports("jwt-token", { cycleStart: "2026-07-10", detailLevel: "overview" });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.money-vault.test/api/reports?cycleStart=2026-07-10",
+      "https://api.money-vault.test/api/reports?cycleStart=2026-07-10&detailLevel=overview",
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer jwt-token"
@@ -423,6 +423,39 @@ describe("apiClient", () => {
       })
     );
   });
+  it("loads spending reports with bearer authorization and filters", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            accounts: [],
+            categories: [],
+            filterOptions: { accounts: [], categories: [], merchants: [], paymentModes: [] },
+            merchants: [],
+            paymentModes: [],
+            summary: [],
+            topMerchants: [],
+            trend: []
+          },
+          filters: { cycleStart: "2026-07-10", endDate: "2026-08-09", period: "cycle", startDate: "2026-07-10" },
+          generatedAt: "2026-07-15T00:00:00Z",
+          vault: { id: "4", isAdmin: true, name: "Karuna", vaultType: "Individual" }
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    await apiClient.getReportsSpending("jwt-token", { account: "HDFC", cycleStart: "2026-07-10", paymentMode: "Savings" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/reports/spending?cycleStart=2026-07-10&account=HDFC&paymentMode=Savings",
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer jwt-token" }) })
+    );
+  });
+
 
   it("loads shared expenses and bills with bearer authorization", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";

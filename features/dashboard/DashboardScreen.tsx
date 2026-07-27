@@ -482,13 +482,14 @@ function DonutChart({ categories, currencyCode, locale }: { categories: Category
 }
 
 function SpendingByCategory({ categories, currencyCode, locale, onExplanationPress }: { categories: CategorySpendApi[]; currencyCode: CurrencyCode; locale: string; onExplanationPress?: () => void }) {
+  const router = useRouter();
   const total = categories.reduce((sum, item) => sum + item.amount, 0);
 
   if (categories.length === 0) {
     return (
       <View className={dashboardLayout.sectionGapClassName}>
         <DashboardSectionHeader title="Spending by Category" />
-<EmptyState icon="chart-donut" title="No category spending" message="No category spending was returned for this cycle." />
+        <EmptyState icon="chart-donut" title="No category spending" message="No category spending was returned for this cycle." />
         {onExplanationPress ? <SafeToSpendExplanationRow onPress={onExplanationPress} /> : null}
       </View>
     );
@@ -496,7 +497,7 @@ function SpendingByCategory({ categories, currencyCode, locale, onExplanationPre
 
   return (
     <View className={dashboardLayout.sectionGapClassName}>
-      <DashboardSectionHeader action="This Cycle" title="Spending by Category" />
+      <DashboardSectionHeader action="This Cycle" title="Spending by Category" onActionPress={() => router.push("/reports")} />
       <View className={`${dashboardLayout.cardClassName} p-4`}>
         <View className="flex-row gap-4">
           <DonutChart categories={categories} currencyCode={currencyCode} locale={locale} />

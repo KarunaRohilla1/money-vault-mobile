@@ -1,18 +1,26 @@
 import {
+  adjacentReportCycle,
   cycleComparison,
   findReportCard,
+  formatReportCycleRange,
+  reportCycleDisplayMonth,
   formatReportValue,
+  hasReportActivity,
   hasReportData,
   largestCategoryInsight,
   pickHeroMetric,
+  orderedOverviewCards,
   pickHeroSecondaryMetrics,
   reportNumber,
+  selectedReportCycle,
   shortCycleLabel,
   topCategories,
   trendMaximum,
   trendMetricForVault
 } from "@/features/reports/reportModel";
-import type { ReportCategoryItemApi, ReportMoneyCardApi, ReportTrendItemApi } from "@/services/api/types";
+import { adaptSpendingAnalytics, hasAnalyticsData, selectedChartItem, trendMaximum as analyticsTrendMaximum } from "@/features/reports/analytics/analyticsAdapter";
+import { analyticsStateToRequest, hasAnalyticsFilters, type ReportsAnalyticsState } from "@/features/reports/analytics/analyticsState";
+import type { ReportCategoryItemApi, ReportMoneyCardApi, ReportSpendingApiResponse, ReportTrendItemApi } from "@/services/api/types";
 
 const emptyTrend: ReportTrendItemApi[] = [
   {
@@ -170,5 +178,83 @@ describe("reportModel", () => {
   it("finds cards by key for progressive report presentation", () => {
     expect(findReportCard(cards, "income")?.title).toBe("Income");
     expect(findReportCard(cards, "missing")).toBeUndefined();
+  });
+  it("orders the mobile overview cards and ignores backend-only extra cards", () => {
+    const withExtra: ReportMoneyCardApi[] = [
+      ...cards,
+      { caption: "Not shown in the mobile overview grid", format: "money", key: "settlements", title: "Outstanding Settlements", tone: "red", value: 1250 }
+    ];
+
+    expect(orderedOverviewCards(withExtra).map((card) => card.key)).toEqual(["income", "cash-outflow", "net-cost", "savings"]);
+  });
+
+  it("selects adjacent financial cycles for previous and next buttons", () => {
+    const options = [
+      { endDate: "2026-06-30", key: "2026-06-01", label: "June 2026", startDate: "2026-06-01", status: "Completed" },
+      { endDate: "2026-07-31", key: "2026-07-01", label: "July 2026", startDate: "2026-07-01", status: "Current" },
+      { endDate: "2026-08-31", key: "2026-08-01", label: "August 2026", startDate: "2026-08-01", status: "Upcoming" }
+    ];
+
+    expect(selectedReportCycle(options, "2026-07-01")?.label).toBe("July 2026");
+    expect(adjacentReportCycle(options, "2026-07-01", "previous")?.key).toBe("2026-06-01");
+    expect(adjacentReportCycle(options, "2026-07-01", "next")?.key).toBe("2026-08-01");
+    expect(adjacentReportCycle(options, "2026-06-01", "previous")).toBeNull();
+  });
+
+  it("formats the selected report cycle as Month Year", () => {
+    expect(reportCycleDisplayMonth({ startDate: "2026-07-01" }, "en-IN")).toBe("July 2026");
+  });
+  it("formats the mobile report cycle range with short dates", () => {
+    expect(formatReportCycleRange("2026-07-01", "2026-07-31", "en-IN")).toBe("01 Jul \u2192 31 Jul");
+  });
+
+  it("detects empty overview activity without hiding zero-value cards", () => {
+    const zeroCards: ReportMoneyCardApi[] = cards.map((card) => ({ ...card, value: 0 }));
+
+    expect(hasReportActivity(0, zeroCards)).toBe(false);
+    expect(hasReportActivity(3, zeroCards)).toBe(true);
+  });
+  it("adapts spending analytics into dimension-driven UI sections", () => {
+    const response = {
+      data: {
+        breakdown: { rows: [{ amount: 1500, icon: "food", id: "c1", key: "c1", label: "Dining", percent: 75, subLabel: "3 transactions", transactionCount: 3 }], title: "Category Breakdown" },
+        metadata: { dimension: "categories", emptyMessage: "No category spending.", emptyTitle: "No categories", filterOptions: { accounts: [], categories: [], merchants: [], paymentModes: [] }, question: "Where is my money going?" },
+        summary: [{ caption: "vs Jun", format: "money", key: "total-spent", title: "Total Spent", tone: "red", value: 2000 }],
+        trend: { points: [{ amount: 2000, date: "2026-07-10", label: "10" }], title: "Spending by Category Trend" },
+        visualization: { items: [{ amount: 1500, color: "#fff", icon: "food", id: "c1", key: "c1", label: "Dining", percent: 75, transactionCount: 3 }], title: "Spending by Category", total: 1500, type: "donut" }
+      },
+      filters: { cycleStart: "2026-07-01", endDate: "2026-07-31", period: "cycle", startDate: "2026-07-01" },
+      generatedAt: "2026-07-20T00:00:00Z",
+      vault: { id: "1", isAdmin: true, name: "KR", vaultType: "Individual" }
+    } satisfies ReportSpendingApiResponse;
+
+    const model = adaptSpendingAnalytics(response);
+    expect(model?.question).toBe("Where is my money going?");
+    expect(model?.chart.type).toBe("donut");
+    expect(model?.breakdown.rows[0]?.label).toBe("Dining");
+    expect(selectedChartItem(model?.chart.items ?? [], null)?.key).toBe("c1");
+    expect(analyticsTrendMaximum(model?.trend.points ?? [])).toBe(2000);
+    expect(hasAnalyticsData(model)).toBe(true);
+  });
+
+  it("serializes analytics state with dimension and global filters", () => {
+    const state: ReportsAnalyticsState = {
+      analysisDimension: "merchants",
+      filters: { account: "HDFC", amountMin: 100, category: "Dining" },
+      selectedCycle: "2026-07-01",
+      sort: "amountDesc"
+    };
+    expect(hasAnalyticsFilters(state.filters)).toBe(true);
+    expect(analyticsStateToRequest(state)).toEqual({
+      account: "HDFC",
+      amountMax: undefined,
+      amountMin: 100,
+      category: "Dining",
+      cycleStart: "2026-07-01",
+      dimension: "merchants",
+      merchant: undefined,
+      paymentMode: undefined,
+      transactionType: undefined
+    });
   });
 });

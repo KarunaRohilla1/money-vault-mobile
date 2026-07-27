@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useAccountsQuery } from "@/features/accounts/api";
-import { useDashboardQuery } from "@/features/dashboard/api";
 import {
   useCloseActiveCycleMutation,
   useCreateCommitmentMutation,
   useCreateIncomeTemplateMutation,
   useDeleteCommitmentMutation,
   useDeleteIncomeTemplateMutation,
+  usePlanningCyclesQuery,
   usePlanningQuery,
   useSetCommitmentStatusMutation,
   useSetIncomeStatusMutation,
@@ -23,7 +24,6 @@ import {
   planningTimelineActivities,
   pendingCloseActivities,
   recurringPlanSummary,
-  shouldShowCloseCycleCard,
   statusPayloadForActivity,
   upcomingActivities,
   validateCloseReview,
@@ -37,13 +37,33 @@ import type { PlanningItemApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 
+type ActivityDraftStatus = "COMPLETE" | "PENDING" | "CANCELLED";
+
+function draftStatusForActivity(activity: PlanningActivityViewModel): ActivityDraftStatus {
+  if (activity.status === activity.completeStatus) {
+    return "COMPLETE";
+  }
+
+  if (activity.status === "CANCELLED") {
+    return "CANCELLED";
+  }
+
+  return "PENDING";
+}
+
 export function usePlanningScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ cycleStart?: string }>();
+  const selectedCycleParam = typeof params.cycleStart === "string" ? params.cycleStart : undefined;
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
-  const planningQuery = usePlanningQuery(token, vaultId);
-  const dashboardQuery = useDashboardQuery(token, vaultId);
+  const [cyclePickerVisible, setCyclePickerVisible] = useState(false);
+  const [cyclePickerYear, setCyclePickerYear] = useState(new Date().getFullYear());
+  const [cycleStatusFilter, setCycleStatusFilter] = useState<"all" | "completed" | "current" | "upcoming">("all");
+  const planningQuery = usePlanningQuery(token, vaultId, selectedCycleParam);
+  const cyclePickerQuery = usePlanningCyclesQuery(token, vaultId, cyclePickerYear, cycleStatusFilter, cyclePickerVisible);
   const accountsQuery = useAccountsQuery(token, vaultId);
   const setIncomeStatus = useSetIncomeStatusMutation(token, vaultId);
   const setCommitmentStatus = useSetCommitmentStatusMutation(token, vaultId);
@@ -56,15 +76,19 @@ export function usePlanningScreen() {
   const closeCycle = useCloseActiveCycleMutation(token, vaultId);
   const [form, setForm] = useState<PlanningFormState>(EMPTY_PLANNING_FORM);
   const [formVisible, setFormVisible] = useState(false);
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const [recurringVisible, setRecurringVisible] = useState(false);
   const [itemActionsVisible, setItemActionsVisible] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<PlanningActivityViewModel | null>(null);
+  const [activityDraftStatus, setActivityDraftStatus] = useState<ActivityDraftStatus>("PENDING");
+  const [actualAmount, setActualAmount] = useState("");
+  const [actualNotes, setActualNotes] = useState("");
+  const [actualError, setActualError] = useState<string | null>(null);
   const [closeVisible, setCloseVisible] = useState(false);
   const [closeItems, setCloseItems] = useState<CloseReviewItem[]>([]);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [savingClose, setSavingClose] = useState(false);
   const planning = planningQuery.data;
-  const dashboardCycle = dashboardQuery.data?.cycle ?? null;
   const activities = useMemo(() => (planning ? buildPlanningActivities(planning) : []), [planning]);
   const attentionActivities = useMemo(
     () => (planning ? needsAttentionActivities(activities, planning.cycle) : []),
@@ -75,32 +99,69 @@ export function usePlanningScreen() {
     [activities, attentionActivities, planning]
   );
   const upcoming = useMemo(() => (planning ? planningTimelineActivities(planning, fallbackUpcoming) : []), [fallbackUpcoming, planning]);
+  const cycleOptions = cyclePickerQuery.data?.cycles ?? planning?.cycleNavigation?.cycles ?? [];
+  const selectedCycleStart = planning?.cycle.startDate ?? selectedCycleParam ?? null;
+  const canSelectPreviousCycle = Boolean(planning?.cycle.previousCycleStart);
+  const canSelectNextCycle = Boolean(planning?.cycle.nextCycleStart);
   const pendingActivities = pendingCloseActivities(activities);
   const recurringSummary = planning ? recurringPlanSummary(planning) : null;
-  const closeCardVisible = planning?.closeReadiness ? planning.closeReadiness.canClose : planning ? shouldShowCloseCycleCard(planning.cycle, dashboardCycle, pendingActivities.length) : false;
-  const statusPayload = planning ? { month: planning.cycle.startMonth, year: planning.cycle.startYear } : null;
+  const closeCardVisible = planning?.closeReadiness ? planning.closeReadiness.canClose : false;
   const formError = useMemo(() => validatePlanningForm(form), [form]);
+  const visibleFormError = formSubmitted ? formError : null;
   const isSaving = createIncome.isPending || updateIncome.isPending || createCommitment.isPending || updateCommitment.isPending;
   const statusSaving = setIncomeStatus.isPending || setCommitmentStatus.isPending;
-  const refreshing = planningQuery.isRefetching || dashboardQuery.isRefetching || accountsQuery.isRefetching;
+  const refreshing = planningQuery.isRefetching || accountsQuery.isRefetching;
 
   function refresh() {
     void planningQuery.refetch();
-    void dashboardQuery.refetch();
     void accountsQuery.refetch();
+  }
+
+  function selectCycle(cycleStart: string) {
+    router.setParams({ cycleStart });
+    setCyclePickerVisible(false);
+  }
+
+  function openCyclePicker() {
+    if (planning?.cycle.startYear) {
+      setCyclePickerYear(planning.cycle.startYear);
+    }
+    setCyclePickerVisible(true);
+  }
+
+  function selectPreviousCycle() {
+    if (planning?.cycle.previousCycleStart) {
+      selectCycle(planning.cycle.previousCycleStart);
+    }
+  }
+
+  function selectNextCycle() {
+    if (planning?.cycle.nextCycleStart) {
+      selectCycle(planning.cycle.nextCycleStart);
+    }
+  }
+
+  function goToCurrentCycle() {
+    const currentCycleStart = cyclePickerQuery.data?.currentCycleStart ?? planning?.cycleNavigation?.currentCycleStart;
+    if (currentCycleStart) {
+      selectCycle(currentCycleStart);
+    }
   }
 
   function openAddForm(kind: PlanningActivityKind) {
     setForm({ ...EMPTY_PLANNING_FORM, kind });
+    setFormSubmitted(false);
     setFormVisible(true);
   }
 
   function closeForm() {
     setForm(EMPTY_PLANNING_FORM);
+    setFormSubmitted(false);
     setFormVisible(false);
   }
 
   function submitForm() {
+    setFormSubmitted(true);
     if (formError || !form.accountId) {
       return;
     }
@@ -139,21 +200,54 @@ export function usePlanningScreen() {
       kind,
       name: item.name
     });
+    setFormSubmitted(false);
     setFormVisible(true);
   }
 
   function completeActivity(activity: PlanningActivityViewModel) {
-    if (!planning || !statusPayload) {
+    setSelectedActivity(activity);
+    setActivityDraftStatus(draftStatusForActivity(activity));
+    setActualAmount(String(activity.actualAmount));
+    setActualNotes(activity.notes ?? "");
+    setActualError(null);
+    setItemActionsVisible(true);
+  }
+
+  function saveActivityActual() {
+    if (!planning || !selectedActivity) {
       return;
     }
 
-    const payload = statusPayloadForActivity(activity, planning.cycle, activity.completeStatus, activity.actualAmount);
-    if (activity.kind === "income") {
-      setIncomeStatus.mutate({ body: payload, templateId: activity.id });
+    if (activityDraftStatus !== "COMPLETE") {
+      const status = activityDraftStatus === "CANCELLED" ? "CANCELLED" : "PENDING";
+      const payload = statusPayloadForActivity(selectedActivity, planning.cycle, status, status === "CANCELLED" ? 0 : null);
+
+      if (selectedActivity.kind === "income") {
+        setIncomeStatus.mutate({ body: payload, templateId: selectedActivity.id }, { onSuccess: closeActivityActions });
+        return;
+      }
+
+      setCommitmentStatus.mutate({ body: payload, commitmentId: selectedActivity.id }, { onSuccess: closeActivityActions });
       return;
     }
 
-    setCommitmentStatus.mutate({ body: payload, commitmentId: activity.id });
+    const amount = Number(actualAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setActualError("Actual amount must be greater than zero.");
+      return;
+    }
+
+    const payload = {
+      ...statusPayloadForActivity(selectedActivity, planning.cycle, selectedActivity.completeStatus, amount),
+      notes: actualNotes.trim()
+    };
+
+    if (selectedActivity.kind === "income") {
+      setIncomeStatus.mutate({ body: payload, templateId: selectedActivity.id }, { onSuccess: closeActivityActions });
+      return;
+    }
+
+    setCommitmentStatus.mutate({ body: payload, commitmentId: selectedActivity.id }, { onSuccess: closeActivityActions });
   }
 
   function setActivityStatus(activity: PlanningActivityViewModel, status: "CANCELLED" | "PENDING") {
@@ -172,12 +266,18 @@ export function usePlanningScreen() {
 
   function openActivityActions(activity: PlanningActivityViewModel) {
     setSelectedActivity(activity);
+    setActivityDraftStatus(draftStatusForActivity(activity));
+    setActualAmount(String(activity.actualAmount));
+    setActualNotes(activity.notes ?? "");
+    setActualError(null);
     setItemActionsVisible(true);
   }
 
   function closeActivityActions() {
     setSelectedActivity(null);
     setItemActionsVisible(false);
+    setActivityDraftStatus("PENDING");
+    setActualError(null);
   }
 
   function openCloseReview() {
@@ -201,7 +301,7 @@ export function usePlanningScreen() {
     setCloseError(null);
 
     try {
-      await closeCycle.mutateAsync(closeReviewPayload(closeItems));
+      await closeCycle.mutateAsync({ body: closeReviewPayload(closeItems), cycleStart: planning.cycle.startDate });
       setCloseVisible(false);
       refresh();
     } catch (error) {
@@ -213,6 +313,10 @@ export function usePlanningScreen() {
 
   return {
     accounts: accountsQuery.data ?? [],
+    actualAmount,
+    actualError,
+    actualNotes,
+    activityDraftStatus,
     accountsQuery,
     activities,
     attentionActivities,
@@ -222,15 +326,18 @@ export function usePlanningScreen() {
     closeForm,
     closeItems,
     closeVisible,
+    cycleOptions,
+    cyclePickerQuery,
+    cyclePickerVisible,
+    cyclePickerYear,
+    cycleStatusFilter,
     completeActivity,
     currencyCode,
-    dashboardCycle,
-    dashboardQuery,
     deleteCommitment,
     deleteIncome,
     editItem,
     form,
-    formError,
+    formError: visibleFormError,
     formVisible,
     isSaving,
     itemActionsVisible,
@@ -238,7 +345,10 @@ export function usePlanningScreen() {
     openActivityActions,
     openAddForm,
     openCloseReview,
+    openCyclePicker,
     pendingActivities,
+    canSelectNextCycle,
+    canSelectPreviousCycle,
     planning,
     planningQuery,
     recurringSummary,
@@ -246,9 +356,21 @@ export function usePlanningScreen() {
     refresh,
     refreshing,
     selectedActivity,
+    selectedCycleStart,
+    selectCycle,
+    selectNextCycle,
+    selectPreviousCycle,
+    goToCurrentCycle,
+    saveActivityActual,
     setActivityStatus,
+    setActualAmount,
+    setActualNotes,
+    setActivityDraftStatus,
     setCloseItems,
     setCloseVisible,
+    setCyclePickerYear,
+    setCycleStatusFilter,
+    setCyclePickerVisible,
     setForm,
     setFormVisible,
     setItemActionsVisible,

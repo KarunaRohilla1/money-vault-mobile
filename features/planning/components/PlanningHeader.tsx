@@ -1,98 +1,285 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Text, View } from "react-native";
 
-import { CurrencyText } from "@/components/ui";
+import { Pressable, Text, View } from "react-native";
+
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+
+
+
+
 import { formatIsoDateOnly } from "@/lib/date";
+
 import type { PlanningApiResponse } from "@/services/api/types";
+
 import { theme } from "@/theme";
 
+
+
 interface PlanningHeaderProps {
-  currencyCode: string;
+
+
   locale: string;
+
   planning: PlanningApiResponse | null;
+
+  onNextCycle?: () => void;
+
+  onOpenCyclePicker?: () => void;
+
+  onPreviousCycle?: () => void;
+
+  canSelectNextCycle?: boolean;
+
+  canSelectPreviousCycle?: boolean;
+
 }
 
-export function PlanningHeader({ currencyCode, locale, planning }: PlanningHeaderProps) {
+
+
+export function PlanningHeader({
+
+  canSelectNextCycle = false,
+
+  canSelectPreviousCycle = false,
+
+
+  locale,
+
+  onNextCycle,
+
+  onOpenCyclePicker,
+
+  onPreviousCycle,
+
+  planning
+
+}: PlanningHeaderProps) {
+
   if (!planning) {
+
     return (
+
       <View className="gap-3">
+
         <Text className="font-sans text-3xl font-bold text-text">Planning</Text>
-        <Text className="font-sans text-sm text-text-muted">Plan, execute and close</Text>
+
       </View>
+
     );
+
   }
 
+
+
   const range = `${formatIsoDateOnly(planning.cycle.startDate, locale, { day: "2-digit", month: "short" })} - ${formatIsoDateOnly(planning.cycle.endDate, locale, { day: "2-digit", month: "short", year: "numeric" })}`;
-  const progress = planning.cycleProgress?.progressPercent ?? 0;
-  const completion = planning.completion;
+
+  const progress = planning.cycleProgress?.progressPercent ?? planning.cycle.progressPercent ?? 0;
+
+  const currentDay = planning.cycleProgress?.currentDay ?? planning.cycle.currentDay ?? 0;
+
+  const totalDays = planning.cycleProgress?.totalDays ?? planning.cycle.totalDays ?? 0;
 
   return (
+
     <View className="gap-4">
+
       <View className="flex-row items-center justify-between gap-3">
+
         <View>
+
           <Text className="font-sans text-3xl font-bold text-text">Planning</Text>
-          <Text className="font-sans text-sm text-text-muted">Plan • Execute • Close</Text>
+
+          <Text className="font-sans text-sm text-text-muted">Plan â€¢ Execute â€¢ Close</Text>
+
         </View>
-        <View className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface">
+
+        <Pressable
+
+          accessibilityLabel="Choose financial cycle"
+
+          accessibilityRole="button"
+
+          className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface"
+
+          onPress={onOpenCyclePicker}
+
+        >
+
           <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
-        </View>
+
+        </Pressable>
+
       </View>
+
+
 
       <View className="gap-4 rounded-xl border border-surface-border bg-surface p-4">
+
         <View className="flex-row items-start justify-between gap-3">
-          <View className="min-w-0 flex-1">
-            <Text className="font-sans text-2xl font-bold text-text" numberOfLines={1}>{new Date(planning.cycle.startDate).toLocaleDateString(locale, { month: "long", year: "numeric" })}</Text>
-            <Text className="font-sans text-sm text-text-muted">{range}</Text>
-          </View>
-          <View className="items-end">
-            <Text className="font-sans text-xs text-text-muted">Day {planning.cycleProgress?.currentDay ?? 0} of {planning.cycleProgress?.totalDays ?? 0}</Text>
-            <Text className="font-sans text-2xl font-bold text-text">{progress}%</Text>
-          </View>
+
+          <Pressable
+
+            accessibilityLabel="Previous financial cycle"
+
+            accessibilityRole="button"
+
+            className={`h-9 w-9 items-center justify-center rounded-lg bg-background-muted ${canSelectPreviousCycle ? "opacity-100" : "opacity-35"}`}
+
+            disabled={!canSelectPreviousCycle}
+
+            onPress={onPreviousCycle}
+
+          >
+
+            <MaterialCommunityIcons name="chevron-left" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
+
+          </Pressable>
+
+          <Pressable accessibilityLabel="Choose financial cycle" accessibilityRole="button" className="min-w-0 flex-1 items-center" onPress={onOpenCyclePicker}>
+
+            <Text className="text-center font-sans text-2xl font-bold text-text" numberOfLines={1}>{planning.cycle.displayMonth ?? new Date(planning.cycle.startDate).toLocaleDateString(locale, { month: "long", year: "numeric" })}</Text>
+
+            <Text className="mt-1 text-center font-sans text-sm text-text-muted">{range}</Text>
+
+          </Pressable>
+
+          <Pressable
+
+            accessibilityLabel="Next financial cycle"
+
+            accessibilityRole="button"
+
+            className={`h-9 w-9 items-center justify-center rounded-lg bg-background-muted ${canSelectNextCycle ? "opacity-100" : "opacity-35"}`}
+
+            disabled={!canSelectNextCycle}
+
+            onPress={onNextCycle}
+
+          >
+
+            <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
+
+          </Pressable>
+
         </View>
 
-        <View className="h-2 overflow-hidden rounded-full bg-background-muted">
-          <View className="h-full rounded-full bg-brand" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+
+
+        <View className="flex-row items-center justify-between">
+
+          <View className="rounded-full bg-background-muted px-3 py-1.5">
+
+            <Text className="font-sans text-xs font-bold text-brand-soft">{planning.cycle.status}</Text>
+
+          </View>
+
+          <View className="min-w-0 flex-row items-baseline justify-end gap-2">
+
+            <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>Day {currentDay} of {totalDays}</Text>
+
+            <Text className="font-sans text-xl font-bold text-text" numberOfLines={1}>{progress}%</Text>
+
+          </View>
+
         </View>
+
+
+
+        <GradientProgressBar progress={progress} />
+
+
 
         <View className="flex-row flex-wrap gap-3">
+
           <HeaderMetric icon="calendar-start-outline" label="Started" value={planning.cycleProgress?.startLabel ?? planning.cycle.startDate} />
-          <HeaderMetric icon="check-circle-outline" label="Completed" value={`${planning.cycleProgress?.daysCompleted ?? 0} Days`} />
-          <HeaderMetric icon="clock-outline" label="Remaining" value={`${planning.cycleProgress?.daysRemaining ?? 0} Days`} />
-          <HeaderMoney currencyCode={currencyCode} label="Projected Savings" locale={locale} value={planning.totals.projectedSavings} />
+
+
+          <HeaderMetric icon="clock-outline" label="Remaining" value={`${planning.cycleProgress?.daysRemaining ?? 0} days`} />
+
+
         </View>
 
-        <View className="border-t border-surface-border pt-3">
-          <View className="flex-row flex-wrap items-center gap-2">
-            <View className="flex-row items-center gap-1.5 rounded-full bg-background-muted px-3 py-1.5">
-              <MaterialCommunityIcons name="trending-up" size={theme.icons.xs} color={completion?.status === "on_track" ? theme.colors.state.success : theme.colors.state.warning} />
-              <Text className="font-sans text-xs font-bold text-state-success">{completion?.statusLabel ?? planning.cycleProgress?.status ?? planning.cycle.status}</Text>
-            </View>
-            <Text className="font-sans text-xs text-text-muted" numberOfLines={2}>{completion?.subtitle ?? "Cycle status comes from the backend."}</Text>
-            <Text className="font-sans text-xs text-text-muted">{completion?.attentionCount ?? 0} items need your attention</Text>
-          </View>
-        </View>
+
       </View>
+
     </View>
+
   );
+
 }
+
+
 
 function HeaderMetric({ icon, label, value }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; value: string }) {
+
   return (
-    <View className="min-w-[46%] flex-1 gap-1 border-r border-surface-border pr-2">
+
+    <View className="min-w-[46%] flex-1 gap-1 rounded-lg bg-background-muted/40 p-3">
+
       <View className="flex-row items-center gap-2">
+
         <MaterialCommunityIcons name={icon} size={theme.icons.xs} color={theme.colors.text.muted} />
+
         <Text className="font-sans text-xs text-text-muted">{label}</Text>
+
       </View>
+
       <Text className="font-sans text-base font-bold text-text">{value}</Text>
+
     </View>
+
   );
+
 }
 
-function HeaderMoney({ currencyCode, label, locale, value }: { currencyCode: string; label: string; locale: string; value: number }) {
+
+
+function GradientProgressBar({ progress }: { progress: number }) {
+
+  const fillWidth = Math.min(100, Math.max(0, progress));
+
+
+
   return (
-    <View className="min-w-[46%] flex-1 gap-1">
-      <Text className="font-sans text-xs text-text-muted">{label}</Text>
-      <CurrencyText value={value} currencyCode={currencyCode} locale={locale} className="text-base font-bold text-brand-soft" />
+
+    <View className="h-3 overflow-hidden rounded-full bg-background-muted/80">
+
+      <Svg width="100%" height="100%" viewBox="0 0 100 12" preserveAspectRatio="none">
+
+        <Defs>
+
+          <LinearGradient id="planningProgress" x1="0" y1="0" x2="1" y2="0">
+
+            <Stop offset="0" stopColor="#8B5CF6" />
+
+            <Stop offset="0.48" stopColor="#7DD3FC" />
+
+            <Stop offset="1" stopColor="#4ADE80" />
+
+          </LinearGradient>
+
+          <LinearGradient id="planningProgressGlow" x1="0" y1="0" x2="1" y2="0">
+
+            <Stop offset="0" stopColor="#C084FC" stopOpacity="0.55" />
+
+            <Stop offset="0.55" stopColor="#BAE6FD" stopOpacity="0.45" />
+
+            <Stop offset="1" stopColor="#86EFAC" stopOpacity="0.45" />
+
+          </LinearGradient>
+
+        </Defs>
+
+        <Rect x="0" y="0" width="100" height="12" rx="6" fill="#2B2946" opacity="0.88" />
+
+        <Rect x="0" y="1" width={fillWidth} height="10" rx="5" fill="url(#planningProgressGlow)" opacity="0.72" />
+
+        <Rect x="0" y="2" width={fillWidth} height="8" rx="4" fill="url(#planningProgress)" />
+
+      </Svg>
+
     </View>
+
   );
+
 }

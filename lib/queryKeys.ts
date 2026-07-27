@@ -15,10 +15,15 @@ export const queryKeys = {
     root: ["dashboard"] as const
   },
   planning: {
-    current: (vaultId: string | null) => ["planning", "current", vaultId ?? "anonymous"] as const,
+    cycles: (vaultId: string | null, year?: number | null, status?: string | null) =>
+      ["planning", "cycles", vaultId ?? "anonymous", year ?? "current-year", status ?? "all"] as const,
+    current: (vaultId: string | null) => ["planning", "detail", vaultId ?? "anonymous", "current"] as const,
+    detail: (vaultId: string | null, cycleStart?: string | null) =>
+      ["planning", "detail", vaultId ?? "anonymous", cycleStart ?? "current"] as const,
     root: ["planning"] as const
   },
   reports: {
+    spending: (vaultId: string | null, filtersKey = "default") => ["reports", "spending", vaultId ?? "anonymous", filtersKey] as const,
     summary: (vaultId: string | null, filters: { cycleStart?: string | undefined }) =>
       ["reports", "summary", vaultId ?? "anonymous", filters.cycleStart ?? "current"] as const,
     current: (vaultId: string | null) => ["reports", "summary", vaultId ?? "anonymous", "current"] as const,

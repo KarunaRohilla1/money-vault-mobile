@@ -5,16 +5,19 @@ export type CloseAction = "Paid" | "Cancelled" | "Carry Forward" | null;
 
 export interface PlanningActivityViewModel {
   actualAmount: number;
+  actualEntered: boolean;
   accountId: number | null;
   accountName: string | null;
   completeLabel: string;
   completeStatus: "RECEIVED" | "PAID";
+  dueDate?: string;
   dueDay: number;
   expectedAmount: number;
   icon: string;
   id: number;
   kind: PlanningActivityKind;
   name: string;
+  notes: string | null;
   status: string;
   statusLabel: string;
   timelineLabel?: string;
@@ -307,17 +310,20 @@ export function upcomingTimelineLabel(activity: PlanningActivityViewModel, cycle
 
 function buildBackendActivity(item: PlanningActivityApi): PlanningActivityViewModel {
   return {
-    actualAmount: item.actualAmount,
+    actualAmount: item.status.actualAmount ?? item.actualAmount,
+    actualEntered: item.status.actualAmount !== null && item.status.actualAmount !== undefined,
     accountId: item.accountId ?? null,
     accountName: item.accountName ?? null,
     completeLabel: item.completeLabel,
     completeStatus: item.completeStatus,
+    dueDate: item.dueDate,
     dueDay: item.dueDay,
     expectedAmount: item.effectiveExpectedAmount,
     icon: item.icon,
     id: item.id,
     kind: item.kind,
     name: item.name,
+    notes: item.status.notes ?? null,
     status: item.status.status,
     statusLabel: item.statusLabel,
     timelineLabel: item.timelineLabel
@@ -327,7 +333,8 @@ function buildActivity(item: PlanningItemApi, kind: PlanningActivityKind): Plann
   const completeStatus = kind === "income" ? "RECEIVED" : "PAID";
 
   return {
-    actualAmount: actualActivityAmount(item, completeStatus),
+    actualAmount: item.status.actualAmount ?? actualActivityAmount(item, completeStatus),
+    actualEntered: item.status.actualAmount !== null && item.status.actualAmount !== undefined,
     accountId: item.accountId ?? null,
     accountName: item.accountName ?? null,
     completeLabel: kind === "income" ? "Mark received" : "Mark paid",
@@ -338,6 +345,7 @@ function buildActivity(item: PlanningItemApi, kind: PlanningActivityKind): Plann
     id: item.id,
     kind,
     name: item.name,
+    notes: item.status.notes ?? null,
     status: item.status.status,
     statusLabel: statusLabel(item.status.status, kind)
   };

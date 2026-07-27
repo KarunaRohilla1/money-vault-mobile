@@ -30,11 +30,19 @@ export function PlanningSheets({ state }: PlanningSheetsProps) {
 
       <PlanningItemSheet
         activity={state.selectedActivity}
+        actualAmount={state.actualAmount}
+        actualError={state.actualError}
+        actualNotes={state.actualNotes}
         currencyCode={state.currencyCode}
+        cycle={planning.cycle}
         locale={state.locale}
-        onCancel={(activity) => state.setActivityStatus(activity, "CANCELLED")}
+        saving={state.statusSaving}
+        selectedStatus={state.activityDraftStatus}
+        onActualAmountChange={state.setActualAmount}
+        onActualNotesChange={state.setActualNotes}
         onClose={state.closeActivityActions}
-        onReset={(activity) => state.setActivityStatus(activity, "PENDING")}
+        onSaveActual={state.saveActivityActual}
+        onStatusChange={state.setActivityDraftStatus}
         visible={state.itemActionsVisible}
       />
 
@@ -58,6 +66,7 @@ export function PlanningSheets({ state }: PlanningSheetsProps) {
 
       <CloseCycleSheet
         currencyCode={state.currencyCode}
+        cycleLabel={planning.cycle.displayMonth ?? "Current"}
         error={state.closeError}
         items={state.closeItems}
         locale={state.locale}

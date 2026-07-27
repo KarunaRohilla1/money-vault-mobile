@@ -7,9 +7,10 @@ interface BottomSheetProps extends PropsWithChildren {
   title: string;
   onClose: () => void;
   presentation?: "sheet" | "fullScreen";
+  showHeader?: boolean;
 }
 
-export function BottomSheet({ visible, title, onClose, children, presentation = "sheet" }: BottomSheetProps) {
+export function BottomSheet({ visible, title, onClose, children, presentation = "sheet", showHeader = true }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const keyboardBehavior = Platform.OS === "ios" ? "padding" : "height";
 
@@ -18,21 +19,23 @@ export function BottomSheet({ visible, title, onClose, children, presentation = 
       <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
         <SafeAreaView className="flex-1 bg-background" edges={["top", "right", "bottom", "left"]}>
           <KeyboardAvoidingView behavior={keyboardBehavior} className="flex-1" keyboardVerticalOffset={0}>
-            <View className="flex-row items-center justify-between px-5 pb-4 pt-2">
-              <Pressable
-                accessibilityLabel="Close"
-                accessibilityRole="button"
-                className="h-12 w-12 items-center justify-center rounded-lg bg-surface"
-                onPress={onClose}
-              >
-                <Text className="font-sans text-3xl leading-8 text-text">x</Text>
-              </Pressable>
-              <View className="items-center">
-                <Text className="font-sans text-xl font-bold text-text">{title}</Text>
-                <View className="mt-3 h-1 w-16 rounded-full bg-brand" />
+            {showHeader ? (
+              <View className="flex-row items-center justify-between px-5 pb-4 pt-2">
+                <Pressable
+                  accessibilityLabel="Close"
+                  accessibilityRole="button"
+                  className="h-12 w-12 items-center justify-center rounded-lg bg-surface"
+                  onPress={onClose}
+                >
+                  <Text className="font-sans text-3xl leading-8 text-text">x</Text>
+                </Pressable>
+                <View className="items-center">
+                  <Text className="font-sans text-xl font-bold text-text">{title}</Text>
+                  <View className="mt-3 h-1 w-16 rounded-full bg-brand" />
+                </View>
+                <View className="h-12 w-12" />
               </View>
-              <View className="h-12 w-12" />
-            </View>
+            ) : null}
             <ScrollView
               className="flex-1"
               contentContainerClassName="px-5"

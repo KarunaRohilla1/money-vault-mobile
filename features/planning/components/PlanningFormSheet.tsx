@@ -2,7 +2,7 @@ import { Text, TextInput, View } from "react-native";
 
 import { FormField } from "@/components/forms/FormField";
 import { BottomSheet, PrimaryButton, SecondaryButton } from "@/components/ui";
-import type { PlanningActivityKind, PlanningFormState } from "@/features/planning/planningModel";
+import type { PlanningFormState } from "@/features/planning/planningModel";
 import type { AccountApi } from "@/services/api/types";
 import { theme } from "@/theme";
 
@@ -19,18 +19,12 @@ interface PlanningFormSheetProps {
 
 export function PlanningFormSheet({ accounts, error, form, isSaving, onChange, onClose, onSubmit, visible }: PlanningFormSheetProps) {
   return (
-    <BottomSheet visible={visible} title={form.id ? "Edit Planning Item" : "Add Planning Item"} onClose={onClose}>
+    <BottomSheet visible={visible} title={`${form.id ? "Edit" : "Add"} ${form.kind === "income" ? "Income" : "Commitment"}`} onClose={onClose}>
       <View className="gap-4">
-        <View className="flex-row gap-2">
-          <KindButton kind="commitment" form={form} onChange={onChange} />
-          <KindButton kind="income" form={form} onChange={onChange} />
-        </View>
         <FormField label="Name">
           <TextInput
             className="h-12 rounded-md border border-surface-border bg-background px-4 font-sans text-base text-text"
             onChangeText={(name) => onChange({ ...form, name })}
-            placeholder={form.kind === "income" ? "Salary" : "Electricity bill"}
-            placeholderTextColor={theme.colors.text.muted}
             value={form.name}
           />
         </FormField>
@@ -66,19 +60,11 @@ export function PlanningFormSheet({ accounts, error, form, isSaving, onChange, o
           </View>
         </View>
         {error ? <Text className="font-sans text-sm font-semibold text-accent-rose">{error}</Text> : null}
-        <PrimaryButton disabled={Boolean(error) || isSaving} loading={isSaving} onPress={onSubmit}>
+        <PrimaryButton disabled={isSaving} loading={isSaving} onPress={onSubmit}>
           {form.id ? "Save item" : "Add item"}
         </PrimaryButton>
       </View>
     </BottomSheet>
-  );
-}
-
-function KindButton({ form, kind, onChange }: { form: PlanningFormState; kind: PlanningActivityKind; onChange: (form: PlanningFormState) => void }) {
-  return (
-    <SecondaryButton className={form.kind === kind ? "flex-1 border-brand-soft" : "flex-1"} onPress={() => onChange({ ...form, kind })}>
-      {kind === "income" ? "Income" : "Commitment"}
-    </SecondaryButton>
   );
 }
 
@@ -89,11 +75,19 @@ function AccountPicker({ accounts, onSelect, selectedId }: { accounts: AccountAp
 
   return (
     <View className="flex-row flex-wrap gap-2">
-      {accounts.map((account) => (
-        <SecondaryButton key={account.id} className={selectedId === account.id ? "border-brand-soft" : undefined} onPress={() => onSelect(account.id)}>
-          {account.name}
-        </SecondaryButton>
-      ))}
+      {accounts.map((account) => {
+        const selected = selectedId === account.id;
+        return (
+          <SecondaryButton
+            key={account.id}
+            className={selected ? "border-brand bg-brand/25" : undefined}
+            {...(selected ? { icon: "check-circle" as const } : {})}
+            onPress={() => onSelect(account.id)}
+          >
+            {account.name}
+          </SecondaryButton>
+        );
+      })}
     </View>
   );
 }

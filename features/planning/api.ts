@@ -12,11 +12,19 @@ function invalidatePlanningDependents(vaultId: string | null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
 }
 
-export function usePlanningQuery(token: string | null, vaultId: string | null) {
+export function usePlanningQuery(token: string | null, vaultId: string | null, cycleStart?: string | null) {
   return useQuery({
     enabled: Boolean(token && vaultId),
-    queryFn: async () => apiClient.getPlanning(token ?? ""),
-    queryKey: queryKeys.planning.current(vaultId)
+    queryFn: async () => apiClient.getPlanning(token ?? "", cycleStart ? { cycleStart } : {}),
+    queryKey: queryKeys.planning.detail(vaultId, cycleStart)
+  });
+}
+
+export function usePlanningCyclesQuery(token: string | null, vaultId: string | null, year?: number | null, status = "all", enabled = true) {
+  return useQuery({
+    enabled: Boolean(enabled && token && vaultId && year),
+    queryFn: async () => apiClient.getPlanningCycles(token ?? "", year ? { status, year } : { status }),
+    queryKey: queryKeys.planning.cycles(vaultId, year, status)
   });
 }
 
@@ -82,7 +90,8 @@ export function useDeleteIncomeTemplateMutation(token: string | null, vaultId: s
 
 export function useCloseActiveCycleMutation(token: string | null, vaultId: string | null) {
   return useMutation({
-    mutationFn: async (body?: PlanningClosePayloadApi) => apiClient.closeActivePlanningCycle(token ?? "", body),
+    mutationFn: async ({ body, cycleStart }: { body?: PlanningClosePayloadApi; cycleStart?: string }) =>
+      apiClient.closeActivePlanningCycle(token ?? "", cycleStart, body),
     onSuccess: () => invalidatePlanningDependents(vaultId)
   });
 }

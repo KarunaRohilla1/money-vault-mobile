@@ -1,43 +1,51 @@
+import { View } from "react-native";
+
 import { Screen } from "@/components/layout/Screen";
 import { EmptyState, ErrorView, LoadingSkeleton } from "@/components/ui";
 import { CloseCycleCard } from "@/features/planning/components/CloseCycleCard";
+import { CyclePickerSheet } from "@/features/planning/components/CyclePickerSheet";
 import { FinancialActivitiesCard } from "@/features/planning/components/FinancialActivitiesCard";
-import { PlanningBottomBar } from "@/features/planning/components/PlanningBottomBar";
 import { PlanningHeader } from "@/features/planning/components/PlanningHeader";
 import { PlanningSheets } from "@/features/planning/components/PlanningSheets";
 import { PlanningSummaryCard } from "@/features/planning/components/PlanningSummaryCard";
 import { RecurringPlanCard } from "@/features/planning/components/RecurringPlanCard";
-import { UpcomingList } from "@/features/planning/components/UpcomingList";
 import { usePlanningScreen } from "@/features/planning/hooks/usePlanningScreen";
 
 export function PlanningScreen() {
   const planningState = usePlanningScreen();
   const {
     accountsQuery,
+    canSelectNextCycle,
+    canSelectPreviousCycle,
     closeCardVisible,
     closeCycle,
     completeActivity,
     currencyCode,
-    dashboardQuery,
+    cycleOptions,
+    cyclePickerVisible,
     locale,
-    openActivityActions,
     openCloseReview,
+    openCyclePicker,
     pendingActivities,
     planning,
     planningQuery,
     recurringSummary,
     refresh,
     refreshing,
+    selectCycle,
+    selectNextCycle,
+    selectPreviousCycle,
+    selectedCycleStart,
+    setCyclePickerVisible,
     setRecurringVisible,
     savingClose,
-    statusSaving,
-    upcoming
+    statusSaving
   } = planningState;
 
-  if ((planningQuery.isLoading || dashboardQuery.isLoading) && !planning) {
+  if (planningQuery.isLoading && !planning) {
     return (
       <Screen contentClassName="gap-5 px-4 pb-24">
-        <PlanningHeader currencyCode={currencyCode} locale={locale} planning={null} />
+        <PlanningHeader locale={locale} planning={null} />
         <LoadingSkeleton variant="card" />
         <LoadingSkeleton variant="card" />
         <LoadingSkeleton variant="card" />
@@ -48,7 +56,7 @@ export function PlanningScreen() {
   if (planningQuery.isError && !planning) {
     return (
       <Screen contentClassName="gap-5 px-4 pb-24">
-        <PlanningHeader currencyCode={currencyCode} locale={locale} planning={null} />
+        <PlanningHeader locale={locale} planning={null} />
         <ErrorView message="Planning could not be loaded." onRetry={() => void planningQuery.refetch()} />
       </Screen>
     );
@@ -57,7 +65,7 @@ export function PlanningScreen() {
   if (!planning || !recurringSummary) {
     return (
       <Screen contentClassName="gap-5 px-4 pb-24">
-        <PlanningHeader currencyCode={currencyCode} locale={locale} planning={null} />
+        <PlanningHeader locale={locale} planning={null} />
         <EmptyState icon="calendar-check-outline" title="No planning data" message="Planning data was not returned for this vault." />
       </Screen>
     );
@@ -65,23 +73,32 @@ export function PlanningScreen() {
 
   return (
     <>
-      <Screen contentClassName="gap-6 px-4 pb-32" onRefresh={refresh} refreshing={refreshing}>
-        <PlanningHeader currencyCode={currencyCode} locale={locale} planning={planning} />
+      <Screen contentClassName="gap-6 px-4 pb-24" onRefresh={refresh} refreshing={refreshing}>
+        <PlanningHeader
+          canSelectNextCycle={canSelectNextCycle}
+          canSelectPreviousCycle={canSelectPreviousCycle}
+          locale={locale}
+          onNextCycle={selectNextCycle}
+          onOpenCyclePicker={openCyclePicker}
+          onPreviousCycle={selectPreviousCycle}
+          planning={planning}
+        />
 
-        {dashboardQuery.isError ? <ErrorView message="Cycle progress could not be loaded." onRetry={() => void dashboardQuery.refetch()} /> : null}
         {accountsQuery.isError ? <ErrorView message="Accounts could not be loaded." onRetry={() => void accountsQuery.refetch()} /> : null}
 
         <PlanningSummaryCard currencyCode={currencyCode} locale={locale} totals={planning.totals} />
 
         <FinancialActivitiesCard
+          key={planning.cycle.startDate}
           activities={planningState.activities}
           currencyCode={currencyCode}
           cycle={planning.cycle}
           disabled={statusSaving}
           locale={locale}
           onComplete={completeActivity}
-          onMore={openActivityActions}
         />
+
+        <View className="h-px bg-surface-border" />
 
         <RecurringPlanCard
           commitmentCount={recurringSummary.commitmentCount}
@@ -92,8 +109,6 @@ export function PlanningScreen() {
           locale={locale}
           onManage={() => setRecurringVisible(true)}
         />
-
-        <UpcomingList activities={upcoming} currencyCode={currencyCode} cycle={planning.cycle} locale={locale} />
 
         {closeCardVisible ? (
           <CloseCycleCard
@@ -108,7 +123,21 @@ export function PlanningScreen() {
         ) : null}
       </Screen>
 
-      <PlanningBottomBar currencyCode={currencyCode} locale={locale} planning={planning} />
+      <CyclePickerSheet
+        cycles={cycleOptions}
+        currentCycleStart={planning.cycleNavigation?.currentCycleStart ?? null}
+        loading={planningState.cyclePickerQuery.isFetching}
+        selectedCycleStart={selectedCycleStart}
+        selectedStatus={planningState.cycleStatusFilter}
+        selectedYear={planningState.cyclePickerYear}
+        visible={cyclePickerVisible}
+        onClose={() => setCyclePickerVisible(false)}
+        onGoToCurrent={planningState.goToCurrentCycle}
+        onNextYear={() => planningState.setCyclePickerYear(planningState.cyclePickerYear + 1)}
+        onPreviousYear={() => planningState.setCyclePickerYear(planningState.cyclePickerYear - 1)}
+        onSelect={selectCycle}
+        onStatusChange={planningState.setCycleStatusFilter}
+      />
       <PlanningSheets state={planningState} />
     </>
   );

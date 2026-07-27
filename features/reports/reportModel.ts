@@ -1,9 +1,18 @@
-import type { ReportCategoryItemApi, ReportMoneyCardApi, ReportTrendItemApi, ReportValueFormat } from "@/services/api/types";
+import type { ReportCycleOptionApi, ReportMoneyCardApi, ReportTrendItemApi, ReportValueFormat } from "@/services/api/types";
 import type { CurrencyCode } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
+import { formatIsoDateOnly } from "@/lib/date";
 
-export type ReportCategoryMetric = "cashOutflow" | "netPersonalCost" | "householdSpending";
+export type ReportTabKey = "overview" | "spending" | "shared" | "trends" | "insights";
 export type ReportTrendMetric = "cashOutflow" | "householdSpending" | "income" | "netPersonalCost" | "savings";
+
+export const reportTabs: { icon: string; key: ReportTabKey; label: string }[] = [
+  { icon: "chart-pie", key: "overview", label: "Overview" },
+  { icon: "chart-bar", key: "spending", label: "Spending" },
+  { icon: "account-group-outline", key: "shared", label: "Shared" },
+  { icon: "chart-line", key: "trends", label: "Trends" },
+  { icon: "lightbulb-outline", key: "insights", label: "Insights" }
+];
 
 export function reportNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -34,7 +43,58 @@ export function formatReportValue(value: number | string | null, format: ReportV
   return String(value);
 }
 
-export function hasReportData(categories: ReportCategoryItemApi[], trend: ReportTrendItemApi[]) {
+export function formatReportDate(value: string | null | undefined, locale: string) {
+  if (!value) {
+    return "No purchase this cycle";
+  }
+
+  return formatIsoDateOnly(value.slice(0, 10), locale, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export function reportCycleDisplayMonth(cycle: { startDate: string }, locale: string) {
+  return formatIsoDateOnly(cycle.startDate, locale, { month: "long", year: "numeric" });
+}
+export function formatReportCycleRange(startDate: string, endDate: string, locale: string) {
+  return `${formatIsoDateOnly(startDate, locale, { day: "2-digit", month: "short" })} \u2192 ${formatIsoDateOnly(endDate, locale, { day: "2-digit", month: "short" })}`;
+}
+
+export function selectedReportCycle(options: ReportCycleOptionApi[], selectedKey: string) {
+  return options.find((option) => option.key === selectedKey) ?? options[options.length - 1] ?? null;
+}
+
+export function adjacentReportCycle(options: ReportCycleOptionApi[], selectedKey: string, direction: "next" | "previous") {
+  const currentIndex = options.findIndex((option) => option.key === selectedKey);
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
+  return options[nextIndex] ?? null;
+}
+
+export function findReportCard(cards: ReportMoneyCardApi[], key: string) {
+  return cards.find((card) => card.key === key);
+}
+
+export function orderedOverviewCards(cards: ReportMoneyCardApi[]) {
+  const keys = ["income", "cash-outflow", "net-cost", "savings"];
+  return keys.map((key) => findReportCard(cards, key)).filter((card): card is ReportMoneyCardApi => Boolean(card));
+}
+
+export function hasReportActivity(transactionCount: number, overview: ReportMoneyCardApi[]) {
+  return transactionCount > 0 || overview.some((card) => card.format === "money" && reportNumber(card.value) > 0);
+}
+
+export function trendMaximum(rows: ReportTrendItemApi[], metric: ReportTrendMetric) {
+  return Math.max(1, ...rows.map((row) => Math.max(0, reportNumber(row[metric]))));
+}
+
+export function shortCycleLabel(label: unknown) {
+  return String(label ?? "").replace(/\s*-\s*/g, "-").replace(/\s+/g, " ");
+}
+export type ReportCategoryMetric = "cashOutflow" | "netPersonalCost" | "householdSpending";
+
+export function hasReportData(categories: { amount: number }[], trend: ReportTrendItemApi[]) {
   return categories.length > 0 || trend.some((row) =>
     reportNumber(row.cashOutflow) > 0 ||
     reportNumber(row.netPersonalCost) > 0 ||
@@ -42,14 +102,6 @@ export function hasReportData(categories: ReportCategoryItemApi[], trend: Report
     reportNumber(row.income) > 0 ||
     reportNumber(row.savings) > 0
   );
-}
-
-export function trendMaximum(rows: ReportTrendItemApi[], metric: ReportTrendMetric) {
-  return Math.max(1, ...rows.map((row) => Math.max(0, reportNumber(row[metric]))));
-}
-
-export function findReportCard(cards: ReportMoneyCardApi[], key: string) {
-  return cards.find((card) => card.key === key);
 }
 
 export function pickHeroMetric(cards: ReportMoneyCardApi[], shared: boolean) {
@@ -62,11 +114,11 @@ export function pickHeroSecondaryMetrics(cards: ReportMoneyCardApi[], shared: bo
   return keys.map((key) => findReportCard(cards, key)).filter((card): card is ReportMoneyCardApi => Boolean(card));
 }
 
-export function topCategories(rows: ReportCategoryItemApi[], expanded: boolean, limit = 5) {
+export function topCategories<T>(rows: T[], expanded: boolean, limit = 5) {
   return expanded ? rows : rows.slice(0, limit);
 }
 
-export function largestCategoryInsight(rows: ReportCategoryItemApi[], shared: boolean) {
+export function largestCategoryInsight(rows: { amount: number; name: string }[], shared: boolean) {
   const largest = rows[0];
 
   if (!largest || reportNumber(largest.amount) <= 0) {
@@ -111,8 +163,4 @@ export function cycleComparison(rows: ReportTrendItemApi[], metric: ReportTrendM
   const direction = current > previous ? "more" : "less";
 
   return `${formatCurrency(difference, currencyCode, locale)} ${direction} than previous cycle (${percent}% ${current > previous ? "increase" : "decrease"}).`;
-}
-
-export function shortCycleLabel(label: unknown) {
-  return String(label ?? "").replace(/\s*-\s*/g, "-").replace(/\s+/g, " ");
 }

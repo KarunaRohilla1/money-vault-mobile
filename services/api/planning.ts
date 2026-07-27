@@ -1,4 +1,4 @@
-import { request } from "@/services/api/core";
+import { buildQuery, request } from "@/services/api/core";
 import type {
   PlanningApiResponse,
   PlanningClosePayloadApi,
@@ -7,9 +7,16 @@ import type {
   SuccessApiResponse
 } from "@/services/api/types";
 
-export function getPlanning(token: string) {
+export function getPlanning(token: string, params: { cycleStart?: string } = {}) {
   return request<PlanningApiResponse>({
-    path: "/api/planning",
+    path: `/api/planning${buildQuery([["cycleStart", params.cycleStart]])}`,
+    token
+  });
+}
+
+export function getPlanningCycles(token: string, params: { status?: string; year?: number } = {}) {
+  return request<PlanningApiResponse["cycleNavigation"]>({
+    path: `/api/planning/cycles${buildQuery([["year", params.year], ["status", params.status]])}`,
     token
   });
 }
@@ -84,11 +91,13 @@ export function setIncomeStatus(token: string, templateId: number, body: Plannin
   });
 }
 
-export function closeActivePlanningCycle(token: string, body?: PlanningClosePayloadApi) {
+export function closeActivePlanningCycle(token: string, cycleStart?: string, body?: PlanningClosePayloadApi) {
+  const path = cycleStart ? `/api/planning/cycles/${encodeURIComponent(cycleStart)}/close` : "/api/planning/cycles/close-active";
+
   return request<PlanningApiResponse["cycle"], PlanningClosePayloadApi>({
     ...(body ? { body } : {}),
     method: "POST",
-    path: "/api/planning/cycles/close-active",
+    path,
     token
   });
 }

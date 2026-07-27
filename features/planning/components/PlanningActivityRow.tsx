@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
-import { CurrencyText, SecondaryButton } from "@/components/ui";
+import { CurrencyText } from "@/components/ui";
 import { upcomingTimelineLabel, type PlanningActivityViewModel } from "@/features/planning/planningModel";
 import { theme } from "@/theme";
 
@@ -13,54 +13,76 @@ interface PlanningActivityRowProps {
   disabled?: boolean;
   locale: string;
   onComplete?: (activity: PlanningActivityViewModel) => void;
-  onMore?: (activity: PlanningActivityViewModel) => void;
 }
 
-export function PlanningActivityRow({ activity, compact = false, currencyCode, cycle, disabled = false, locale, onComplete, onMore }: PlanningActivityRowProps) {
+export function PlanningActivityRow({ activity, compact = false, currencyCode, cycle, disabled = false, locale, onComplete }: PlanningActivityRowProps) {
   const timeline = activity.timelineLabel ?? upcomingTimelineLabel(activity, cycle);
   const icon = activity.kind === "income" ? "cash" : (activity.icon as keyof typeof MaterialCommunityIcons.glyphMap);
+  const actionLabel = activity.status === activity.completeStatus ? "Edit actual" : activity.kind === "income" ? "Record income" : "Record payment";
+
+  if (compact) {
+    return (
+      <View className="flex-row items-center gap-3 py-3">
+        <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
+          <MaterialCommunityIcons name={icon} size={theme.icons.sm} color={theme.colors.brand.soft} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>{activity.name}</Text>
+          <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>{timeline}</Text>
+        </View>
+        <CurrencyText value={activity.expectedAmount} currencyCode={currencyCode} locale={locale} className="text-sm font-semibold" />
+      </View>
+    );
+  }
 
   return (
-    <View className="flex-row items-center gap-3 py-3">
-      <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
-        <MaterialCommunityIcons name={icon} size={theme.icons.sm} color={theme.colors.brand.soft} />
-      </View>
-      <View className="min-w-0 flex-1">
-        <Text className="font-sans text-sm font-semibold text-text" numberOfLines={1}>{activity.name}</Text>
-        <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>{activity.kind === "income" ? "Income" : "Commitment"}{activity.accountName ? ` • ${activity.accountName}` : ""}</Text>
-        {!compact ? (
-          <View className="mt-1 flex-row flex-wrap gap-x-3 gap-y-1">
-            <SmallMetric currencyCode={currencyCode} label="Expected" locale={locale} value={activity.expectedAmount} />
-            <SmallMetric currencyCode={currencyCode} label="Actual" locale={locale} value={activity.actualAmount} />
-            <Text className="font-sans text-[11px] text-text-muted">Due {timeline}</Text>
+    <View className="gap-3 py-3">
+      <View className="flex-row items-start gap-3">
+        <View className="h-11 w-11 items-center justify-center rounded-lg bg-brand-deep">
+          <MaterialCommunityIcons name={icon} size={theme.icons.sm} color={theme.colors.brand.soft} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="min-w-0 flex-1">
+              <Text className="font-sans text-base font-semibold text-text" numberOfLines={1}>{activity.name}</Text>
+              <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>{activity.kind === "income" ? "Income" : "Commitment"}{activity.accountName ? ` - ${activity.accountName}` : ""}</Text>
+            </View>
+            <Text className={statusClassName(activity.status)}>{activity.statusLabel}</Text>
           </View>
-        ) : null}
-      </View>
-      <View className="items-end gap-1">
-        {compact ? <CurrencyText value={activity.expectedAmount} currencyCode={currencyCode} locale={locale} className="text-sm font-semibold" /> : null}
-        <Text className={statusClassName(activity.status)}>{activity.statusLabel}</Text>
-        {!compact ? (
-          <View className="flex-row items-center gap-2">
-            {onComplete && activity.status === "PENDING" ? (
-              <SecondaryButton className="h-9 px-3" disabled={disabled} onPress={() => onComplete(activity)}>{activity.completeLabel}</SecondaryButton>
-            ) : null}
-            {onMore ? (
-              <Pressable accessibilityLabel={`More actions for ${activity.name}`} accessibilityRole="button" className="h-9 w-9 items-center justify-center rounded-full bg-background-muted" onPress={() => onMore(activity)}>
-                <MaterialCommunityIcons name="dots-horizontal" size={theme.icons.sm} color={theme.colors.text.muted} />
-              </Pressable>
-            ) : null}
+          <View className="mt-3 gap-2">
+            <AmountLine currencyCode={currencyCode} label="Expected" locale={locale} value={activity.expectedAmount} />
+            <AmountLine currencyCode={currencyCode} label="Actual" locale={locale} value={activity.actualEntered ? activity.actualAmount : null} />
+            <View className="flex-row items-center justify-between gap-3">
+              <Text className="font-sans text-xs text-text-muted">Due</Text>
+              <Text className="font-sans text-xs font-semibold text-text">{timeline}</Text>
+            </View>
           </View>
-        ) : null}
+        </View>
       </View>
+      {onComplete ? (
+        <View className="pl-14">
+          <Text
+            accessibilityRole="button"
+            className={`self-start rounded-md border border-surface-border bg-surface px-3 py-2 font-sans text-xs font-semibold text-text ${disabled || activity.status === "CANCELLED" ? "opacity-50" : ""}`}
+            onPress={disabled || activity.status === "CANCELLED" ? undefined : () => onComplete(activity)}
+          >
+            {actionLabel}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function SmallMetric({ currencyCode, label, locale, value }: { currencyCode: string; label: string; locale: string; value: number }) {
+function AmountLine({ currencyCode, label, locale, value }: { currencyCode: string; label: string; locale: string; value: number | null }) {
   return (
-    <View className="flex-row items-center gap-1">
-      <Text className="font-sans text-[11px] text-text-muted">{label}</Text>
-      <CurrencyText value={value} currencyCode={currencyCode} locale={locale} className="text-[11px] font-semibold" />
+    <View className="flex-row items-center justify-between gap-3">
+      <Text className="font-sans text-xs text-text-muted">{label}</Text>
+      {value === null ? (
+        <Text className="font-sans text-xs font-semibold text-text-muted">Not entered</Text>
+      ) : (
+        <CurrencyText value={value} currencyCode={currencyCode} locale={locale} className="text-xs font-semibold" />
+      )}
     </View>
   );
 }
