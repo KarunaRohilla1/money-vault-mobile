@@ -2,6 +2,9 @@ const expoConfig = require("eslint-config-expo/flat");
 const reactNativePlugin = require("eslint-plugin-react-native");
 
 module.exports = [
+  {
+    ignores: [".expo/**", ".npm-cache/**", "node_modules/**", "dist/**", "web-build/**", "android/**"]
+  },
   ...expoConfig,
   {
     files: ["**/*.{ts,tsx}"],

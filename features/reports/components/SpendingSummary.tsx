@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 
 import type { ReportSpendingSummaryMetricApi } from "@/services/api/types";
-import { formatReportValue } from "@/features/reports/reportModel";
+import { formatReportValue, reportSummaryCaption } from "@/features/reports/reportModel";
 import { theme } from "@/theme";
 import type { CurrencyCode } from "@/types/domain";
 
@@ -24,6 +24,7 @@ export function SpendingSummary({ currencyCode, locale, metrics }: { currencyCod
 }
 
 export function SpendingSummaryCard({ currencyCode, locale, metric }: { currencyCode: CurrencyCode; locale: string; metric: ReportSpendingSummaryMetricApi }) {
+  const caption = reportSummaryCaption(metric.caption);
   return (
     <View className="min-w-[46%] flex-1 gap-2 rounded-xl border border-surface-border bg-surface p-3">
       <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-deep">
@@ -31,7 +32,7 @@ export function SpendingSummaryCard({ currencyCode, locale, metric }: { currency
       </View>
       <Text className="font-sans text-sm text-text-muted">{metric.title}</Text>
       <Text className="font-sans text-2xl font-bold text-text tabular-nums" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>{formatReportValue(metric.value, metric.format, currencyCode, locale)}</Text>
-      <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>{metric.caption}</Text>
+      {caption ? <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>{caption}</Text> : null}
     </View>
   );
 }

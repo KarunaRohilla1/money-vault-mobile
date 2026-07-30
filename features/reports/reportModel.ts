@@ -43,6 +43,16 @@ export function formatReportValue(value: number | string | null, format: ReportV
   return String(value);
 }
 
+export function reportSummaryCaption(caption: string | null | undefined) {
+  const value = caption?.trim() ?? "";
+
+  if (/^vs\s+/i.test(value)) {
+    return null;
+  }
+
+  return value || null;
+}
+
 export function formatReportDate(value: string | null | undefined, locale: string) {
   if (!value) {
     return "No purchase this cycle";

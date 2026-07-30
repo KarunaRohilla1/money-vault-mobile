@@ -35,6 +35,7 @@ interface OnboardingState {
   vaults: Record<string, VaultOnboardingState>;
   completeVault: (vaultId: string) => void;
   resetVault: (vaultId: string) => void;
+  resetVaults: (vaultIds: string[]) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
   setStep: (vaultId: string, step: OnboardingStep) => void;
   updateDraft: (vaultId: string, draft: Partial<OnboardingDraft>) => void;
@@ -98,6 +99,18 @@ export const useOnboardingStore = create<OnboardingState>()(
             [vaultId]: emptyVaultState()
           }
         })),
+      resetVaults: (vaultIds) =>
+        set((state) => {
+          const nextVaults = { ...state.vaults };
+
+          vaultIds.forEach((vaultId) => {
+            delete nextVaults[vaultId];
+          });
+
+          return {
+            vaults: nextVaults
+          };
+        }),
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       setStep: (vaultId, step) =>
         set((state) => {

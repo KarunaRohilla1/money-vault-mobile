@@ -23,7 +23,8 @@ const optionalImageUrl = z.string().trim().refine((value) => {
 }, "Enter a valid image URL.");
 
 export const wishlistItemSchema = z.object({
-  categoryId: z.number().nullable().refine((value) => value !== null, "Category is required."),
+  categoryId: z.number().nullable(),
+  categoryName: z.string().trim().optional().default(""),
   estimatedCost: z.string().refine((value) => {
     const amount = parseWishlistMoney(value);
     return Number.isFinite(amount) && amount > 0;
@@ -34,6 +35,9 @@ export const wishlistItemSchema = z.object({
   notes: z.string().max(300, "Notes must be 300 characters or less."),
   priority: z.enum(["HIGH", "MEDIUM", "LOW"]),
   purchaseLink: optionalUrl
+}).refine((value) => value.categoryId !== null || value.categoryName.trim().length > 0, {
+  message: "Category is required.",
+  path: ["categoryName"]
 });
 
 export const wishlistCategorySchema = z.object({

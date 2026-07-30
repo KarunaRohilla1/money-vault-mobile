@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 
 import { formatAnalyticsDateLabel, type SpendingSummaryMetricViewModel } from "@/features/reports/analytics/analyticsAdapter";
-import { formatReportValue } from "@/features/reports/reportModel";
+import { formatReportValue, reportSummaryCaption } from "@/features/reports/reportModel";
 import { theme } from "@/theme";
 import type { CurrencyCode } from "@/types/domain";
 
@@ -15,7 +15,8 @@ interface SpendingSummaryMetricCardProps {
 
 export function SpendingSummaryMetricCard({ basisClass, currencyCode, locale, metric }: SpendingSummaryMetricCardProps) {
   const value = formatReportValue(metric.value, metric.format, currencyCode, locale);
-  const support = formatAnalyticsDateLabel(metric.supportingText, locale) ?? metric.supportingText;
+  const supportText = reportSummaryCaption(metric.supportingText);
+  const support = formatAnalyticsDateLabel(supportText, locale) ?? supportText;
   const accessibilityLabel = [metric.label, value, support].filter(Boolean).join(", ");
   return (
     <View accessibilityLabel={accessibilityLabel} className={`${basisClass} min-h-28 flex-1 gap-2 rounded-xl border border-surface-border bg-surface px-3 py-3`}>

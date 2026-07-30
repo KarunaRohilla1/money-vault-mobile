@@ -21,14 +21,13 @@ export interface ReportsAnalyticsState {
 }
 
 export const analysisDimensions: { icon: string; key: AnalysisDimension; label: string }[] = [
-  { icon: "view-grid-outline", key: "categories", label: "Categories" },
-  { icon: "storefront-outline", key: "merchants", label: "Merchants" },
+  { icon: "view-grid-outline", key: "merchants", label: "Categories" },
   { icon: "credit-card-outline", key: "accounts", label: "Accounts" },
   { icon: "wallet-outline", key: "paymentModes", label: "Payment Modes" }
 ];
 
 export const defaultReportsAnalyticsState: ReportsAnalyticsState = {
-  analysisDimension: "categories",
+  analysisDimension: "merchants",
   filters: {},
   selectedCycle: null,
   sort: "amountDesc"

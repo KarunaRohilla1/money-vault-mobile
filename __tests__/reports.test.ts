@@ -12,6 +12,7 @@ import {
   orderedOverviewCards,
   pickHeroSecondaryMetrics,
   reportNumber,
+  reportSummaryCaption,
   selectedReportCycle,
   shortCycleLabel,
   topCategories,
@@ -82,6 +83,13 @@ describe("reportModel", () => {
     expect(formatReportValue(4.9, "count", "INR", "en-IN")).toBe("4");
     expect(formatReportValue("Food", "text", "INR", "en-IN")).toBe("Food");
     expect(formatReportValue(null, "text", "INR", "en-IN")).toBe("None");
+  });
+
+  it("hides cycle comparison captions from report summary cards", () => {
+    expect(reportSummaryCaption("vs July 2026")).toBeNull();
+    expect(reportSummaryCaption(" VS Jun 2026 ")).toBeNull();
+    expect(reportSummaryCaption("Cash that left accounts")).toBe("Cash that left accounts");
+    expect(reportSummaryCaption("")).toBeNull();
   });
 
   it("treats zero-value trend and empty categories as empty report data", () => {

@@ -4,6 +4,7 @@ export type WishlistSortKey = "recent" | "priority" | "cost_desc" | "cost_asc" |
 
 export interface WishlistItemFormValues {
   categoryId: number | null;
+  categoryName: string;
   estimatedCost: string;
   imageSource: WishlistImageSourceApi | null;
   imageUrl: string;

@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { Text, View } from "react-native";
 
-import { formatReportValue, orderedOverviewCards } from "@/features/reports/reportModel";
+import { formatReportValue, orderedOverviewCards, reportSummaryCaption } from "@/features/reports/reportModel";
 import { cn } from "@/lib/cn";
 import type { ReportMoneyCardApi } from "@/services/api/types";
 import { theme } from "@/theme";
@@ -43,6 +43,7 @@ export function OverviewSection({ cards, currencyCode, locale }: { cards: Report
 
 function OverviewCard({ card, currencyCode, locale }: { card: ReportMoneyCardApi; currencyCode: CurrencyCode; locale: string }) {
   const tone = toneClasses(card.tone);
+  const caption = reportSummaryCaption(card.caption);
   return (
     <View className="min-h-36 basis-[48%] justify-between rounded-xl border border-surface-border bg-surface p-4">
       <View className={cn("h-11 w-11 items-center justify-center rounded-full", tone.icon)}>
@@ -51,7 +52,7 @@ function OverviewCard({ card, currencyCode, locale }: { card: ReportMoneyCardApi
       <View className="gap-1">
         <Text className="font-sans text-sm text-text" numberOfLines={1}>{card.title}</Text>
         <Text className="font-sans text-2xl font-bold text-text tabular-nums" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>{formatReportValue(card.value, card.format, currencyCode, locale)}</Text>
-        <Text className="font-sans text-xs text-text-muted" numberOfLines={2}>{card.caption}</Text>
+        {caption ? <Text className="font-sans text-xs text-text-muted" numberOfLines={2}>{caption}</Text> : null}
       </View>
     </View>
   );

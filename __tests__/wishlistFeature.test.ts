@@ -46,7 +46,8 @@ describe("wishlist feature helpers", () => {
 
   it("validates required item fields, URLs, and notes", () => {
     expect(wishlistItemSchema.safeParse({ categoryId: 1, estimatedCost: "1,999.50", imageSource: "url", imageUrl: "https://example.com/a.png", name: "Phone", notes: "n", priority: "HIGH", purchaseLink: "https://example.com" }).success).toBe(true);
-    expect(wishlistItemSchema.safeParse({ categoryId: null, estimatedCost: "0", imageSource: null, imageUrl: "bad", name: "", notes: "x".repeat(301), priority: "HIGH", purchaseLink: "bad" }).success).toBe(false);
+    expect(wishlistItemSchema.safeParse({ categoryId: null, categoryName: "Gear", estimatedCost: "1,999.50", imageSource: null, imageUrl: "", name: "Phone", notes: "", priority: "HIGH", purchaseLink: "" }).success).toBe(true);
+    expect(wishlistItemSchema.safeParse({ categoryId: null, categoryName: "", estimatedCost: "0", imageSource: null, imageUrl: "bad", name: "", notes: "x".repeat(301), priority: "HIGH", purchaseLink: "bad" }).success).toBe(false);
   });
 
   it("validates category names", () => {

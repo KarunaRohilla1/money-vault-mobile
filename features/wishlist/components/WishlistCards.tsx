@@ -7,13 +7,13 @@ import { theme } from "@/theme";
 
 export function WishlistSummaryCard({ caption, icon, label, tone, value }: { caption: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; tone: "brand" | "success"; value: React.ReactNode }) {
   return (
-    <View className="min-w-0 flex-1 flex-row items-center gap-4 rounded-xl border border-surface-border bg-surface p-4">
-      <View className={`h-14 w-14 items-center justify-center rounded-full ${tone === "success" ? "bg-state-success/15" : "bg-brand/25"}`}>
-        <MaterialCommunityIcons name={icon} size={theme.icons.md} color={tone === "success" ? theme.colors.state.success : theme.colors.brand.soft} />
+    <View className="min-w-0 flex-1 flex-row items-center gap-3 rounded-xl border border-surface-border bg-surface p-3">
+      <View className={`h-11 w-11 items-center justify-center rounded-full ${tone === "success" ? "bg-state-success/15" : "bg-brand/25"}`}>
+        <MaterialCommunityIcons name={icon} size={theme.icons.sm} color={tone === "success" ? theme.colors.state.success : theme.colors.brand.soft} />
       </View>
       <View className="min-w-0 flex-1 gap-1">
         <Text className={`font-sans text-sm font-semibold ${tone === "success" ? "text-state-success" : "text-text"}`}>{label}</Text>
-        {typeof value === "string" ? <Text className="font-sans text-2xl font-bold text-brand-soft">{value}</Text> : value}
+        {typeof value === "string" ? <Text className="font-sans text-xl font-bold text-brand-soft">{value}</Text> : value}
         <Text className="font-sans text-xs text-text">{caption}</Text>
       </View>
     </View>

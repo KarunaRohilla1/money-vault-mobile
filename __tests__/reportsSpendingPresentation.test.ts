@@ -91,12 +91,12 @@ function flattenElements(node: ReactNode): ReactElement[] {
 
 describe("reports spending presentation", () => {
   it("models analysis dimensions as one mutually exclusive selector without filters", () => {
-    expect(analysisDimensions.map((dimension) => dimension.key)).toEqual(["categories", "merchants", "accounts", "paymentModes"]);
+    expect(analysisDimensions.map((dimension) => dimension.key)).toEqual(["merchants", "accounts", "paymentModes"]);
     expect(analysisDimensions.some((dimension) => dimension.label === "Filters")).toBe(false);
   });
 
   it("announces selected dimension state", () => {
-    const tree = SpendingDimensionSelector({ active: "categories", onSelect: jest.fn() });
+    const tree = SpendingDimensionSelector({ active: "merchants", onSelect: jest.fn() });
     const elements = flattenElements(tree);
     expect(elements.some((element) => {
       const props = element.props as { accessibilityLabel?: string; accessibilityState?: { selected?: boolean } };

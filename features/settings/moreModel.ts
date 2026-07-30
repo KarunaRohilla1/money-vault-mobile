@@ -5,9 +5,10 @@ export type MoreRoute = `/${string}`;
 
 export interface MoreRowModel {
   icon: IconName;
-  iconTone: "brand" | "blue" | "green" | "orange" | "pink" | "muted";
+  iconTone: "brand" | "blue" | "green" | "orange" | "pink" | "muted" | "danger";
   id: string;
-  route: MoreRoute;
+  action?: "logout";
+  route?: MoreRoute;
   title: string;
 }
 
@@ -27,6 +28,16 @@ export const preferenceRows: MoreRowModel[] = [
   { icon: "palette-outline", iconTone: "brand", id: "appearance", route: "/settings/appearance", title: "Appearance" },
   { icon: "information-outline", iconTone: "muted", id: "about", route: "/settings/about", title: "About Money Vault" }
 ];
+
+export const logoutRow: MoreRowModel = {
+  action: "logout",
+  icon: "logout",
+  iconTone: "danger",
+  id: "logout",
+  title: "Logout"
+};
+
+export const preferenceRowsWithLogout: MoreRowModel[] = [...preferenceRows, logoutRow];
 
 export function isSharedVault(vault: VaultSummaryApi | null | undefined) {
   return vault?.vaultType === "Shared";

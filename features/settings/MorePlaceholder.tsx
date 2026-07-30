@@ -1,24 +1,29 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
-import { ErrorView, LoadingSkeleton } from "@/components/ui";
+import { BottomSheet, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { useSettingsQuery } from "@/features/settings/api";
+import { resetNavigationAfterLogout } from "@/features/settings/logoutNavigation";
 import {
   isSharedVault,
   moneyRows,
-  preferenceRows,
+  preferenceRowsWithLogout,
   roleLabel,
   switchTarget,
   type MoreRowModel
 } from "@/features/settings/moreModel";
 import { ApiClientError } from "@/services/api/client";
+import { logoutBackendSession } from "@/services/api/logout";
 import { activatePersonalVaultSession, activateSharedVaultSession } from "@/services/api/session";
 import type { VaultSummaryApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
+
+const LOGOUT_FAILURE_MESSAGE = "Logout could not be completed. Try again.";
 
 function iconToneColor(tone: MoreRowModel["iconTone"]) {
   switch (tone) {
@@ -32,6 +37,8 @@ function iconToneColor(tone: MoreRowModel["iconTone"]) {
       return theme.colors.accent.rose;
     case "muted":
       return theme.colors.text.muted;
+    case "danger":
+      return theme.colors.state.danger;
     case "brand":
     default:
       return theme.colors.brand.soft;
@@ -42,38 +49,85 @@ function SectionTitle({ children }: { children: string }) {
   return <Text className="font-sans text-sm font-bold uppercase text-text-muted">{children}</Text>;
 }
 
-function SettingsRow({ row }: { row: MoreRowModel }) {
+function SettingsRow({ onLogoutPress, row }: { onLogoutPress: () => void; row: MoreRowModel }) {
   const router = useRouter();
   const color = iconToneColor(row.iconTone);
+  const destructive = row.iconTone === "danger";
+
+  const handlePress = () => {
+    if (row.action === "logout") {
+      onLogoutPress();
+      return;
+    }
+
+    if (row.route) {
+      router.push(row.route as never);
+    }
+  };
 
   return (
     <Pressable
       accessibilityLabel={row.title}
       accessibilityRole="button"
       className="min-h-16 flex-row items-center gap-4 border-b border-surface-border py-3 last:border-b-0"
-      onPress={() => router.push(row.route as never)}
+      onPress={handlePress}
     >
-      <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-deep">
+      <View className={destructive ? "h-10 w-10 items-center justify-center rounded-lg bg-surface-pressed" : "h-10 w-10 items-center justify-center rounded-lg bg-brand-deep"}>
         <MaterialCommunityIcons name={row.icon} size={theme.icons.md} color={color} />
       </View>
-      <Text className="min-w-0 flex-1 font-sans text-base font-semibold text-text" numberOfLines={1}>
+      <Text className={destructive ? "min-w-0 flex-1 font-sans text-base font-semibold text-state-danger" : "min-w-0 flex-1 font-sans text-base font-semibold text-text"} numberOfLines={1}>
         {row.title}
       </Text>
-      <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.subtle} />
+      {row.action === "logout" ? null : <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.subtle} />}
     </Pressable>
   );
 }
 
-function SettingsSection({ rows, title }: { rows: MoreRowModel[]; title: string }) {
+function SettingsSection({ onLogoutPress, rows, title }: { onLogoutPress: () => void; rows: MoreRowModel[]; title: string }) {
   return (
     <View className="gap-3">
       <SectionTitle>{title}</SectionTitle>
       <View className="rounded-xl border border-surface-border bg-surface px-4">
         {rows.map((row) => (
-          <SettingsRow key={row.id} row={row} />
+          <SettingsRow key={row.id} onLogoutPress={onLogoutPress} row={row} />
         ))}
       </View>
     </View>
+  );
+}
+
+function LogoutConfirmationSheet({
+  errorMessage,
+  onCancel,
+  onConfirm,
+  pending,
+  visible
+}: {
+  errorMessage: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  visible: boolean;
+}) {
+  return (
+    <BottomSheet title="Log Out?" visible={visible} onClose={pending ? () => undefined : onCancel}>
+      <View className="gap-5">
+        <Text className="font-sans text-base leading-6 text-text-muted">Are you sure you want to log out of Money Vault?</Text>
+        {errorMessage ? (
+          <View className="rounded-lg border border-state-danger/40 bg-surface-pressed p-3">
+            <Text className="font-sans text-sm font-semibold text-state-danger">{errorMessage}</Text>
+          </View>
+        ) : null}
+        <View className="gap-3">
+          <SecondaryButton accessibilityLabel="Cancel logout" disabled={pending} onPress={onCancel}>
+            Cancel
+          </SecondaryButton>
+          <PrimaryButton accessibilityLabel="Confirm logout" className="bg-state-danger" disabled={pending} icon="logout" loading={pending} onPress={onConfirm}>
+            Log Out
+          </PrimaryButton>
+        </View>
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -120,6 +174,8 @@ function VaultCard({
 
 export function MorePlaceholder() {
   const router = useRouter();
+  const [logoutVisible, setLogoutVisible] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
@@ -145,12 +201,35 @@ export function MorePlaceholder() {
       router.replace("/");
     }
   });
+  const logoutMutation = useMutation({
+    mutationFn: logoutBackendSession,
+    onError: () => {
+      setLogoutError(LOGOUT_FAILURE_MESSAGE);
+    },
+    onSuccess: () => {
+      setLogoutError(null);
+      setLogoutVisible(false);
+      resetNavigationAfterLogout(router);
+    }
+  });
   const switchError =
     switchMutation.error instanceof ApiClientError
       ? "Vault could not be switched. Try again."
       : switchMutation.error
         ? "No vault is available to switch."
         : null;
+
+  const openLogoutConfirmation = () => {
+    setLogoutError(null);
+    setLogoutVisible(true);
+  };
+
+  const closeLogoutConfirmation = () => {
+    if (!logoutMutation.isPending) {
+      setLogoutVisible(false);
+      setLogoutError(null);
+    }
+  };
 
   return (
     <Screen>
@@ -177,8 +256,15 @@ export function MorePlaceholder() {
       ) : null}
       {switchError ? <Text className="font-sans text-sm text-state-danger">{switchError}</Text> : null}
 
-      <SettingsSection rows={moneyRows} title="Money" />
-      <SettingsSection rows={preferenceRows} title="Vault & Preferences" />
+      <SettingsSection onLogoutPress={openLogoutConfirmation} rows={moneyRows} title="Money" />
+      <SettingsSection onLogoutPress={openLogoutConfirmation} rows={preferenceRowsWithLogout} title="Vault & Preferences" />
+      <LogoutConfirmationSheet
+        errorMessage={logoutError}
+        onCancel={closeLogoutConfirmation}
+        onConfirm={() => logoutMutation.mutate()}
+        pending={logoutMutation.isPending}
+        visible={logoutVisible}
+      />
     </Screen>
   );
 }
