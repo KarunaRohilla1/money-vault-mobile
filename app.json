@@ -33,7 +33,6 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "$EXPO_PUBLIC_API_BASE_URL",
       "router": {},
       "eas": {
         "projectId": "1305cbf8-704b-4a24-a4a5-781d074f939b"
