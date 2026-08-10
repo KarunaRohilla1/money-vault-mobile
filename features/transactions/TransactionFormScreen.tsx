@@ -6,13 +6,20 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { z } from "zod";
 
 import { Screen } from "@/components/layout/Screen";
-import { BottomSheet, ErrorView, LoadingSkeleton, PrimaryButton } from "@/components/ui";
+import { BottomSheet, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { useAccountsQuery } from "@/features/accounts/api";
 import { useCategoriesQuery } from "@/features/categories/api";
 import { useSettingsQuery } from "@/features/settings/api";
 import { useSharedExpensesQuery } from "@/features/shared/api";
+import { sharedRoutes } from "@/features/shared/routes";
+import { canManageSharedExpense, findSharedExpenseById, mapSharedExpenseToFormValues } from "@/features/shared/sharedTransactionsModel";
 import { MonthDatePicker } from "@/features/transfers/TransfersScreen";
-import { useCreateTransactionMutation, useTransactionDetailQuery, useUpdateTransactionMutation } from "@/features/transactions/api";
+import {
+  useCreateTransactionMutation,
+  useDeleteTransactionMutation,
+  useTransactionDetailQuery,
+  useUpdateTransactionMutation
+} from "@/features/transactions/api";
 import {
   ALLOCATION_EQUAL,
   ALLOCATION_FIXED,
@@ -35,6 +42,7 @@ import {
 } from "@/features/transactions/transactionFormModel";
 import { formatIsoDateOnly, todayLocalIso } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
+import { showToast } from "@/lib/toast";
 import type { AccountApi, VaultSummaryApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -57,10 +65,12 @@ const transactionSchema = z.object({
 type SelectorTarget = "account" | "category" | "sharedVault" | null;
 
 interface TransactionFormScreenProps {
+  returnRoute?: string;
+  sharedEditMode?: boolean;
   transactionId?: number | null;
 }
 
-export function TransactionFormScreen({ transactionId = null }: TransactionFormScreenProps) {
+export function TransactionFormScreen({ returnRoute, sharedEditMode = false, transactionId = null }: TransactionFormScreenProps) {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const vault = useAuthStore((state) => state.vault);
@@ -77,11 +87,16 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerValue, setDatePickerValue] = useState(todayLocalIso());
   const [submittedErrors, setSubmittedErrors] = useState<TransactionFormErrorMap>({});
+  const [deleteVisible, setDeleteVisible] = useState(false);
   const isEditing = transactionId !== null;
-  const transactionDetailQuery = useTransactionDetailQuery(token, vaultId, transactionId);
+  const shouldLoadTransactionDetail = isEditing && !sharedEditMode;
+  const sharedVaultId = isSharedVault && vaultId ? Number(vaultId) : null;
+  const transactionDetailQuery = useTransactionDetailQuery(token, vaultId, shouldLoadTransactionDetail ? transactionId : null);
   const createTransaction = useCreateTransactionMutation(token, vaultId);
   const updateTransaction = useUpdateTransactionMutation(token, vaultId);
+  const deleteTransaction = useDeleteTransactionMutation(token, vaultId, sharedVaultId);
   const isSaving = createTransaction.isPending || updateTransaction.isPending;
+  const isDeleting = deleteTransaction.isPending;
 
   const { control, handleSubmit, reset, setValue } = useForm<TransactionFormValues>({
     defaultValues: {
@@ -108,11 +123,14 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
   const selectedSplitType = formValues.splitType;
   const parsedAmount = amountError(selectedAmount) ? 0 : Number(selectedAmount.replace(/,/g, "").trim());
   const sharedVaultQueryId = isSharedVault ? null : selectedSharedVaultId > 0 ? selectedSharedVaultId : null;
+  const shouldLoadSharedParticipants = (selectedType === "Expense" && selectedScope === "Shared") || sharedEditMode;
   const sharedExpensesQuery = useSharedExpensesQuery(
     token,
     vaultId,
-    selectedType === "Expense" && selectedScope === "Shared" ? sharedVaultQueryId : null
+    shouldLoadSharedParticipants ? sharedVaultQueryId : null
   );
+  const sharedEditExpense =
+    sharedEditMode && transactionId !== null ? findSharedExpenseById(sharedExpensesQuery.data?.data?.expenses ?? [], transactionId) : null;
 
   const sharedVaults = (settingsQuery.data?.accessibleVaults ?? []).filter((item) => item.vaultType === "Shared");
   const selectedSharedVault = isSharedVault
@@ -159,6 +177,35 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!sharedEditMode || !sharedEditExpense || !vaultId) {
+      return;
+    }
+
+    const participants = sharedExpensesQuery.data?.data.participants ?? [];
+    const currentParticipantId =
+      sharedExpensesQuery.data?.data.current_participant?.[0] ?? Number(authenticatedVault?.id ?? 0) ?? null;
+    const primaryAccountId = (accountsQuery.data ?? []).find((account) => account.isPrimary)?.id ?? accountsQuery.data?.[0]?.id ?? 0;
+
+    reset(
+      mapSharedExpenseToFormValues(
+        sharedEditExpense,
+        Number(vaultId),
+        participants,
+        currentParticipantId,
+        primaryAccountId
+      )
+    );
+  }, [
+    accountsQuery.data,
+    authenticatedVault?.id,
+    reset,
+    sharedEditExpense,
+    sharedEditMode,
+    sharedExpensesQuery.data,
+    vaultId
+  ]);
 
   useEffect(() => {
     if (!isEditing || !transactionDetailQuery.data) {
@@ -226,7 +273,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
     setValue
   ]);
 
-  if (isEditing && transactionDetailQuery.isLoading) {
+  if (sharedEditMode && sharedExpensesQuery.isLoading) {
     return (
       <Screen>
         <LoadingSkeleton variant="card" />
@@ -235,7 +282,44 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
     );
   }
 
-  if (isEditing && transactionDetailQuery.isError) {
+  if (sharedEditMode && sharedExpensesQuery.isError) {
+    return (
+      <Screen>
+        <ErrorView message="Shared transaction could not be loaded." onRetry={() => sharedExpensesQuery.refetch()} />
+      </Screen>
+    );
+  }
+
+  if (sharedEditMode && !sharedEditExpense) {
+    return (
+      <Screen>
+        <ErrorView message="This shared expense is no longer available in the current cycle." onRetry={() => router.back()} />
+      </Screen>
+    );
+  }
+
+  if (
+    sharedEditMode &&
+    sharedEditExpense &&
+    !canManageSharedExpense(sharedEditExpense, authenticatedVault?.id ? Number(authenticatedVault.id) : null)
+  ) {
+    return (
+      <Screen>
+        <ErrorView message="You can only edit expenses that you paid for." onRetry={() => router.back()} />
+      </Screen>
+    );
+  }
+
+  if (isEditing && !sharedEditMode && transactionDetailQuery.isLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton variant="card" />
+        <LoadingSkeleton variant="card" />
+      </Screen>
+    );
+  }
+
+  if (isEditing && !sharedEditMode && transactionDetailQuery.isError) {
     return (
       <Screen>
         <ErrorView message="Transaction could not be loaded." onRetry={() => transactionDetailQuery.refetch()} />
@@ -270,7 +354,7 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
           transactionId
         },
         {
-          onSuccess: () => router.replace(`/transaction/${transactionId}` as never)
+          onSuccess: () => router.replace((returnRoute ?? `/transaction/${transactionId}`) as never)
         }
       );
       return;
@@ -290,13 +374,32 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
     }
   };
 
+  async function handleDelete() {
+    if (transactionId === null) {
+      return;
+    }
+
+    try {
+      await deleteTransaction.mutateAsync(transactionId);
+      setDeleteVisible(false);
+      showToast("Transaction deleted.");
+      router.replace((sharedEditMode ? sharedRoutes.transactions : "/transactions") as never);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to delete transaction.");
+    }
+  }
+
   return (
     <Screen contentClassName="gap-3 px-5 pb-8 pt-3">
       <View className="h-1.5 w-20 self-center rounded-full bg-surface-border" />
       <View className="flex-row items-start justify-between">
         <View className="flex-1">
-          <Text className="font-sans text-2xl font-bold text-text">{isEditing ? "Edit Transaction" : "Record Transaction"}</Text>
-          <Text className="mt-1 font-sans text-base text-text-muted">{isEditing ? "Update the selected transaction" : "Add a new income, expense or transfer"}</Text>
+          <Text className="font-sans text-2xl font-bold text-text">
+            {sharedEditMode ? "Edit Shared Expense" : isEditing ? "Edit Transaction" : "Record Transaction"}
+          </Text>
+          <Text className="mt-1 font-sans text-base text-text-muted">
+            {sharedEditMode ? "Update this shared expense" : isEditing ? "Update the selected transaction" : "Add a new income, expense or transfer"}
+          </Text>
         </View>
         <Pressable
           accessibilityLabel="Close transaction form"
@@ -310,7 +413,9 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
 
       <View className="flex-row rounded-md border border-surface-border bg-surface p-0.5">
         <TypeTab icon="arrow-down" label="Expense" selected={selectedType === "Expense"} onPress={() => chooseTransactionType("Expense")} />
-        <TypeTab icon="arrow-up-right" label="Income" selected={selectedType === "Income"} onPress={() => chooseTransactionType("Income")} />
+        {sharedEditMode ? null : (
+          <TypeTab icon="arrow-up-right" label="Income" selected={selectedType === "Income"} onPress={() => chooseTransactionType("Income")} />
+        )}
       </View>
 
       <View className="items-center gap-2 py-2">
@@ -455,9 +560,38 @@ export function TransactionFormScreen({ transactionId = null }: TransactionFormS
       </View>
 
       {createTransaction.isError || updateTransaction.isError ? <Text className="font-sans text-sm text-state-danger">Transaction could not be saved.</Text> : null}
-      <PrimaryButton loading={isSaving} disabled={isSaving || isLoading || isError} onPress={handleSubmit(submit)}>
+      <PrimaryButton loading={isSaving} disabled={isSaving || isDeleting || isLoading || isError} onPress={handleSubmit(submit)}>
         {isEditing ? "Save Changes" : "Save Transaction"}
       </PrimaryButton>
+      {isEditing ? (
+        <SecondaryButton
+          accessibilityLabel="Delete transaction"
+          disabled={isSaving || isDeleting || isLoading || isError}
+          icon="trash-can-outline"
+          onPress={() => setDeleteVisible(true)}
+        >
+          Delete Transaction
+        </SecondaryButton>
+      ) : null}
+
+      <BottomSheet visible={deleteVisible} title="Delete Transaction" onClose={() => setDeleteVisible(false)}>
+        <View className="gap-4">
+          <Text className="font-sans text-sm text-text-muted">Delete this transaction? This cannot be undone.</Text>
+          <PrimaryButton
+            accessibilityLabel="Confirm delete transaction"
+            className="bg-state-danger"
+            disabled={isDeleting}
+            icon="trash-can-outline"
+            loading={isDeleting}
+            onPress={() => void handleDelete()}
+          >
+            Delete Transaction
+          </PrimaryButton>
+          <SecondaryButton disabled={isDeleting} onPress={() => setDeleteVisible(false)}>
+            Cancel
+          </SecondaryButton>
+        </View>
+      </BottomSheet>
 
       <BottomSheet visible={selectorTarget === "account"} title="Choose Account" onClose={() => setSelectorTarget(null)}>
         <OptionList

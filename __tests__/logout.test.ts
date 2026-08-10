@@ -80,6 +80,7 @@ describe("logout", () => {
 
   it("resets navigation to sign-in after logout so back navigation cannot return to the app", () => {
     const router = {
+      canDismiss: () => true,
       dismissAll: jest.fn(),
       replace: jest.fn()
     };
@@ -87,6 +88,19 @@ describe("logout", () => {
     resetNavigationAfterLogout(router);
 
     expect(router.dismissAll).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith("/sign-in");
+  });
+
+  it("skips dismissAll when the navigator cannot dismiss", () => {
+    const router = {
+      canDismiss: () => false,
+      dismissAll: jest.fn(),
+      replace: jest.fn()
+    };
+
+    resetNavigationAfterLogout(router);
+
+    expect(router.dismissAll).not.toHaveBeenCalled();
     expect(router.replace).toHaveBeenCalledWith("/sign-in");
   });
 });

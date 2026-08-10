@@ -1,5 +1,6 @@
 import * as accounts from "@/services/api/accounts";
 import * as auth from "@/services/api/auth";
+import * as capture from "@/services/api/capture";
 import { request } from "@/services/api/core";
 import * as categories from "@/services/api/categories";
 import * as dashboard from "@/services/api/dashboard";
@@ -15,6 +16,7 @@ export { ApiClientError, request, type ApiErrorDetails } from "@/services/api/co
 
 export * from "@/services/api/accounts";
 export * from "@/services/api/auth";
+export * from "@/services/api/capture";
 export * from "@/services/api/categories";
 export * from "@/services/api/dashboard";
 export * from "@/services/api/planning";
@@ -28,6 +30,7 @@ export * from "@/services/api/wishlist";
 export const apiClient = {
   ...accounts,
   ...auth,
+  ...capture,
   ...categories,
   ...dashboard,
   ...planning,

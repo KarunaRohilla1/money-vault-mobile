@@ -4,6 +4,7 @@ import type {
   SharedDashboardApiResponse,
   SharedExpensesApiResponse,
   SharedPageApiResponse,
+  SharedSettlementHistoryPageApi,
   SharedSettlementPayloadApi,
   SharedSettlementsApiResponse,
   SuccessApiResponse
@@ -30,9 +31,29 @@ export function getSharedBills(token: string, sharedVaultId?: number) {
   });
 }
 
-export function getSharedSettlements(token: string) {
+export function getSharedSettlements(token: string, sharedVaultId?: number) {
   return request<SharedPageApiResponse<SharedSettlementsApiResponse>>({
-    path: "/api/shared/settlements",
+    path: `/api/shared/settlements${buildQuery([["sharedVaultId", sharedVaultId]])}`,
+    token
+  });
+}
+
+export function getSharedSettlementHistory(
+  token: string,
+  params: {
+    direction?: string;
+    limit?: number;
+    offset?: number;
+    sharedVaultId?: number;
+  } = {}
+) {
+  return request<SharedPageApiResponse<SharedSettlementHistoryPageApi>>({
+    path: `/api/shared/settlements/history${buildQuery([
+      ["sharedVaultId", params.sharedVaultId],
+      ["direction", params.direction],
+      ["limit", params.limit],
+      ["offset", params.offset]
+    ])}`,
     token
   });
 }

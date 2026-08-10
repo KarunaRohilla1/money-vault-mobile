@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useAccountsQuery } from "@/features/accounts/api";
@@ -53,8 +53,9 @@ function draftStatusForActivity(activity: PlanningActivityViewModel): ActivityDr
 
 export function usePlanningScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ cycleStart?: string }>();
+  const params = useLocalSearchParams<{ cycleStart?: string; openReview?: string }>();
   const selectedCycleParam = typeof params.cycleStart === "string" ? params.cycleStart : undefined;
+  const shouldOpenReview = params.openReview === "1" || params.openReview === "true";
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const currencyCode = useSettingsStore((state) => state.currencyCode);
@@ -285,6 +286,18 @@ export function usePlanningScreen() {
     setCloseError(null);
     setCloseVisible(true);
   }
+
+  useEffect(() => {
+    if (!shouldOpenReview || !planning) {
+      return;
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCloseItems(buildCloseReviewItems(activities));
+    setCloseError(null);
+    setCloseVisible(true);
+    router.setParams({ openReview: undefined });
+  }, [activities, planning, router, shouldOpenReview]);
 
   async function submitCloseReview() {
     if (!planning) {

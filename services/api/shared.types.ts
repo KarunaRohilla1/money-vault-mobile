@@ -1,7 +1,14 @@
 export type SharedParticipantTupleApi = [number, string];
 export type SharedCategoryTupleApi = [number, string, string];
 
+export interface SharedExpenseShareApi {
+  amount: number;
+  participant_id: number;
+  percentage: number;
+}
+
 export interface SharedExpenseApi {
+  account_id?: number | null;
   allocation_method: string;
   amount: number;
   category: string;
@@ -18,6 +25,7 @@ export interface SharedExpenseApi {
   settlement_amount: number;
   settlement_label: string;
   settlement_tone: string;
+  shares?: SharedExpenseShareApi[];
   split_label: string;
 }
 
@@ -149,10 +157,44 @@ export interface SharedSettlementPayloadApi {
   amount: number;
   fromAccountId: number;
   fromVaultId: number;
+  notes?: string;
+  paymentMethod?: string;
   settlementDate: string;
   sharedVaultId: number;
   toAccountId: number;
   toVaultId: number;
+}
+
+export type SharedSettlementStatus = "FULL" | "PARTIAL" | "ADJUSTMENT";
+
+export interface SharedSettlementHistoryItemApi {
+  amount: number;
+  createdAt: string | null;
+  direction: "received" | "sent";
+  fromInitials: string;
+  fromName: string;
+  fromParticipantId: number;
+  id: number;
+  isReceived: boolean;
+  notes: string | null;
+  outstandingAfter: number | null;
+  outstandingBefore: number | null;
+  paymentMethod: string | null;
+  settledAt: string;
+  status: SharedSettlementStatus;
+  toInitials: string;
+  toName: string;
+  toParticipantId: number;
+  vaultId: number;
+}
+
+export interface SharedSettlementHistoryPageApi {
+  hasMore: boolean;
+  items: SharedSettlementHistoryItemApi[];
+  limit: number;
+  nextOffset: number | null;
+  offset: number;
+  total: number;
 }
 
 export interface SharedPageApiResponse<TData> {

@@ -24,7 +24,12 @@ import {
 } from "@/features/accounts/api";
 import { toAppError } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
-import type { AccountType } from "@/services/api/accountTypes";
+import {
+  ACCOUNT_SECTION_ORDER,
+  accountTypeIcon,
+  groupAccountsBySection,
+  type AccountType
+} from "@/services/api/accountTypes";
 import type { AccountApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -43,36 +48,20 @@ const EMPTY_FORM: AccountFormState = {
   type: ""
 };
 
-function accountIcon(accountType: string) {
-  if (accountType === "Credit Card") {
-    return "credit-card-outline";
-  }
-
-  if (accountType === "Cash") {
-    return "cash";
-  }
-
-  return "wallet-outline";
-}
-
-function accountGroupFor(account: AccountApi) {
-  if (account.type === "Credit Card") {
-    return "Credit Cards";
-  }
-
-  if (account.type === "Other") {
-    return "Other Accounts";
-  }
-
-  return "Cash & Bank";
-}
-
 function groupTone(group: string) {
   if (group === "Credit Cards") {
     return {
       color: theme.colors.accent.rose,
       icon: "credit-card-outline" as const,
       label: "Cards"
+    };
+  }
+
+  if (group === "Wallets") {
+    return {
+      color: theme.colors.state.info,
+      icon: "wallet" as const,
+      label: "Wallets"
     };
   }
 
@@ -114,7 +103,7 @@ function AccountRow({
   return (
     <Pressable accessibilityRole="button" className="flex-row items-center gap-3 py-3.5" onPress={() => onEdit(account)}>
       <View className="h-12 w-12 items-center justify-center rounded-full bg-brand-deep">
-          <MaterialCommunityIcons name={accountIcon(account.type)} size={theme.icons.sm} color={theme.colors.brand.soft} />
+          <MaterialCommunityIcons name={accountTypeIcon(account.type)} size={theme.icons.sm} color={theme.colors.brand.soft} />
       </View>
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
@@ -275,20 +264,11 @@ export function AccountsScreen() {
     []
   );
   const formErrors = useMemo(() => visibleAccountFormErrors(form, touched, submitted), [form, submitted, touched]);
-  const allFormErrors = visibleAccountFormErrors(form, { name: true, openingBalance: true, type: true }, true);
-  const hasFormError = Boolean(allFormErrors.name || allFormErrors.openingBalance || allFormErrors.type);
   const mutationError =
     createMutation.error ?? updateMutation.error ?? deleteMutation.error ?? setPrimaryMutation.error;
   const safeMutationError = mutationError ? toAppError(mutationError, "Account change could not be saved.") : null;
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
-  const groupedAccounts = useMemo(
-    () => ({
-      "Cash & Bank": accounts.filter((account) => accountGroupFor(account) === "Cash & Bank"),
-      "Credit Cards": accounts.filter((account) => accountGroupFor(account) === "Credit Cards"),
-      "Other Accounts": accounts.filter((account) => accountGroupFor(account) === "Other Accounts")
-    }),
-    [accounts]
-  );
+  const groupedAccounts = useMemo(() => groupAccountsBySection(accounts), [accounts]);
   const hasCachedRefreshError = Boolean(accountsQuery.error && accounts.length > 0);
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const isEditMode = form.id !== null;
@@ -336,7 +316,8 @@ export function AccountsScreen() {
     setSubmitted(true);
     setTouched({ name: true, openingBalance: true, type: true });
 
-    if (hasFormError) {
+    const nextErrors = visibleAccountFormErrors(form, { name: true, openingBalance: true, type: true }, true);
+    if (nextErrors.name || nextErrors.openingBalance || nextErrors.type) {
       return;
     }
 
@@ -446,7 +427,7 @@ export function AccountsScreen() {
         <EmptyState icon="wallet-plus-outline" title="No accounts yet" message="Create your first account to start tracking balances." />
       ) : (
         <View className="gap-6">
-          {(["Cash & Bank", "Credit Cards", "Other Accounts"] as const).map((group) => (
+          {ACCOUNT_SECTION_ORDER.map((group) => (
             <AccountSection
               key={group}
               accounts={groupedAccounts[group]}

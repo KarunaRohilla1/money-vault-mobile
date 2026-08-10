@@ -36,8 +36,6 @@ export function accountFormErrors(values: AccountFormValues): AccountFormErrors 
     const amount = Number(values.openingBalance);
     if (!Number.isFinite(amount)) {
       errors.openingBalance = "Opening balance must be a number.";
-    } else if (Object.is(amount, -0) || amount === 0) {
-      errors.openingBalance = "Opening balance must be greater than zero.";
     } else if (values.type !== "Credit Card" && amount < 0) {
       errors.openingBalance = "Opening balance cannot be negative.";
     }

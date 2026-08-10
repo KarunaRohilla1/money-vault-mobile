@@ -122,17 +122,26 @@ describe("onboarding foundation", () => {
     ).toBe("Opening balance is required.");
   });
 
-  it("rejects zero opening balance during onboarding", () => {
-    for (const openingBalance of ["0", "0.00", "-0"]) {
-      expect(
-        validationMessage("account-details", {
-          ...EMPTY_ONBOARDING_DRAFT,
-          accountKind: "Salary Account",
-          accountName: "Salary Account",
-          openingBalance
-        })
-      ).toBe("Opening balance must be greater than zero.");
-    }
+  it("allows zero opening balance during onboarding", () => {
+    expect(
+      validationMessage("account-details", {
+        ...EMPTY_ONBOARDING_DRAFT,
+        accountKind: "Wallet",
+        accountName: "Swiggy Wallet",
+        openingBalance: "0"
+      })
+    ).toBeNull();
+  });
+
+  it("rejects negative opening balance during onboarding for wallets", () => {
+    expect(
+      validationMessage("account-details", {
+        ...EMPTY_ONBOARDING_DRAFT,
+        accountKind: "Wallet",
+        accountName: "Swiggy Wallet",
+        openingBalance: "-1"
+      })
+    ).toBe("Opening balance cannot be negative.");
   });
 
   it("uses the account type when validating onboarding opening balance", () => {

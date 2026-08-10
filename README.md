@@ -12,16 +12,44 @@ The mobile app must not query Supabase financial tables directly and must never 
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Set the backend API URL. Use `http://10.0.2.2:<port>` for the Android emulator. A physical device must use your computer's LAN IP address, for example `http://192.168.x.x:<port>`.
-4. Start Expo with `npm start`.
+3. Point the app at your local API (auto-detects your LAN IP for a physical device):
+
+```bash
+npm run api:url:device
+# or: npm run api:url:emulator
+# or: npm run api:url:simulator
+```
+
+4. In the `money-vault` backend repo, start the API on all interfaces:
+
+```bash
+python scripts/run_api_local.py
+```
+
+5. Start Expo against that local API:
+
+```bash
+npm run start:local
+```
+
+Production/EAS builds keep using Cloud Run. Local/lower builds use `EXPO_PUBLIC_API_BASE_URL` and allow cleartext HTTP to your machine.
 
 ## Environment Variables
 
 ```text
 EXPO_PUBLIC_API_BASE_URL=
+EXPO_PUBLIC_APP_ENV=development
 ```
 
 Do not commit `.env` or secrets. This value points to the Money Vault backend API, not Supabase.
+
+| Client | Typical URL |
+| --- | --- |
+| Physical phone (same Wi‑Fi) | `http://<your-lan-ip>:8001` via `npm run api:url:device` |
+| Android emulator | `http://10.0.2.2:8001` |
+| iOS simulator | `http://127.0.0.1:8001` |
+
+If you previously logged in against production, sign out and log in again after switching to local so the token matches the local `JWT_SECRET`.
 
 ## Architecture
 

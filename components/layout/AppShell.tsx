@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { FAB } from "@/components/ui";
 import { appShellMetrics, bottomNavItems, shouldShowBottomPanel, type BottomNavItem } from "@/lib/appShell";
-import { personalTabsHiddenForVault } from "@/lib/vaultNavigation";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
@@ -53,7 +52,6 @@ function BottomNavigation() {
   const insets = useSafeAreaInsets();
   const items = bottomNavItems(pathname, activeVault);
   const metrics = appShellMetrics(insets.bottom, true);
-  const hidePersonalTabs = personalTabsHiddenForVault(activeVault);
   const renderItem = (item: BottomNavItem) => (
     <Pressable
       key={item.name}
@@ -75,11 +73,9 @@ function BottomNavigation() {
       {items.slice(0, 2).map(renderItem)}
       <View pointerEvents="none" style={styles.centerSlot} />
       {items.slice(2).map(renderItem)}
-      {hidePersonalTabs ? null : (
-        <View pointerEvents="box-none" style={styles.fab}>
-          <FAB accessibilityLabel="Add transaction" onPress={() => router.push(newTransactionRoute)} />
-        </View>
-      )}
+      <View pointerEvents="box-none" style={styles.fab}>
+        <FAB accessibilityLabel="Add transaction" onPress={() => router.push(newTransactionRoute)} />
+      </View>
     </View>
   );
 }

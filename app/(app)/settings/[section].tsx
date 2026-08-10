@@ -4,6 +4,7 @@ import { Screen } from "@/components/layout/Screen";
 import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { EmptyState, SecondaryButton } from "@/components/ui";
 import { settingsPlaceholderTitle } from "@/features/settings/moreModel";
+import { goBackOrReplace } from "@/lib/navigation";
 
 export default function SettingsSectionRoute() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function SettingsSectionRoute() {
     <Screen>
       <ScreenHeader title={title} description="This setting will be connected in a later slice." />
       <EmptyState icon="cog-outline" title={title} message="This page is a placeholder for the selected vault preference." />
-      <SecondaryButton onPress={() => router.back()}>Back</SecondaryButton>
+      <SecondaryButton onPress={() => goBackOrReplace(router, "/more")}>Back</SecondaryButton>
     </Screen>
   );
 }

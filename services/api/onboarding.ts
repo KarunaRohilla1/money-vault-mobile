@@ -54,6 +54,8 @@ function accountTypeFor(kind: OnboardingAccountKind | null) {
       return "Savings Account";
     case "Cash":
       return "Cash";
+    case "Wallet":
+      return "Wallet";
     case "Other":
       return "Other";
     case null:

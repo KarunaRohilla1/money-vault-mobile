@@ -26,10 +26,12 @@ export function invalidateTransactionDependents(vaultId: string | null, sharedVa
   queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.categories.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.reports.root });
 
   if (sharedVaultId !== null) {
-    queryClient.invalidateQueries({ queryKey: queryKeys.shared.dashboard(vaultId, sharedVaultId) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.shared.expenses(vaultId, sharedVaultId) });
+    // Invalidate all shared queries. Shared screens often key with sharedVaultId=null ("default"),
+    // so a specific vault id key alone would miss the active list/dashboard caches.
+    queryClient.invalidateQueries({ queryKey: queryKeys.shared.root });
   }
 }
 
@@ -72,9 +74,13 @@ export function useUpdateTransactionMutation(token: string | null, vaultId: stri
   });
 }
 
-export function useDeleteTransactionMutation(token: string | null, vaultId: string | null) {
+export function useDeleteTransactionMutation(token: string | null, vaultId: string | null, sharedVaultId: number | null = null) {
   return useMutation({
     mutationFn: async (transactionId: number) => apiClient.deleteTransaction(token ?? "", transactionId),
-    onSuccess: () => invalidateTransactionDependents(vaultId)
+    onSuccess: () => {
+      invalidateTransactionDependents(vaultId, sharedVaultId);
+      // Shared list/dashboard queries often use sharedVaultId=null ("default").
+      queryClient.invalidateQueries({ queryKey: queryKeys.shared.root });
+    }
   });
 }

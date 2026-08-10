@@ -22,13 +22,6 @@ const accountDetailsSchema = z
     message: "Opening balance must be a number.",
     path: ["openingBalance"]
   })
-  .refine((value) => {
-    const amount = Number(value.openingBalance);
-    return !Object.is(amount, -0) && amount !== 0;
-  }, {
-    message: "Opening balance must be greater than zero.",
-    path: ["openingBalance"]
-  })
   .refine((value) => value.accountKind === "Credit Card" || Number(value.openingBalance) >= 0, {
     message: "Opening balance cannot be negative.",
     path: ["openingBalance"]

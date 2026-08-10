@@ -60,6 +60,8 @@ describe("app shell bottom panel ownership", () => {
   it("marks the active tab for primary tabs and leaves child screens without duplicate active tabs", () => {
     expect(activeBottomTab("/")).toBe("index");
     expect(activeBottomTab("/accounts")).toBe("accounts");
+    expect(activeBottomTab("/shared/transactions")).toBe("accounts");
+    expect(activeBottomTab("/shared/settlement-history")).toBe("planning");
     expect(activeBottomTab("/planning")).toBe("planning");
     expect(activeBottomTab("/transactions")).toBeNull();
   });
@@ -69,12 +71,32 @@ describe("app shell bottom panel ownership", () => {
   });
 
   it("preserves shared vault navigation restrictions without duplicating a second panel", () => {
-    expect(bottomNavItems("/shared", sharedVault).filter((item) => !item.hidden).map((item) => item.name)).toEqual(["index", "more"]);
+    expect(bottomNavItems("/shared", sharedVault).filter((item) => !item.hidden).map((item) => item.name)).toEqual([
+      "index",
+      "accounts",
+      "planning",
+      "more"
+    ]);
+    expect(bottomNavItems("/shared/transactions", sharedVault).find((item) => item.name === "accounts")).toMatchObject({
+      label: "Transactions",
+      route: "/shared/transactions"
+    });
+    expect(bottomNavItems("/shared/settlement-history", sharedVault).find((item) => item.name === "planning")).toMatchObject({
+      active: true,
+      icon: "handshake-outline",
+      label: "Settlements",
+      route: "/shared/settlement-history"
+    });
   });
 
   it("keeps vault switching reflected in visible navigation items", () => {
     expect(bottomNavItems("/", personalVault).filter((item) => !item.hidden)).toHaveLength(4);
-    expect(bottomNavItems("/", sharedVault).filter((item) => !item.hidden)).toHaveLength(2);
+    expect(bottomNavItems("/", sharedVault).filter((item) => !item.hidden)).toHaveLength(4);
+  });
+
+  it("places Settlements immediately left of More for shared vaults", () => {
+    const visible = bottomNavItems("/", sharedVault).filter((item) => !item.hidden);
+    expect(visible.map((item) => item.label)).toEqual(["Dashboard", "Transactions", "Settlements", "More"]);
   });
 
   it("does not hide the bottom panel merely because a route is nested", () => {

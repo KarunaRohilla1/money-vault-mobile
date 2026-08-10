@@ -220,3 +220,71 @@ export interface ReportSpendingMerchantItemApi {
   percent: number;
   rank: number;
 }
+
+export interface ReportSharedHeroApi {
+  actualSpend: number;
+  comparisonLabel: string;
+  difference: number;
+  percentLower: number;
+  projectedPersonalSpend: number;
+}
+
+export interface ReportSharedSettlementCardApi {
+  amount: number;
+  caption: string;
+  key: string;
+  label: string;
+  tone: string;
+}
+
+export interface ReportSharedCategoryImpactItemApi {
+  actualAmount: number;
+  difference: number;
+  icon: string;
+  key: string;
+  name: string;
+  projectedAmount: number;
+}
+
+export interface ReportSharedSettlementPreviewApi {
+  currentAmount: number;
+  currentLabel: string;
+  projectedPersonalSpend: number;
+}
+
+export interface ReportSharedContributionItemApi {
+  amount: number;
+  color: string;
+  key: string;
+  label: string;
+  percent: number;
+}
+
+export interface ReportSharedContributionApi {
+  items: ReportSharedContributionItemApi[];
+  total: number;
+}
+
+export interface ReportSharedExpenseItemApi {
+  amount: number;
+  date: string;
+  icon: string;
+  id: number;
+  name: string;
+}
+
+export interface ReportSharedDataApi {
+  categoryImpact: ReportSharedCategoryImpactItemApi[];
+  contribution: ReportSharedContributionApi;
+  hero: ReportSharedHeroApi;
+  settlementOverview: ReportSharedSettlementCardApi[];
+  settlementPreview: ReportSharedSettlementPreviewApi;
+  topExpenses: ReportSharedExpenseItemApi[];
+}
+
+export interface ReportSharedApiResponse {
+  data: ReportSharedDataApi;
+  filters: ReportFiltersApi;
+  generatedAt: string;
+  vault: AuthenticatedVault;
+}

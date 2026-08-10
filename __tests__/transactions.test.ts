@@ -190,7 +190,7 @@ describe("transaction query invalidation", () => {
     jest.restoreAllMocks();
   });
 
-  it("invalidates shared dashboard only when a shared vault id is supplied", () => {
+  it("invalidates shared queries only when a shared vault id is supplied", () => {
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
     invalidateTransactionDependents("4", 40);
@@ -199,8 +199,7 @@ describe("transaction query invalidation", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.accounts.root });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.categories.root });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.current("4") });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.shared.dashboard("4", 40) });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.shared.expenses("4", 40) });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.shared.root });
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.transfers.root });
   });
 });

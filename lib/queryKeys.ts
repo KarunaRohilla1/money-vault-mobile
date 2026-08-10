@@ -6,6 +6,10 @@ export const queryKeys = {
   auth: {
     session: ["auth", "session"] as const
   },
+  capture: {
+    inbox: (vaultId: string | null) => ["capture", "inbox", vaultId ?? "anonymous"] as const,
+    root: ["capture"] as const
+  },
   categories: {
     byVault: (vaultId: string | null) => ["categories", "byVault", vaultId ?? "anonymous"] as const,
     root: ["categories"] as const
@@ -26,6 +30,8 @@ export const queryKeys = {
     spending: (vaultId: string | null, filtersKey = "default") => ["reports", "spending", vaultId ?? "anonymous", filtersKey] as const,
     summary: (vaultId: string | null, filters: { cycleStart?: string | undefined }) =>
       ["reports", "summary", vaultId ?? "anonymous", filters.cycleStart ?? "current"] as const,
+    shared: (vaultId: string | null, filters: { cycleStart?: string | undefined }) =>
+      ["reports", "shared", vaultId ?? "anonymous", filters.cycleStart ?? "current"] as const,
     current: (vaultId: string | null) => ["reports", "summary", vaultId ?? "anonymous", "current"] as const,
     root: ["reports"] as const
   },
@@ -39,7 +45,13 @@ export const queryKeys = {
       ["shared", "dashboard", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
     expenses: (vaultId: string | null, sharedVaultId: number | null = null) =>
       ["shared", "expenses", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
-    settlements: (vaultId: string | null) => ["shared", "settlements", vaultId ?? "anonymous"] as const,
+    settlementHistory: (
+      vaultId: string | null,
+      sharedVaultId: number | null = null,
+      filtersKey = "all"
+    ) => ["shared", "settlementHistory", vaultId ?? "anonymous", sharedVaultId ?? "default", filtersKey] as const,
+    settlements: (vaultId: string | null, sharedVaultId: number | null = null) =>
+      ["shared", "settlements", vaultId ?? "anonymous", sharedVaultId ?? "default"] as const,
     root: ["shared"] as const
   },
   transactions: {

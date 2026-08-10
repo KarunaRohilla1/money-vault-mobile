@@ -9,9 +9,10 @@ import { CyclePickerSheet } from "@/features/planning/components/CyclePickerShee
 import { FinancialCycleReview } from "@/features/reports/components/FinancialCycleReview";
 import { OverviewSection } from "@/features/reports/components/OverviewSection";
 import { ReportsHeader } from "@/features/reports/components/ReportsHeader";
-import { ReportsPlaceholder, ReportsSkeleton } from "@/features/reports/components/ReportsSkeleton";
+import { ReportsSkeleton } from "@/features/reports/components/ReportsSkeleton";
 import { ReportsTabs } from "@/features/reports/components/ReportsTabs";
 import { SpendingTab } from "@/features/reports/tabs/SpendingTab";
+import { SharedTab } from "@/features/reports/tabs/SharedTab";
 import { SharedInsightsSection } from "@/features/reports/components/SharedInsightsSection";
 import { useReportsQuery } from "@/features/reports/api";
 import { adjacentReportCycle, hasReportActivity, type ReportTabKey } from "@/features/reports/reportModel";
@@ -129,7 +130,7 @@ export function ReportsScreen() {
           ) : activeTab === "spending" ? (
             <SpendingTab currencyCode={currencyCode} cycleStart={selectedCycleStart} locale={locale} token={token} vaultId={vaultId} />
           ) : (
-            <ReportsPlaceholder title={`${activeTab.charAt(0).toUpperCase()}${activeTab.slice(1)} reports`} />
+            <SharedTab currencyCode={currencyCode} cycleStart={selectedCycleStart} locale={locale} token={token} vaultId={vaultId} />
           )}
         </View>
       ) : null}

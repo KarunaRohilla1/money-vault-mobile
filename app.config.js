@@ -37,6 +37,7 @@ module.exports = () => {
   const environment = appEnvironment();
   const apiBaseUrl = resolveApiBaseUrl(environment);
   const isProduction = environment === "production";
+  const usesLocalApi = isLocalApiBaseUrl(apiBaseUrl);
   const devClientModules = [
     "expo-dev-client",
     "expo-dev-launcher",
@@ -58,6 +59,27 @@ module.exports = () => {
       exclude: isProduction ? devClientModules : []
     },
     plugins,
+    ios: {
+      ...(baseConfig.ios ?? {}),
+      // Allow http:// LAN / simulator API calls in local and lower builds.
+      infoPlist: {
+        ...((baseConfig.ios && baseConfig.ios.infoPlist) || {}),
+        NSAppTransportSecurity: {
+          ...(((baseConfig.ios && baseConfig.ios.infoPlist && baseConfig.ios.infoPlist.NSAppTransportSecurity) || {})),
+          NSAllowsLocalNetworking: true,
+          ...(isProduction || !usesLocalApi
+            ? {}
+            : {
+                NSAllowsArbitraryLoads: true
+              })
+        }
+      }
+    },
+    android: {
+      ...(baseConfig.android ?? {}),
+      // Required for http://192.168.x.x / 10.0.2.2 against the local API.
+      usesCleartextTraffic: isProduction ? (baseConfig.android?.usesCleartextTraffic ?? false) : true
+    },
     extra: {
       ...(baseConfig.extra ?? {}),
       apiBaseUrl,

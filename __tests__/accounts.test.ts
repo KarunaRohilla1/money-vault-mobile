@@ -8,6 +8,12 @@ import {
 } from "@/features/accounts/accountModel";
 import { isVaultScopedAccountDependentQuery } from "@/features/accounts/api";
 import { queryKeys } from "@/lib/queryKeys";
+import {
+  ACCOUNT_SECTION_ORDER,
+  accountSectionFor,
+  accountTypeIcon,
+  groupAccountsBySection
+} from "@/services/api/accountTypes";
 import type { AccountApi } from "@/services/api/types";
 
 const account: AccountApi = {
@@ -21,7 +27,7 @@ const account: AccountApi = {
 
 describe("accounts parity helpers", () => {
   it("uses the legacy account type list", () => {
-    expect(LEGACY_ACCOUNT_TYPES).toEqual(["Salary Account", "Savings Account", "Credit Card", "Cash", "Other"]);
+    expect(LEGACY_ACCOUNT_TYPES).toEqual(["Salary Account", "Savings Account", "Credit Card", "Cash", "Wallet", "Other"]);
   });
 
   it("requires a name and opening balance", () => {
@@ -29,13 +35,13 @@ describe("accounts parity helpers", () => {
     expect(accountFormError({ name: "Salary", openingBalance: "", type: "Salary Account" })).toBe("Opening balance cannot be empty.");
   });
 
-  it("rejects zero and non-finite opening balances", () => {
+  it("allows zero opening balances for non-credit-card accounts", () => {
     for (const value of ["0", "0.00", "-0"]) {
-      expect(accountFormError({ name: "Salary", openingBalance: value, type: "Salary Account" })).toBe(
-        "Opening balance must be greater than zero."
-      );
+      expect(accountFormError({ name: "Swiggy Wallet", openingBalance: value, type: "Wallet" })).toBeNull();
     }
+  });
 
+  it("rejects non-finite opening balances", () => {
     for (const value of ["NaN", "Infinity", "-Infinity"]) {
       expect(accountFormError({ name: "Salary", openingBalance: value, type: "Salary Account" })).toBe("Opening balance must be a number.");
     }
@@ -82,14 +88,34 @@ describe("accounts parity helpers", () => {
     expect(
       accountSummary([
         { ...account, balance: 198800, id: 1, type: "Salary Account" },
+        { ...account, balance: 2500, id: 3, type: "Wallet" },
         { ...account, balance: -2000, id: 2, type: "Credit Card" }
       ])
     ).toEqual({
-      assetAccounts: 1,
-      assets: 198800,
+      assetAccounts: 2,
+      assets: 201300,
       creditCards: 1,
       liabilities: 2000,
-      netWorth: 196800
+      netWorth: 199300
+    });
+  });
+
+  it("groups wallet accounts into their own section", () => {
+    const accounts = [
+      { ...account, id: 1, name: "Salary", type: "Salary Account" },
+      { ...account, id: 2, name: "Swiggy Wallet", type: "Wallet" },
+      { ...account, id: 3, name: "HDFC Credit Card", type: "Credit Card" },
+      { ...account, id: 4, name: "Brokerage", type: "Other" }
+    ];
+
+    expect(ACCOUNT_SECTION_ORDER).toEqual(["Cash & Bank", "Wallets", "Credit Cards", "Other Accounts"]);
+    expect(accountSectionFor("Wallet")).toBe("Wallets");
+    expect(accountTypeIcon("Wallet")).toBe("wallet");
+    expect(groupAccountsBySection(accounts)).toEqual({
+      "Cash & Bank": [accounts[0]],
+      Wallets: [accounts[1]],
+      "Credit Cards": [accounts[2]],
+      "Other Accounts": [accounts[3]]
     });
   });
 

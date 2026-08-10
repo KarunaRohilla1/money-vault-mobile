@@ -3,15 +3,13 @@ import type { CurrencyCode } from "@/types/domain";
 import { formatCurrency } from "@/lib/format";
 import { formatIsoDateOnly } from "@/lib/date";
 
-export type ReportTabKey = "overview" | "spending" | "shared" | "trends" | "insights";
+export type ReportTabKey = "overview" | "spending" | "shared";
 export type ReportTrendMetric = "cashOutflow" | "householdSpending" | "income" | "netPersonalCost" | "savings";
 
 export const reportTabs: { icon: string; key: ReportTabKey; label: string }[] = [
   { icon: "chart-pie", key: "overview", label: "Overview" },
   { icon: "chart-bar", key: "spending", label: "Spending" },
-  { icon: "account-group-outline", key: "shared", label: "Shared" },
-  { icon: "chart-line", key: "trends", label: "Trends" },
-  { icon: "lightbulb-outline", key: "insights", label: "Insights" }
+  { icon: "account-group-outline", key: "shared", label: "Shared" }
 ];
 
 export function reportNumber(value: unknown) {

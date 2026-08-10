@@ -1,17 +1,17 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useMemo, useRef, useState, type RefObject } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { BottomSheet, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { useSettingsQuery } from "@/features/settings/api";
 import { resetNavigationAfterLogout } from "@/features/settings/logoutNavigation";
 import {
+  filterMoreMenuSections,
   isSharedVault,
-  moneyRows,
-  preferenceRowsWithLogout,
+  moreMenuSectionsForVault,
   roleLabel,
   switchTarget,
   type MoreRowModel
@@ -20,6 +20,7 @@ import { ApiClientError } from "@/services/api/client";
 import { logoutBackendSession } from "@/services/api/logout";
 import { activatePersonalVaultSession, activateSharedVaultSession } from "@/services/api/session";
 import type { VaultSummaryApi } from "@/services/api/types";
+import { showToast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
@@ -57,6 +58,11 @@ function SettingsRow({ onLogoutPress, row }: { onLogoutPress: () => void; row: M
   const handlePress = () => {
     if (row.action === "logout") {
       onLogoutPress();
+      return;
+    }
+
+    if (row.action === "in-progress") {
+      showToast("This feature is still in progress.");
       return;
     }
 
@@ -131,6 +137,38 @@ function LogoutConfirmationSheet({
   );
 }
 
+function MoreSearchBar({
+  inputRef,
+  onChange,
+  onClose,
+  value
+}: {
+  inputRef: RefObject<TextInput | null>;
+  onChange: (value: string) => void;
+  onClose: () => void;
+  value: string;
+}) {
+  return (
+    <View className="h-12 flex-row rounded-xl border border-surface-border bg-surface">
+      <View className="min-w-0 flex-1 flex-row items-center gap-3 px-4">
+        <MaterialCommunityIcons name="magnify" size={theme.icons.md} color={theme.colors.text.muted} />
+        <TextInput
+          ref={inputRef}
+          accessibilityLabel="Search tools and preferences"
+          className="h-12 min-w-0 flex-1 font-sans text-base text-text"
+          onChangeText={onChange}
+          placeholder="Search tools and preferences..."
+          placeholderTextColor={theme.colors.text.muted}
+          value={value}
+        />
+      </View>
+      <Pressable accessibilityLabel="Close search" accessibilityRole="button" className="h-12 w-12 items-center justify-center" onPress={onClose}>
+        <MaterialCommunityIcons name="close" size={theme.icons.sm} color={theme.colors.text.muted} />
+      </Pressable>
+    </View>
+  );
+}
+
 function VaultCard({
   currentVault,
   disabled,
@@ -174,14 +212,20 @@ function VaultCard({
 
 export function MorePlaceholder() {
   const router = useRouter();
+  const searchInputRef = useRef<TextInput>(null);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const settingsQuery = useSettingsQuery(token, vaultId);
   const currentVault = settingsQuery.data?.currentVault;
   const targetVault = settingsQuery.data && currentVault ? switchTarget(currentVault, settingsQuery.data.accessibleVaults) : null;
+  const menuSections = useMemo(() => moreMenuSectionsForVault(currentVault), [currentVault]);
+  const visibleSections = useMemo(() => filterMoreMenuSections(menuSections, searchQuery), [menuSections, searchQuery]);
+  const showVaultCard = !searchActive && !searchQuery.trim();
   const switchMutation = useMutation({
     mutationFn: async () => {
       if (!token || !currentVault || !targetVault) {
@@ -231,6 +275,16 @@ export function MorePlaceholder() {
     }
   };
 
+  const openSearch = () => {
+    setSearchActive(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
+
+  const closeSearch = () => {
+    setSearchActive(false);
+    setSearchQuery("");
+  };
+
   return (
     <Screen>
       <View className="flex-row items-start justify-between gap-4">
@@ -238,15 +292,22 @@ export function MorePlaceholder() {
           <Text className="font-sans text-4xl font-bold text-text">More</Text>
           <Text className="mt-2 font-sans text-base text-text-muted">Tools and preferences for your vault.</Text>
         </View>
-        <Pressable accessibilityLabel="Search" accessibilityRole="button" className="h-14 w-14 items-center justify-center rounded-full border border-surface-border bg-surface">
-          <MaterialCommunityIcons name="magnify" size={theme.icons.lg} color={theme.colors.text.DEFAULT} />
+        <Pressable
+          accessibilityLabel={searchActive ? "Close search" : "Search"}
+          accessibilityRole="button"
+          className="h-14 w-14 items-center justify-center rounded-full border border-surface-border bg-surface"
+          onPress={searchActive ? closeSearch : openSearch}
+        >
+          <MaterialCommunityIcons name={searchActive ? "close" : "magnify"} size={theme.icons.lg} color={theme.colors.text.DEFAULT} />
         </Pressable>
       </View>
+
+      {searchActive ? <MoreSearchBar inputRef={searchInputRef} onChange={setSearchQuery} onClose={closeSearch} value={searchQuery} /> : null}
 
       {settingsQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
       {settingsQuery.isError ? <ErrorView message="Settings could not be loaded." onRetry={() => settingsQuery.refetch()} /> : null}
 
-      {currentVault ? (
+      {showVaultCard && currentVault ? (
         <VaultCard
           currentVault={currentVault}
           disabled={!targetVault}
@@ -256,8 +317,17 @@ export function MorePlaceholder() {
       ) : null}
       {switchError ? <Text className="font-sans text-sm text-state-danger">{switchError}</Text> : null}
 
-      <SettingsSection onLogoutPress={openLogoutConfirmation} rows={moneyRows} title="Money" />
-      <SettingsSection onLogoutPress={openLogoutConfirmation} rows={preferenceRowsWithLogout} title="Vault & Preferences" />
+      {searchQuery.trim() && visibleSections.length === 0 ? (
+        <View className="items-center gap-3 rounded-xl border border-surface-border bg-surface p-5">
+          <MaterialCommunityIcons name="magnify" size={theme.icons.lg} color={theme.colors.brand.soft} />
+          <Text className="font-sans text-lg font-bold text-text">No matching tools</Text>
+          <Text className="text-center font-sans text-sm text-text-muted">Try a different search term.</Text>
+        </View>
+      ) : (
+        visibleSections.map((section) => (
+          <SettingsSection key={section.id} onLogoutPress={openLogoutConfirmation} rows={section.rows} title={section.title} />
+        ))
+      )}
       <LogoutConfirmationSheet
         errorMessage={logoutError}
         onCancel={closeLogoutConfirmation}

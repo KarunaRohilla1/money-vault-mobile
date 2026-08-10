@@ -1,9 +1,20 @@
 import { buildQuery, request } from "@/services/api/core";
-import type { ReportSpendingApiResponse, ReportSpendingRequestParams, ReportsApiResponse } from "@/services/api/types";
+import type { ReportSharedApiResponse, ReportSpendingApiResponse, ReportSpendingRequestParams, ReportsApiResponse } from "@/services/api/types";
 
 export interface ReportsRequestParams {
   cycleStart?: string | undefined;
   detailLevel?: "overview" | "full" | undefined;
+}
+
+export function getReportsShared(token: string, params: Pick<ReportsRequestParams, "cycleStart"> = {}) {
+  const query = buildQuery([
+    ["cycleStart", params.cycleStart]
+  ]);
+
+  return request<ReportSharedApiResponse>({
+    path: `/api/reports/shared${query}`,
+    token
+  });
 }
 
 export function getReports(token: string, params: ReportsRequestParams = {}) {

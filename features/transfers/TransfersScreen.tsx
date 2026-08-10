@@ -27,6 +27,7 @@ import { toAppError } from "@/lib/errors";
 import type { AccountApi, TransferApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { accountTypeIcon } from "@/services/api/accountTypes";
 import { theme } from "@/theme";
 
 type FlowMode = "compose" | "review" | "success";
@@ -49,15 +50,7 @@ function formatDate(value: string, locale: string) {
 }
 
 function accountIcon(account: Pick<AccountApi, "type">) {
-  if (account.type === "Credit Card") {
-    return "credit-card-outline" as const;
-  }
-
-  if (account.type === "Cash") {
-    return "cash" as const;
-  }
-
-  return "bank-outline" as const;
+  return accountTypeIcon(account.type);
 }
 
 function accountTone(account: Pick<AccountApi, "type">) {
@@ -67,6 +60,10 @@ function accountTone(account: Pick<AccountApi, "type">) {
 
   if (account.type === "Cash") {
     return theme.colors.state.warning;
+  }
+
+  if (account.type === "Wallet") {
+    return theme.colors.state.info;
   }
 
   return theme.colors.brand.soft;

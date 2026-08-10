@@ -7,6 +7,7 @@ import { Screen } from "@/components/layout/Screen";
 import { BottomSheet, CurrencyText, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { useDeleteTransactionMutation, useTransactionDetailQuery } from "@/features/transactions/api";
 import { formatIsoDateOnly } from "@/lib/date";
+import { showToast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { theme } from "@/theme";
@@ -46,12 +47,14 @@ function DetailRow({ label, value }: { label: string; value?: string | null | un
 export function TransactionDetailScreen({ transactionId }: TransactionDetailScreenProps) {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
-  const vaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const vault = useAuthStore((state) => state.vault);
+  const vaultId = vault?.id ?? null;
+  const sharedVaultId = vault?.vaultType === "Shared" && vaultId ? Number(vaultId) : null;
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
   const [deleteVisible, setDeleteVisible] = useState(false);
   const detailQuery = useTransactionDetailQuery(token, vaultId, transactionId);
-  const deleteTransaction = useDeleteTransactionMutation(token, vaultId);
+  const deleteTransaction = useDeleteTransactionMutation(token, vaultId, sharedVaultId);
 
   if (transactionId === null) {
     return (
@@ -81,6 +84,17 @@ export function TransactionDetailScreen({ transactionId }: TransactionDetailScre
   const transaction = detailQuery.data;
   const title = transaction.notes || transaction.categoryName || transaction.transactionType;
   const dateLabel = formatIsoDateOnly(transaction.date, locale, { day: "numeric", month: "long", year: "numeric" });
+
+  async function handleDelete() {
+    try {
+      await deleteTransaction.mutateAsync(transaction.id);
+      setDeleteVisible(false);
+      showToast("Transaction deleted.");
+      router.replace("/transactions" as never);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to delete transaction.");
+    }
+  }
 
   return (
     <Screen contentClassName="gap-4 px-5 pt-4">
@@ -128,11 +142,9 @@ export function TransactionDetailScreen({ transactionId }: TransactionDetailScre
           <PrimaryButton
             loading={deleteTransaction.isPending}
             disabled={deleteTransaction.isPending}
-            onPress={() =>
-              deleteTransaction.mutate(transaction.id, {
-                onSuccess: () => router.replace("/transactions" as never)
-              })
-            }
+            className="bg-state-danger"
+            icon="trash-can-outline"
+            onPress={() => void handleDelete()}
           >
             Delete
           </PrimaryButton>

@@ -1,15 +1,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { notifyNotificationDomainChanged } from "@/features/notifications/services/notificationEngine";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { apiClient } from "@/services/api/client";
 import type { PlanningClosePayloadApi, PlanningItemPayloadApi, PlanningStatusPayloadApi } from "@/services/api/types";
 
-function invalidatePlanningDependents(vaultId: string | null) {
+export function invalidatePlanningDependents(vaultId: string | null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.planning.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
+  notifyNotificationDomainChanged();
 }
 
 export function usePlanningQuery(token: string | null, vaultId: string | null, cycleStart?: string | null) {
