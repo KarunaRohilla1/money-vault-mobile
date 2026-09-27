@@ -40,7 +40,7 @@ describe("logout", () => {
     expect(preferenceRowsWithLogout.at(-1)?.title).toBe("Logout");
   });
 
-  it("logs out by clearing Secure Store, auth state, access state, onboarding scope, and query cache", async () => {
+  it("logs out by clearing Secure Store, auth state, access state, and query cache", async () => {
     useAuthStore.getState().setAuthenticated("jwt-token", vault, vault);
     useAccessStore.getState().setAccessState("ready");
     useOnboardingStore.getState().updateDraft("1", { vaultName: "Draft Vault" });
@@ -57,7 +57,9 @@ describe("logout", () => {
       vault: null
     });
     expect(useAccessStore.getState().accessState).toBe("signed-out");
-    expect(useOnboardingStore.getState().vaults["1"]).toBeUndefined();
+    // Local onboarding completion is preserved so API-unreachable setup checks
+    // do not force completed accounts back through onboarding after logout.
+    expect(useOnboardingStore.getState().vaults["1"]?.completed).toBe(true);
     expect(queryClient.getQueryData(queryKeys.dashboard.current("1"))).toBeUndefined();
   });
 
@@ -88,7 +90,7 @@ describe("logout", () => {
     resetNavigationAfterLogout(router);
 
     expect(router.dismissAll).toHaveBeenCalledTimes(1);
-    expect(router.replace).toHaveBeenCalledWith("/sign-in");
+    expect(router.replace).toHaveBeenCalledWith("/welcome");
   });
 
   it("skips dismissAll when the navigator cannot dismiss", () => {
@@ -101,6 +103,6 @@ describe("logout", () => {
     resetNavigationAfterLogout(router);
 
     expect(router.dismissAll).not.toHaveBeenCalled();
-    expect(router.replace).toHaveBeenCalledWith("/sign-in");
+    expect(router.replace).toHaveBeenCalledWith("/welcome");
   });
 });

@@ -35,15 +35,13 @@ describe("More screen model", () => {
   });
 
   it("maps preference rows to settings placeholders", () => {
-    expect(preferenceRows.map((row) => row.title)).toEqual(["Security & PIN", "Vault Members", "Notifications"]);
-    expect(preferenceRows.map((row) => row.route)).toEqual(["/settings/security", "/settings/members", "/settings/notifications"]);
+    expect(preferenceRows.map((row) => row.title)).toEqual(["Vault & Preferences", "Shared Vault", "Security & PIN", "Vault Members"]);
+    expect(preferenceRows.map((row) => row.route)).toEqual(["/settings/vault-preferences", "/settings/shared-vault", "/settings/security", "/settings/members"]);
   });
 
-  it("shows Vault Members only for shared vaults", () => {
-    expect(preferenceRowsForVault(personalVault).map((row) => row.title)).toEqual(["Security & PIN", "Notifications"]);
-    expect(preferenceRowsForVault(sharedVault).map((row) => row.title)).toEqual(["Security & PIN", "Vault Members", "Notifications"]);
-    expect(preferenceRowsForVault(sharedVault).find((row) => row.id === "notifications")?.action).toBe("in-progress");
-    expect(preferenceRowsForVault(personalVault).find((row) => row.id === "notifications")?.action).toBeUndefined();
+  it("shows Vault Members only for shared vaults and excludes personal preferences", () => {
+    expect(preferenceRowsForVault(personalVault).map((row) => row.title)).toEqual(["Vault & Preferences", "Shared Vault", "Security & PIN"]);
+    expect(preferenceRowsForVault(sharedVault).map((row) => row.title)).toEqual(["Vault Members"]);
   });
 
   it("hides Transfers and Reports from the Money section for shared vaults", () => {
@@ -63,9 +61,11 @@ describe("More screen model", () => {
     expect(switchTarget(sharedVault, [personalVault, sharedVault])).toEqual(personalVault);
   });
 
-  it("keeps role labels based on current vault admin status", () => {
-    expect(roleLabel(personalVault)).toBe("Admin");
+  it("keeps role labels based on current vault role and type", () => {
+    expect(roleLabel(personalVault)).toBe("Owner");
     expect(roleLabel(sharedVault)).toBe("Member");
+    expect(roleLabel({ ...sharedVault, role: "owner" })).toBe("Owner");
+    expect(roleLabel({ ...sharedVault, isAdmin: true })).toBe("Owner");
   });
 
   it("resolves placeholder titles for preference routes", () => {

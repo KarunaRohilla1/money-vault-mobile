@@ -55,6 +55,14 @@ export interface TransactionHistoryApiResponse {
   transactionCount: number;
 }
 
+export interface TransactionShareApi {
+  id: number;
+  participantName: string;
+  participantVaultId: number;
+  shareAmount: number;
+  sharePercentage?: number | null;
+}
+
 export interface TransactionDetailApi {
   accountId: number;
   accountName?: string | null;
@@ -68,6 +76,7 @@ export interface TransactionDetailApi {
   date: string;
   id: number;
   notes?: string | null;
+  shares?: TransactionShareApi[];
   shared?: boolean;
   sharedVaultName?: string | null;
   transactionType: string;

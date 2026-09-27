@@ -12,7 +12,7 @@ type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 const iconByKey: Record<string, IconName> = {
   "paid-by-you": "arrow-top-right",
-  "received-by-you": "arrow-down",
+  "received-by-you": "account-arrow-left-outline",
   "you-owe": "account-group",
   "you-are-owed": "arrow-top-right",
   "settlements-completed": "check-circle-outline",

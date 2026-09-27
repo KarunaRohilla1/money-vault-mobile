@@ -68,15 +68,14 @@ If you previously logged in against production, sign out and log in again after 
 
 ## Backend Auth Model
 
-The backend owns vault PIN authentication, authorization, financial calculations, Safe to Spend, cycle logic, and shared settlement logic.
+The backend owns username + PIN authentication, authorization, financial calculations, Safe to Spend, cycle logic, and shared settlement logic.
 
 Mobile authentication flow:
 
-1. Mobile will submit vault name and PIN to `POST /api/login`.
-2. The backend validates the PIN against the existing Money Vault behavior.
-3. The backend returns a bearer token and safe vault metadata.
-4. Mobile stores only the bearer token in Expo Secure Store.
-5. Mobile sends `Authorization: Bearer <token>` on API requests.
+1. Create account with username, display name, and PIN, or sign in with username and PIN via `POST /api/register` and `POST /api/login`.
+2. The backend hashes the PIN with bcrypt and returns a bearer token plus vault metadata.
+3. Mobile stores the bearer token in Expo Secure Store and a local PIN verifier for app lock.
+4. Mobile sends `Authorization: Bearer <token>` on API requests.
 
 The centralized app access state is:
 
@@ -167,6 +166,6 @@ Primary endpoints consumed by mobile:
 - `POST /api/planning/commitments` / `PUT /api/planning/commitments/{id}` / `DELETE /api/planning/commitments/{id}` manage recurring commitments.
 - `POST /api/planning/income-templates` / `PUT /api/planning/income-templates/{id}` / `DELETE /api/planning/income-templates/{id}` manage recurring income.
 - `POST /api/planning/commitments/{id}/status` and `POST /api/planning/income-templates/{id}/status` update actual activity state through backend validation.
-- `POST /api/planning/cycles/close-active` accepts the close review payload and reuses the legacy `finalize_month` / `close_active_cycle` workflow.
+- `POST /api/planning/cycles/{cycle_start}/close` accepts the close review payload and executes the `finalize_month` / `close_active_cycle` workflow.
 
 React Query hooks in `features/planning/api.ts` invalidate Planning, Dashboard, Accounts, and Transactions after mutations so the financial surfaces stay synchronized.

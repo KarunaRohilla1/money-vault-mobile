@@ -1,12 +1,11 @@
 import { Text, View } from "react-native";
 
 import { ErrorView } from "@/components/ui/ErrorView";
-import { SharedCategoryImpactSection } from "@/features/reports/components/shared/SharedCategoryImpactSection";
-import { SharedContributionSection } from "@/features/reports/components/shared/SharedContributionSection";
-import { SharedHeroSection } from "@/features/reports/components/shared/SharedHeroSection";
-import { SharedSettlementOverviewSection } from "@/features/reports/components/shared/SharedSettlementOverviewSection";
-import { SharedSettlementPreviewSection } from "@/features/reports/components/shared/SharedSettlementPreviewSection";
+import { SharedCategoryBreakdownSection } from "@/features/reports/components/shared/SharedCategoryBreakdownSection";
+import { SharedFundingVsShareSection } from "@/features/reports/components/shared/SharedFundingVsShareSection";
+import { SharedSummarySection } from "@/features/reports/components/shared/SharedSummarySection";
 import { SharedTopExpensesSection } from "@/features/reports/components/shared/SharedTopExpensesSection";
+import { SharedTrendSection } from "@/features/reports/components/shared/SharedTrendSection";
 import { useSharedReportQuery } from "@/features/reports/api";
 import { hasSharedReportData } from "@/features/reports/sharedReportModel";
 import type { CurrencyCode } from "@/types/domain";
@@ -52,11 +51,10 @@ export function SharedTab({ currencyCode, cycleStart, locale, token, vaultId }: 
 
   return (
     <View className="gap-5">
-      <SharedHeroSection currencyCode={currencyCode} hero={report.data.hero} locale={locale} />
-      <SharedSettlementOverviewSection cards={report.data.settlementOverview} currencyCode={currencyCode} locale={locale} />
-      <SharedCategoryImpactSection currencyCode={currencyCode} locale={locale} rows={report.data.categoryImpact} />
-      <SharedSettlementPreviewSection currencyCode={currencyCode} locale={locale} preview={report.data.settlementPreview} />
-      <SharedContributionSection contribution={report.data.contribution} currencyCode={currencyCode} locale={locale} />
+      <SharedSummarySection currencyCode={currencyCode} locale={locale} summary={report.data.summary} />
+      <SharedFundingVsShareSection currencyCode={currencyCode} fundingVsShare={report.data.fundingVsShare} locale={locale} />
+      <SharedCategoryBreakdownSection categories={report.data.categoryBreakdown} currencyCode={currencyCode} locale={locale} />
+      <SharedTrendSection currencyCode={currencyCode} locale={locale} trend={report.data.trend} />
       <SharedTopExpensesSection currencyCode={currencyCode} expenses={report.data.topExpenses} locale={locale} />
     </View>
   );

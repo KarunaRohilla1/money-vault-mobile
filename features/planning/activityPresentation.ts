@@ -1,7 +1,9 @@
 import { formatCurrency } from "@/lib/format";
 import type { PlanningCycleApi, PlanningTotalsApi } from "@/services/api/types";
 
-import type { PlanningActivityViewModel } from "./planningModel";
+import { activityDueDate, parseLocalIsoDate, type PlanningActivityViewModel } from "./planningModel";
+
+export { activityDueDate };
 
 export type ActivityPresentationStatus = "pending" | "completed" | "skipped" | "carriedForward";
 export type ActivityUrgency = "overdue" | "today" | "thisWeek" | "later" | "none";
@@ -86,14 +88,6 @@ export function getActivityPresentationStatus(activity: PlanningActivityViewMode
   return "pending";
 }
 
-export function activityDueDate(activity: PlanningActivityViewModel, cycle: Pick<PlanningCycleApi, "startMonth" | "startYear">) {
-  if (activity.dueDate) {
-    return activity.dueDate;
-  }
-
-  return `${cycle.startYear}-${String(cycle.startMonth).padStart(2, "0")}-${String(activity.dueDay).padStart(2, "0")}`;
-}
-
 export function isBillActivity(activity: PlanningActivityViewModel) {
   return activity.kind === "commitment" && (billNamePattern.test(activity.name) || ["lightning-bolt-outline", "credit-card-outline", "wifi", "shield-check-outline"].includes(activity.icon));
 }
@@ -121,11 +115,6 @@ function dateOnly(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
-function parseLocalIso(value: string) {
-  const [yearText, monthText, dayText] = value.split("-");
-  return new Date(Number(yearText), Number(monthText) - 1, Number(dayText));
-}
-
 function dayDiff(left: Date, right: Date) {
   return Math.round((dateOnly(left).getTime() - dateOnly(right).getTime()) / 86400000);
 }
@@ -136,9 +125,9 @@ export function getActivityUrgency(activity: PlanningActivityViewModel, cycle: P
     return "none";
   }
 
-  const diff = dayDiff(parseLocalIso(dueDate), today);
+  const diff = dayDiff(parseLocalIsoDate(dueDate), today);
   if (cycle.status !== "Current") {
-    return diff <= 7 ? "thisWeek" : "later";
+    return diff >= 1 && diff <= 7 ? "thisWeek" : "later";
   }
 
   if (diff < 0) {
@@ -147,7 +136,7 @@ export function getActivityUrgency(activity: PlanningActivityViewModel, cycle: P
   if (diff === 0) {
     return "today";
   }
-  if (diff <= 7) {
+  if (diff >= 1 && diff <= 7) {
     return "thisWeek";
   }
   return "later";
@@ -165,7 +154,7 @@ export function getActivityDueLabel(activity: PlanningActivityViewModel, cycle: 
     return "Carried forward";
   }
 
-  const due = parseLocalIso(dueDate);
+  const due = parseLocalIsoDate(dueDate);
   const diff = dayDiff(due, today);
   const shortDate = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(due);
 
@@ -184,7 +173,7 @@ export function getActivityDueLabel(activity: PlanningActivityViewModel, cycle: 
   if (diff === 1) {
     return "Due tomorrow";
   }
-  if (diff <= 7) {
+  if (diff >= 2 && diff <= 7) {
     return `Due in ${diff} days`;
   }
   return `Due on ${shortDate}`;

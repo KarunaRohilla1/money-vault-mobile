@@ -14,7 +14,7 @@ import {
   saveMonthlySavingsGoal,
   saveVaultName
 } from "@/services/api/onboarding";
-import { loginWithVaultCredentials } from "@/services/api/session";
+import { establishApiSession } from "@/services/api/session";
 import type { DashboardApiResponse } from "@/services/api/types";
 import { useAccessStore } from "@/stores/accessStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -84,7 +84,12 @@ describe("CUJ 1 — New user authentication and first setup", () => {
   });
 
   it("logs in, routes through onboarding, provisions first account, then reaches a ready dashboard", async () => {
-    jest.spyOn(apiClient, "login").mockResolvedValueOnce({ token: "jwt-new-user", vault });
+    jest.spyOn(apiClient, "getSession").mockResolvedValueOnce({
+      accessibleVaults: [vault],
+      authenticatedVault: vault,
+      pinSet: false,
+      vault
+    });
     jest.spyOn(apiClient, "updateSettings").mockResolvedValue({
       accessibleVaults: [],
       currentVault: {
@@ -107,7 +112,7 @@ describe("CUJ 1 — New user authentication and first setup", () => {
       type: "Salary Account"
     } as never);
 
-    const session = await loginWithVaultCredentials({ pin: "1234", vaultName: "Personal Vault" });
+    const session = await establishApiSession("jwt-new-user");
     useAuthStore.getState().setAuthenticated(session.token, session.vault, session.vault);
     useAccessStore.getState().setAccessState("onboarding");
 

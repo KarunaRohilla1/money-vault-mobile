@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { BottomSheet, CurrencyText, PrimaryButton } from "@/components/ui";
-import type { PlanningActivityViewModel } from "@/features/planning/planningModel";
+import { activityDueDate, parseLocalIsoDate, type PlanningActivityViewModel } from "@/features/planning/planningModel";
 import { theme } from "@/theme";
 
 interface PlanningItemSheetProps {
@@ -12,7 +12,7 @@ interface PlanningItemSheetProps {
   actualError: string | null;
   actualNotes: string;
   currencyCode: string;
-  cycle: { startMonth: number; startYear: number };
+  cycle: { startMonth: number; startYear: number; startDate?: string; endDate?: string };
   locale: string;
   saving?: boolean;
   selectedStatus: "COMPLETE" | "PENDING" | "CANCELLED";
@@ -212,8 +212,9 @@ function StatusMessage({ activity, dueDateLabel, isCancelled, isComplete }: { ac
   );
 }
 
-function dueDateForActivity(activity: PlanningActivityViewModel, cycle: { startMonth: number; startYear: number }, locale: string) {
-  const date = new Date(cycle.startYear, cycle.startMonth - 1, activity.dueDay);
+function dueDateForActivity(activity: PlanningActivityViewModel, cycle: { startMonth: number; startYear: number; startDate?: string; endDate?: string }, locale: string) {
+  const dateStr = activityDueDate(activity, cycle);
+  const date = parseLocalIsoDate(dateStr);
   return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 

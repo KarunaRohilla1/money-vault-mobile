@@ -91,13 +91,11 @@ export function setIncomeStatus(token: string, templateId: number, body: Plannin
   });
 }
 
-export function closeActivePlanningCycle(token: string, cycleStart?: string, body?: PlanningClosePayloadApi) {
-  const path = cycleStart ? `/api/planning/cycles/${encodeURIComponent(cycleStart)}/close` : "/api/planning/cycles/close-active";
-
+export function closeActivePlanningCycle(token: string, cycleStart: string, body?: PlanningClosePayloadApi) {
   return request<PlanningApiResponse["cycle"], PlanningClosePayloadApi>({
     ...(body ? { body } : {}),
     method: "POST",
-    path,
+    path: `/api/planning/cycles/${encodeURIComponent(cycleStart)}/close`,
     token
   });
 }

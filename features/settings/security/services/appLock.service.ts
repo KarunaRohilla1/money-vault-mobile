@@ -6,13 +6,27 @@ import {
 } from "@/features/settings/security/constants/security";
 import { getSecureItem } from "@/features/settings/security/services/secureStorage.service";
 
-export async function isBiometricUnlockEnabled() {
+/** App Lock is enabled only when biometric unlock is opted-in for this user. */
+export async function isBiometricUnlockEnabled(userId?: string | null) {
   try {
     const value = await getSecureItem(SECURITY_STORAGE_KEYS.biometricEnabled);
-    return value === "true";
+    if (value !== "true") {
+      return false;
+    }
+
+    const storedUserId = await getSecureItem(SECURITY_STORAGE_KEYS.biometricUserId);
+    if (userId) {
+      return storedUserId === userId;
+    }
+
+    return true;
   } catch {
     return false;
   }
+}
+
+export async function isAppLockEnabled(userId?: string | null) {
+  return isBiometricUnlockEnabled(userId);
 }
 
 export async function getStoredAutoLockTimeout(): Promise<AutoLockTimeout> {

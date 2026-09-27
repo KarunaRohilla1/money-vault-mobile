@@ -4,6 +4,7 @@ import { BackHandler } from "react-native";
 import { type Control, useForm, useWatch } from "react-hook-form";
 
 import { validationMessage } from "@/features/onboarding/onboardingSchema";
+import { useSettingsQuery } from "@/features/settings/api";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -12,9 +13,9 @@ import {
   markOnboardingComplete,
   OnboardingApiNotImplementedError,
   saveFirstAccount,
-  saveMonthlySavingsGoal,
-  saveVaultName
+  saveMonthlySavingsGoal
 } from "@/services/api/onboarding";
+import { useAccessStore } from "@/stores/accessStore";
 import { useAuthStore } from "@/stores/authStore";
 import {
   EMPTY_ONBOARDING_DRAFT,
@@ -43,35 +44,20 @@ function previousStep(step: OnboardingStep) {
   return ONBOARDING_STEPS[Math.max(index - 1, 0)] ?? "welcome";
 }
 
-function usernameFromVaultName(vaultName: string | undefined) {
-  if (!vaultName) {
-    return "Your";
-  }
-
-  return vaultName.replace(/'s Vault$/u, "").trim() || "Your";
-}
-
-function defaultVaultName(vaultName: string | undefined) {
-  return `${usernameFromVaultName(vaultName)}'s Vault`;
-}
-
 async function persistStep(token: string, vaultId: string, step: OnboardingStep, values: OnboardingDraft) {
   switch (step) {
     case "welcome":
       await ensurePersonalVault(token, useAuthStore.getState().vault);
       return;
-    case "vault-name":
-      await saveVaultName(token, vaultId, values.vaultName.trim());
-      return;
     case "account-details":
       await saveFirstAccount(token, vaultId, values);
       return;
     case "financial-cycle":
-      await generateFirstFinancialCycle(token, vaultId, values.cycleStartDay ?? 1);
-      return;
+      return generateFirstFinancialCycle(token, vaultId, values.cycleStartDay ?? 1);
     case "savings-goal":
       await saveMonthlySavingsGoal(token, vaultId, values.monthlySavingsGoal.trim());
       return;
+    case "biometric-prompt":
     case "first-account":
     case "finish":
       return;
@@ -96,9 +82,10 @@ export function useOnboardingFlow() {
   const updateDraft = useOnboardingStore((state) => state.updateDraft);
   const persistedVaultState = useOnboardingStore((state) => (vaultId ? state.vaults[vaultId] : undefined));
   const persisted = persistedVaultState ?? getVaultOnboardingState(vaultId);
+  const settingsQuery = useSettingsQuery(token, vaultId);
   const [stepError, setStepError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const step = persisted.step;
+  const step = ONBOARDING_STEPS.includes(persisted.step) ? persisted.step : "welcome";
   const stepIndex = ONBOARDING_STEPS.indexOf(step);
   const { control, getValues, setValue } = useForm<OnboardingDraft>({
     defaultValues: {
@@ -107,12 +94,23 @@ export function useOnboardingFlow() {
     }
   });
   const values = useWatch({ control });
+
+  useEffect(() => {
+    const savedCycleStartDay = settingsQuery.data?.cycleStartDay;
+
+    if (!vaultId || !savedCycleStartDay || persisted.draft.cycleStartDay !== null) {
+      return;
+    }
+
+    setValue("cycleStartDay", savedCycleStartDay);
+    updateDraft(vaultId, { cycleStartDay: savedCycleStartDay });
+  }, [persisted.draft.cycleStartDay, setValue, settingsQuery.data?.cycleStartDay, updateDraft, vaultId]);
   const screenTitle = useMemo(() => {
     switch (step) {
       case "welcome":
         return "Welcome";
-      case "vault-name":
-        return "Vault name";
+      case "biometric-prompt":
+        return "Fingerprint unlock";
       case "first-account":
         return "First account";
       case "account-details":
@@ -131,9 +129,8 @@ export function useOnboardingFlow() {
       return;
     }
 
-    const fallbackName = defaultVaultName(vault?.name);
-    setValue("vaultName", fallbackName);
-    updateDraft(vaultId, { vaultName: fallbackName });
+    setValue("vaultName", "Personal");
+    updateDraft(vaultId, { vaultName: "Personal" });
   }, [getValues, setValue, updateDraft, vault?.name, vaultId]);
 
   useEffect(() => {
@@ -178,7 +175,14 @@ export function useOnboardingFlow() {
 
     setSaving(true);
     try {
-      await persistStep(token, vaultId, step, current);
+      const saved = await persistStep(token, vaultId, step, current);
+      if (step === "financial-cycle" && saved && typeof saved === "object" && "cycleStartDay" in saved) {
+        const cycleStartDay = saved.cycleStartDay;
+        if (typeof cycleStartDay === "number") {
+          updateDraft(vaultId, { cycleStartDay });
+          queryClient.setQueryData(queryKeys.settings.effective(vaultId), saved);
+        }
+      }
       setStep(vaultId, targetStep ?? nextStep(step));
     } catch (error) {
       setStepError(safePersistenceMessage(error));
@@ -187,18 +191,65 @@ export function useOnboardingFlow() {
     }
   };
 
+  const enableFingerprintThenContinue = async () => {
+    setStepError(null);
+    setSaving(true);
+    try {
+      const { authenticateWithBiometrics, isBiometricSupported } = await import(
+        "@/features/settings/security/services/biometric.service"
+      );
+      const { setSecureItem } = await import("@/features/settings/security/services/secureStorage.service");
+      const { SECURITY_STORAGE_KEYS } = await import("@/features/settings/security/constants/security");
+
+      const supported = await isBiometricSupported();
+      if (!supported) {
+        setStepError("Fingerprint isn't available on this device. You can enable it later in Settings.");
+        return;
+      }
+
+      const result = await authenticateWithBiometrics("Enable fingerprint unlock");
+      if (result.status === "cancelled") {
+        return;
+      }
+      if (result.status !== "success") {
+        setStepError(result.message ?? "Fingerprint could not be enabled.");
+        return;
+      }
+
+      await setSecureItem(SECURITY_STORAGE_KEYS.biometricEnabled, "true");
+      const currentUserId = useAuthStore.getState().userId;
+      if (currentUserId) {
+        await setSecureItem(SECURITY_STORAGE_KEYS.biometricUserId, currentUserId);
+      }
+      await goToNext();
+    } catch {
+      setStepError("Fingerprint could not be enabled. Try again or choose Not now.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const finish = async () => {
-    if (!vaultId || !token) {
+    const personalVaultId =
+      useAuthStore.getState().authenticatedVault?.id ?? useAuthStore.getState().vault?.id ?? vaultId;
+    if (!personalVaultId || !token) {
       return;
     }
 
     setSaving(true);
     setStepError(null);
     try {
-      await markOnboardingComplete(token, vaultId);
-      completeVault(vaultId);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.effective(vaultId) });
+      await markOnboardingComplete(token, personalVaultId);
+      // Persist local completion under the same vault id AccessGate/bootstrap use.
+      completeVault(personalVaultId);
+      if (vaultId && vaultId !== personalVaultId) {
+        completeVault(vaultId);
+      }
+      // Mark access ready immediately so AccessGate does not bounce "/" back to /onboarding
+      // while the dashboard setup checklist is still catching up.
+      useAccessStore.getState().setAccessState("ready");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(personalVaultId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.effective(personalVaultId) });
       router.replace("/" as never);
     } catch (error) {
       setStepError(safePersistenceMessage(error));
@@ -209,6 +260,7 @@ export function useOnboardingFlow() {
 
   return {
     control,
+    enableFingerprintThenContinue,
     finish,
     goBack,
     goToNext,

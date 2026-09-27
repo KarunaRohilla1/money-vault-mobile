@@ -14,6 +14,7 @@ import {
   SecureStorageError,
   setSecureItem
 } from "@/features/settings/security/services/secureStorage.service";
+import { useAuthStore } from "@/stores/authStore";
 
 export type BiometricEnableResult =
   | { status: "enabled" }
@@ -42,6 +43,7 @@ function storageErrorMessage(error: unknown) {
 }
 
 export function useBiometric() {
+  const userId = useAuthStore((state) => state.userId);
   const [enabled, setEnabled] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,9 +56,10 @@ export function useBiometric() {
       setIsLoading(true);
 
       try {
-        const [supported, stored] = await Promise.all([
+        const [supported, stored, storedUserId] = await Promise.all([
           isBiometricSupported(),
-          getSecureItem(SECURITY_STORAGE_KEYS.biometricEnabled)
+          getSecureItem(SECURITY_STORAGE_KEYS.biometricEnabled),
+          getSecureItem(SECURITY_STORAGE_KEYS.biometricUserId)
         ]);
 
         if (cancelled) {
@@ -64,7 +67,7 @@ export function useBiometric() {
         }
 
         setIsSupported(supported);
-        setEnabled(stored === "true");
+        setEnabled(stored === "true" && Boolean(userId) && storedUserId === userId);
       } catch {
         if (!cancelled) {
           setIsSupported(false);
@@ -82,7 +85,7 @@ export function useBiometric() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
   const authenticate = useCallback(async (): Promise<BiometricAuthenticateResult> => {
     try {
@@ -104,9 +107,9 @@ export function useBiometric() {
         message: result.message ?? SECURITY_MESSAGES.biometricFailed,
         status: "failed"
       };
-    } catch (error: unknown) {
+    } catch {
       return {
-        message: storageErrorMessage(error),
+        message: SECURITY_MESSAGES.unexpectedError,
         status: "error"
       };
     }
@@ -114,6 +117,10 @@ export function useBiometric() {
 
   const enable = useCallback(async (): Promise<BiometricEnableResult> => {
     if (isUpdating) {
+      return { message: SECURITY_MESSAGES.unexpectedError, status: "error" };
+    }
+
+    if (!userId) {
       return { message: SECURITY_MESSAGES.unexpectedError, status: "error" };
     }
 
@@ -146,6 +153,7 @@ export function useBiometric() {
       }
 
       await setSecureItem(SECURITY_STORAGE_KEYS.biometricEnabled, "true");
+      await setSecureItem(SECURITY_STORAGE_KEYS.biometricUserId, userId);
       setEnabled(true);
       return { status: "enabled" };
     } catch (error: unknown) {
@@ -156,7 +164,7 @@ export function useBiometric() {
     } finally {
       setIsUpdating(false);
     }
-  }, [isUpdating]);
+  }, [isUpdating, userId]);
 
   const disable = useCallback(async (): Promise<BiometricDisableResult> => {
     if (isUpdating) {
@@ -167,6 +175,11 @@ export function useBiometric() {
 
     try {
       await deleteSecureItem(SECURITY_STORAGE_KEYS.biometricEnabled);
+      try {
+        await deleteSecureItem(SECURITY_STORAGE_KEYS.biometricUserId);
+      } catch {
+        // Ignore missing key
+      }
       setEnabled(false);
       return { status: "disabled" };
     } catch (error: unknown) {

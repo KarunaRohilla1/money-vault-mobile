@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-import { FeaturePill, IconHero } from "@/features/onboarding/steps/stepUi";
+import { IconHero } from "@/features/onboarding/steps/stepUi";
 
 export function WelcomeStep() {
   return (
@@ -12,7 +12,6 @@ export function WelcomeStep() {
           Private, beautiful, and built around the way you manage your finances.
         </Text>
       </View>
-      <FeaturePill icon="shield-check-outline" label="Encrypted session" />
     </View>
   );
 }

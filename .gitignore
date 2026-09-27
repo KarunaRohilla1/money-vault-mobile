@@ -5,6 +5,8 @@ dist/
 web-build/
 android/
 docs/
+build-artifacts/
+*.apk
 .env
 .env.local
 .env.development

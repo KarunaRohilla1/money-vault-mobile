@@ -49,6 +49,11 @@ jest.mock("expo-constants", () => ({
   }
 }));
 
+jest.mock("expo-crypto", () => ({
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  digestStringAsync: jest.fn(async (_algorithm: string, value: string) => `hash:${value}`)
+}));
+
 jest.mock("expo-secure-store", () => ({
   deleteItemAsync: jest.fn(async () => undefined),
   getItemAsync: jest.fn(async () => null),
@@ -62,31 +67,9 @@ jest.mock("expo-local-authentication", () => ({
   isEnrolledAsync: jest.fn(async () => true)
 }));
 
-const notificationsMock = {
-  AndroidImportance: { DEFAULT: 3 },
-  IosAuthorizationStatus: { PROVISIONAL: 2 },
-  SchedulableTriggerInputTypes: { DATE: "date" },
-  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
-  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
-  cancelAllScheduledNotificationsAsync: jest.fn(async () => undefined),
-  cancelScheduledNotificationAsync: jest.fn(async () => undefined),
-  getLastNotificationResponseAsync: jest.fn(async () => null),
-  getPermissionsAsync: jest.fn(async () => ({ canAskAgain: true, granted: true, status: "granted" })),
-  requestPermissionsAsync: jest.fn(async () => ({ canAskAgain: true, granted: true, status: "granted" })),
-  scheduleNotificationAsync: jest.fn(async () => "notification-id"),
-  setNotificationChannelAsync: jest.fn(async () => null),
-  setNotificationHandler: jest.fn()
-};
-
-jest.mock("expo-notifications", () => notificationsMock);
-
 jest.mock("expo-clipboard", () => ({
   getStringAsync: jest.fn(async () => ""),
   setStringAsync: jest.fn(async () => undefined)
-}));
-
-jest.mock("@/features/notifications/services/nativeNotifications", () => ({
-  Notifications: notificationsMock
 }));
 
 jest.mock("@react-native-community/datetimepicker", () => {

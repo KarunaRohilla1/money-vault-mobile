@@ -5,7 +5,6 @@ import { AppBootstrapProvider } from "@/providers/AppBootstrapProvider";
 import { AppLockProvider } from "@/providers/AppLockProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { GlobalErrorBoundary } from "@/providers/GlobalErrorBoundary";
-import { NotificationProvider } from "@/providers/NotificationProvider";
 import { ReactNativeQueryProvider } from "@/providers/query/ReactNativeQueryProvider";
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -15,9 +14,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <ReactNativeQueryProvider>
           <AuthProvider>
             <AppBootstrapProvider>
-              <AppLockProvider>
-                <NotificationProvider>{children}</NotificationProvider>
-              </AppLockProvider>
+              <AppLockProvider>{children}</AppLockProvider>
             </AppBootstrapProvider>
           </AuthProvider>
         </ReactNativeQueryProvider>

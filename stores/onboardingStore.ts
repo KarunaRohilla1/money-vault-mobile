@@ -6,7 +6,7 @@ import { zustandStorage } from "@/stores/zustandStorage";
 
 export type OnboardingStep =
   | "welcome"
-  | "vault-name"
+  | "biometric-prompt"
   | "first-account"
   | "account-details"
   | "financial-cycle"
@@ -19,8 +19,11 @@ export interface OnboardingDraft {
   accountKind: OnboardingAccountKind | null;
   accountName: string;
   cycleStartDay: number | null;
+  displayName: string;
   monthlySavingsGoal: string;
   openingBalance: string;
+  pin: string;
+  pinConfirm: string;
   vaultName: string;
 }
 
@@ -43,7 +46,7 @@ interface OnboardingState {
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
-  "vault-name",
+  "biometric-prompt",
   "first-account",
   "account-details",
   "financial-cycle",
@@ -55,9 +58,12 @@ export const EMPTY_ONBOARDING_DRAFT: OnboardingDraft = {
   accountKind: null,
   accountName: "",
   cycleStartDay: null,
+  displayName: "",
   monthlySavingsGoal: "",
   openingBalance: "",
-  vaultName: ""
+  pin: "",
+  pinConfirm: "",
+  vaultName: "Personal"
 };
 
 function emptyVaultState(): VaultOnboardingState {

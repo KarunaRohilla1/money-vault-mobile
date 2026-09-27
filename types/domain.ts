@@ -25,7 +25,10 @@ export interface AuthenticatedVault {
 export interface BackendSession {
   accessibleVaults: AuthenticatedVault[];
   authenticatedVault: AuthenticatedVault | null;
+  displayName?: string | null;
+  pinSet?: boolean;
   token: string;
+  userId?: string | null;
   vault: AuthenticatedVault | null;
 }
 

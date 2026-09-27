@@ -7,7 +7,9 @@ import {
   activatePersonalVaultSession,
   activateSharedVaultSession,
   clearBackendSession,
-  loginWithVaultCredentials,
+  establishApiSession,
+  loginWithUsernamePin,
+  recoverPin,
   restoreBackendSession
 } from "@/services/api/session";
 
@@ -30,114 +32,141 @@ describe("backend session", () => {
     queryClient.clear();
   });
 
-  it("stores the backend JWT in Secure Store after successful login", async () => {
+  it("stores the access token and a local PIN verifier after username login", async () => {
     jest.spyOn(apiClient, "login").mockResolvedValueOnce({
+      authenticatedVault: vault,
+      pinSet: true,
       token: "jwt-token",
-      vault
+      vault,
+      userId: "user-1"
     });
 
-    const response = await loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
+    const response = await loginWithUsernamePin("karuna_1", "1234");
 
     expect(response.token).toBe("jwt-token");
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "jwt-token");
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("security.pinVerifier", expect.any(String));
   });
 
-  it("removes stale Dashboard cache when logging into a vault", async () => {
-    queryClient.setQueryData(queryKeys.dashboard.current("old-vault"), { stale: true });
-    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
-      token: "jwt-token",
+  it("stores the new PIN securely after signed-out recovery", async () => {
+    jest.spyOn(apiClient, "recoverPin").mockResolvedValueOnce({
+      authenticatedVault: vault,
+      pinSet: true,
+      token: "recovered-jwt",
+      userId: "user-1",
       vault
     });
 
-    await loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
+    const response = await recoverPin({
+      confirmPin: "5678",
+      newPin: "5678",
+      recoveryCode: "ABCD-EFGH-IJKL",
+      username: "karuna_1"
+    });
+
+    expect(response.token).toBe("recovered-jwt");
+    expect(response.vault.vaultType).toBe("Individual");
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "recovered-jwt");
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("security.pinVerifier", expect.any(String));
+  });
+
+  it("stores the access token after establishing an API session", async () => {
+    jest.spyOn(apiClient, "getSession").mockResolvedValueOnce({
+      accessibleVaults: [vault],
+      authenticatedVault: vault,
+      vault
+    });
+
+    const session = await establishApiSession("jwt-token");
+
+    expect(session.token).toBe("jwt-token");
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("money_vault_backend_auth_token", "jwt-token");
+  });
+
+  it("removes stale Dashboard cache when establishing a session", async () => {
+    queryClient.setQueryData(queryKeys.dashboard.current("old-vault"), { stale: true });
+    jest.spyOn(apiClient, "getSession").mockResolvedValueOnce({
+      accessibleVaults: [vault],
+      authenticatedVault: vault,
+      vault
+    });
+
+    await establishApiSession("jwt-token");
 
     expect(queryClient.getQueryData(queryKeys.dashboard.current("old-vault"))).toBeUndefined();
   });
 
-  it("does not store a token after failed login", async () => {
-    jest.spyOn(apiClient, "login").mockRejectedValueOnce(
-      new ApiClientError("Invalid vault credentials.", {
-        code: "INVALID_CREDENTIALS",
-        isNetworkError: false,
-        status: 401
-      })
-    );
-
-    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" })).rejects.toThrow("Invalid vault credentials.");
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
-  });
-
-  it("does not store a token when a 200 login response is incomplete", async () => {
-    jest.spyOn(apiClient, "login").mockRejectedValueOnce(
-      new ApiClientError("The login response was incomplete.", {
-        code: "LOGIN_RESPONSE_INVALID",
-        isNetworkError: false,
-        status: null
-      })
-    );
-
-    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" })).rejects.toThrow("The login response was incomplete.");
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
-  });
-
-  it("reports the token validation stage when a normalized login response has no token", async () => {
-    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
-      token: "",
-      vault
-    });
-
-    await expect(loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" })).rejects.toMatchObject({
+  it("does not store a token when the access token is missing", async () => {
+    await expect(establishApiSession("")).rejects.toMatchObject({
       code: "TOKEN_MISSING",
       stage: "TOKEN_VALIDATED"
     });
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
-  it("reports the Secure Store stage when token persistence fails after login", async () => {
-    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
-      token: "jwt-token",
-      vault
-    });
+  it("reports the Secure Store stage when token persistence fails", async () => {
     jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("Secure Store unavailable"));
 
-    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
-
-    await expect(promise).rejects.toMatchObject({
+    await expect(establishApiSession("jwt-token")).rejects.toMatchObject({
       code: "SECURE_STORE_WRITE_FAILED",
       stage: "SECURE_STORE_WRITE_STARTED"
     });
   });
 
   it("reports Secure Store unavailable distinctly when the runtime does not provide it", async () => {
-    jest.spyOn(apiClient, "login").mockResolvedValueOnce({
-      token: "jwt-token",
-      vault
-    });
     jest.mocked(SecureStore.isAvailableAsync).mockResolvedValueOnce(false);
 
-    const promise = loginWithVaultCredentials({ pin: "0012", vaultName: "Vault Under Test" });
-
-    await expect(promise).rejects.toMatchObject({
+    await expect(establishApiSession("jwt-token")).rejects.toMatchObject({
       code: "SECURE_STORE_UNAVAILABLE",
       stage: "SECURE_STORE_WRITE_STARTED"
     });
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
-  it("restores a valid token by validating against the backend session endpoint", async () => {
+  it("restores a valid token and switches Shared active vault back to Personal", async () => {
     jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
     jest.spyOn(apiClient, "getSession").mockResolvedValueOnce({
       accessibleVaults: [vault, sharedVault],
       authenticatedVault: vault,
       vault: sharedVault
     });
+    jest.spyOn(apiClient, "activatePersonalVault").mockResolvedValueOnce({
+      authenticatedVault: vault,
+      token: "personal-jwt-token",
+      vault
+    });
 
     await expect(restoreBackendSession()).resolves.toEqual({
       accessibleVaults: [vault, sharedVault],
       authenticatedVault: vault,
-      token: "jwt-token",
-      vault: sharedVault
+      displayName: null,
+      pinSet: false,
+      token: "personal-jwt-token",
+      userId: null,
+      vault
     });
+    expect(apiClient.activatePersonalVault).toHaveBeenCalledWith("jwt-token");
+  });
+
+  it("restores a Personal Vault session without switching", async () => {
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce("jwt-token");
+    jest.spyOn(apiClient, "getSession").mockResolvedValueOnce({
+      accessibleVaults: [vault, sharedVault],
+      authenticatedVault: vault,
+      vault
+    });
+    const activateSpy = jest.spyOn(apiClient, "activatePersonalVault");
+
+    await expect(restoreBackendSession()).resolves.toEqual({
+      accessibleVaults: [vault, sharedVault],
+      authenticatedVault: vault,
+      displayName: null,
+      pinSet: false,
+      token: "jwt-token",
+      userId: null,
+      vault
+    });
+    expect(activateSpy).not.toHaveBeenCalled();
   });
 
   it("clears a stored token when dashboard validation returns 401", async () => {

@@ -129,6 +129,43 @@ export function TransactionDetailScreen({ transactionId }: TransactionDetailScre
         <DetailRow label="Updated" value={transaction.updatedAt} />
       </View>
 
+      {Boolean(transaction.shares && transaction.shares.length > 0) ? (
+        <View className="rounded-lg border border-surface-border bg-surface px-4">
+          <View className="border-b border-surface-border py-3">
+            <Text className="font-sans text-base font-bold text-text">Split Details</Text>
+          </View>
+          {transaction.allocationMethod ? (
+            <DetailRow label="Allocation Method" value={transaction.allocationMethod} />
+          ) : null}
+          {transaction.shares?.map((share) => {
+            const percentageText =
+              share.sharePercentage !== null && share.sharePercentage !== undefined
+                ? ` (${Math.round(share.sharePercentage * 100) / 100}%)`
+                : "";
+
+            return (
+              <View
+                key={share.id}
+                className="flex-row items-center justify-between gap-4 border-b border-surface-border py-3 last:border-b-0"
+              >
+                <Text className="font-sans text-sm text-text-muted">{share.participantName}</Text>
+                <View className="flex-row items-center">
+                  <CurrencyText
+                    value={share.shareAmount}
+                    currencyCode={currencyCode}
+                    locale={locale}
+                    className="font-sans text-sm font-semibold text-text"
+                  />
+                  {percentageText ? (
+                    <Text className="font-sans text-sm font-semibold text-text-muted">{percentageText}</Text>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+
       <View className="gap-3">
         <PrimaryButton onPress={() => router.push(`/transaction/edit/${transaction.id}` as never)}>Edit</PrimaryButton>
         <SecondaryButton onPress={() => setDeleteVisible(true)}>Delete</SecondaryButton>

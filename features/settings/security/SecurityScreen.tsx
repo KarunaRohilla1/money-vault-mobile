@@ -1,13 +1,16 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Modal, Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
+import { PrimaryButton } from "@/components/ui";
 import { AuthenticationCard } from "@/features/settings/security/components/AuthenticationCard";
 import { AutoLockCard } from "@/features/settings/security/components/AutoLockCard";
 import { AutoLockSheet } from "@/features/settings/security/components/AutoLockSheet";
 import { PinCard } from "@/features/settings/security/components/PinCard";
+import { RecoveryCodeCard } from "@/features/settings/security/components/RecoveryCodeCard";
 import { SecurityInfoCard } from "@/features/settings/security/components/SecurityInfoCard";
 import {
   SECURITY_COPY,
@@ -18,13 +21,43 @@ import { useAutoLock } from "@/features/settings/security/hooks/useAutoLock";
 import { useBiometric } from "@/features/settings/security/hooks/useBiometric";
 import { goBackOrReplace } from "@/lib/navigation";
 import { showToast } from "@/lib/toast";
+import { apiClient } from "@/services/api/client";
+import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
 
 export function SecurityScreen() {
   const router = useRouter();
+  const token = useAuthStore((state) => state.token);
   const biometric = useBiometric();
   const autoLock = useAutoLock();
   const [autoLockSheetVisible, setAutoLockSheetVisible] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [generatingRecovery, setGeneratingRecovery] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  async function copyRecoveryCode() {
+    if (!recoveryCode) {
+      return;
+    }
+    await Clipboard.setStringAsync(recoveryCode);
+    setCopied(true);
+    if (copiedTimeoutRef.current) {
+      clearTimeout(copiedTimeoutRef.current);
+    }
+    copiedTimeoutRef.current = setTimeout(() => {
+      setCopied(false);
+      copiedTimeoutRef.current = null;
+    }, 2000);
+  }
 
   async function handleBiometricToggle(next: boolean) {
     if (next) {
@@ -55,6 +88,22 @@ export function SecurityScreen() {
 
     if (result.status === "error") {
       showToast(result.message);
+    }
+  }
+
+  async function handleGenerateRecoveryCode() {
+    if (!token || generatingRecovery) {
+      return;
+    }
+
+    setGeneratingRecovery(true);
+    try {
+      const response = await apiClient.createRecoveryCode(token);
+      setRecoveryCode(response.recoveryCode);
+    } catch {
+      showToast(SECURITY_MESSAGES.unexpectedError);
+    } finally {
+      setGeneratingRecovery(false);
     }
   }
 
@@ -98,6 +147,8 @@ export function SecurityScreen() {
 
       <PinCard onPress={() => router.push("/settings/change-pin" as never)} />
 
+      <RecoveryCodeCard onPress={() => void handleGenerateRecoveryCode()} />
+
       <SecurityInfoCard />
 
       <AutoLockSheet
@@ -108,6 +159,36 @@ export function SecurityScreen() {
         selected={autoLock.currentTimeout}
         visible={autoLockSheetVisible}
       />
+
+      <Modal animationType="fade" transparent visible={Boolean(recoveryCode)} onRequestClose={() => setRecoveryCode(null)}>
+        <View className="flex-1 items-center justify-center bg-black/60 px-6">
+          <View className="w-full gap-5 rounded-lg border border-surface-border bg-background p-5">
+            <Text className="font-sans text-xl font-bold text-text">Save your new recovery code</Text>
+            <Text className="font-sans text-sm text-text-muted">
+              Your previous recovery code no longer works. Store this code somewhere safe — it will not be shown again.
+            </Text>
+            <View className="w-full flex-row items-center gap-3 rounded-lg border border-surface-border bg-surface p-4">
+              <Text className="min-w-0 flex-1 text-center font-sans text-2xl font-bold tracking-widest text-text">
+                {recoveryCode}
+              </Text>
+              <Pressable
+                accessibilityLabel="Copy recovery code"
+                accessibilityRole="button"
+                className="h-12 w-12 items-center justify-center rounded-full border border-surface-border bg-background-muted"
+                onPress={() => void copyRecoveryCode()}
+              >
+                <MaterialCommunityIcons
+                  color={theme.colors.brand.soft}
+                  name={copied ? "check" : "content-copy"}
+                  size={theme.icons.md}
+                />
+              </Pressable>
+            </View>
+            {copied ? <Text className="text-center font-sans text-sm font-semibold text-brand-soft">Copied!</Text> : null}
+            <PrimaryButton onPress={() => setRecoveryCode(null)}>I have saved my recovery code</PrimaryButton>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }

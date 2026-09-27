@@ -1,4 +1,4 @@
-import type { FinancialCycleApi, PlanningActivityApi, PlanningApiResponse, PlanningItemApi, PlanningStatusPayloadApi } from "@/services/api/types";
+import type { FinancialCycleApi, PlanningActivityApi, PlanningApiResponse, PlanningCycleApi, PlanningItemApi, PlanningStatusPayloadApi } from "@/services/api/types";
 
 export type PlanningActivityKind = "income" | "commitment";
 export type CloseAction = "Paid" | "Cancelled" | "Carry Forward" | null;
@@ -116,8 +116,38 @@ export function unresolvedPlanningActivities(activities: PlanningActivityViewMod
   return activities.filter((activity) => activity.status === "PENDING" || activity.status === "CARRIED_FORWARD");
 }
 
-export function urgencyRank(activity: PlanningActivityViewModel, cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear">, today = new Date()) {
-  const dueDate = new Date(cycle.startYear, cycle.startMonth - 1, activity.dueDay);
+export function parseLocalIsoDate(value: string): Date {
+  const [yearText, monthText, dayText] = value.split("-");
+  return new Date(Number(yearText), Number(monthText) - 1, Number(dayText));
+}
+
+export function activityDueDate(
+  activity: Pick<PlanningActivityViewModel, "dueDay"> & Partial<Pick<PlanningActivityViewModel, "dueDate">>,
+  cycle: Pick<PlanningCycleApi, "startMonth" | "startYear"> & Partial<Pick<PlanningCycleApi, "startDate" | "endDate">>
+): string {
+  if (activity.dueDate) {
+    return activity.dueDate;
+  }
+
+  const startDay = cycle.startDate ? Number(cycle.startDate.split("-")[2]) : 1;
+  const isSecondMonth = activity.dueDay < startDay;
+  const targetDateStr = isSecondMonth && cycle.endDate ? cycle.endDate : cycle.startDate;
+
+  if (targetDateStr) {
+    const [year, month] = targetDateStr.split("-").map(Number);
+    return `${year}-${String(month).padStart(2, "0")}-${String(activity.dueDay).padStart(2, "0")}`;
+  }
+
+  return `${cycle.startYear}-${String(cycle.startMonth).padStart(2, "0")}-${String(activity.dueDay).padStart(2, "0")}`;
+}
+
+export function urgencyRank(
+  activity: PlanningActivityViewModel,
+  cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear"> & Partial<Pick<PlanningApiResponse["cycle"], "startDate" | "endDate">>,
+  today = new Date()
+) {
+  const dueDateStr = activityDueDate(activity, cycle);
+  const dueDate = parseLocalIsoDate(dueDateStr);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const diffDays = Math.round((dueDate.getTime() - todayStart.getTime()) / 86400000);
 
@@ -282,8 +312,12 @@ export function daysRemainingLabel(cycle?: CycleProgressFields | null) {
   return `${cycle?.daysRemaining ?? 0} days`;
 }
 
-export function upcomingTimelineLabel(activity: PlanningActivityViewModel, cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear">) {
-  const dueDate = new Date(cycle.startYear, cycle.startMonth - 1, activity.dueDay);
+export function upcomingTimelineLabel(
+  activity: PlanningActivityViewModel,
+  cycle: Pick<PlanningApiResponse["cycle"], "startMonth" | "startYear"> & Partial<Pick<PlanningApiResponse["cycle"], "startDate" | "endDate">>
+) {
+  const dueDateStr = activityDueDate(activity, cycle);
+  const dueDate = parseLocalIsoDate(dueDateStr);
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const diffDays = Math.round((dueDate.getTime() - todayStart.getTime()) / 86400000);

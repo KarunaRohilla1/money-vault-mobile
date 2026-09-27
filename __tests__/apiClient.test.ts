@@ -8,12 +8,18 @@ describe("apiClient", () => {
     jest.resetModules();
   });
 
-  it("sends login requests to the backend API", async () => {
+  it("sends session requests to the backend API", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     const fetchMock = jest.fn(async () =>
       new Response(
         JSON.stringify({
-          token: "jwt-token",
+          accessibleVaults: [],
+          authenticatedVault: {
+            id: "1",
+            isAdmin: true,
+            name: "Vault Under Test",
+            vaultType: "Individual"
+          },
           vault: {
             id: "1",
             isAdmin: true,
@@ -27,24 +33,29 @@ describe("apiClient", () => {
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
-    const response = await apiClient.login({ pin: "1234", vaultName: "Vault Under Test" });
+    const response = await apiClient.getSession("jwt-token");
 
-    expect(response.token).toBe("jwt-token");
+    expect(response.vault.id).toBe("1");
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.money-vault.test/api/login",
+      "https://api.money-vault.test/api/session",
       expect.objectContaining({
-        body: JSON.stringify({ pin: "1234", vaultName: "Vault Under Test" }),
-        method: "POST"
+        method: "GET"
       })
     );
   });
 
-  it("preserves exact vault name and leading-zero PIN strings", async () => {
+  it("preserves leading-zero PIN strings when setting a PIN", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     const fetchMock = jest.fn(async () =>
       new Response(
         JSON.stringify({
-          token: "jwt-token",
+          accessibleVaults: [],
+          authenticatedVault: {
+            id: "1",
+            isAdmin: true,
+            name: "Vault Owner",
+            vaultType: "Individual"
+          },
           vault: {
             id: "1",
             isAdmin: true,
@@ -58,23 +69,28 @@ describe("apiClient", () => {
     globalThis.fetch = fetchMock;
 
     const { apiClient } = await import("@/services/api/client");
-    await apiClient.login({ pin: "0012", vaultName: "Vault Owner" });
+    await apiClient.setPin("jwt-token", { confirmPin: "0012", pin: "0012" });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.money-vault.test/api/login",
+      "https://api.money-vault.test/api/me/pin",
       expect.objectContaining({
-        body: JSON.stringify({ pin: "0012", vaultName: "Vault Owner" })
+        body: JSON.stringify({ confirmPin: "0012", pin: "0012" })
       })
     );
   });
 
-  it("accepts access_token and snake_case vault metadata from login responses", async () => {
+  it("accepts snake_case vault metadata from session responses", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     globalThis.fetch = jest.fn(async () =>
       new Response(
         JSON.stringify({
-          access_token: "jwt-token",
-          expires_at: "2026-07-15T00:00:00Z",
+          accessible_vaults: [],
+          authenticated_vault: {
+            id: 7,
+            is_admin: 1,
+            name: "Vault Under Test",
+            vault_type: "Individual"
+          },
           vault: {
             id: 7,
             is_admin: 1,
@@ -87,21 +103,17 @@ describe("apiClient", () => {
     );
 
     const { apiClient } = await import("@/services/api/client");
-    const response = await apiClient.login({ pin: "1234", vaultName: "Vault Under Test" });
+    const response = await apiClient.getSession("jwt-token");
 
-    expect(response).toEqual({
-      expiresAt: "2026-07-15T00:00:00Z",
-      token: "jwt-token",
-      vault: {
-        id: "7",
-        isAdmin: true,
-        name: "Vault Under Test",
-        vaultType: "Individual"
-      }
+    expect(response.vault).toEqual({
+      id: "7",
+      isAdmin: true,
+      name: "Vault Under Test",
+      vaultType: "Individual"
     });
   });
 
-  it("rejects incomplete 200 login responses before token storage", async () => {
+  it("rejects incomplete session responses", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
     globalThis.fetch = jest.fn(async () =>
       new Response(
@@ -119,9 +131,8 @@ describe("apiClient", () => {
 
     const { apiClient } = await import("@/services/api/client");
 
-    await expect(apiClient.login({ pin: "1234", vaultName: "Vault Under Test" })).rejects.toMatchObject({
-      code: "LOGIN_RESPONSE_INVALID",
-      message: "The login response was incomplete."
+    await expect(apiClient.getSession("jwt-token")).rejects.toMatchObject({
+      code: "SESSION_RESPONSE_INVALID"
     });
   });
 
@@ -166,12 +177,12 @@ describe("apiClient", () => {
 
     const { ApiClientError, apiClient } = await import("@/services/api/client");
 
-    await expect(apiClient.login({ pin: "0000", vaultName: "Vault Under Test" })).rejects.toMatchObject({
+    await expect(apiClient.changePin("jwt-token", { confirmPin: "0000", currentPin: "0000", newPin: "1111" })).rejects.toMatchObject({
       code: "INVALID_PIN",
       message: "Incorrect PIN.",
       status: 401
     });
-    await expect(apiClient.login({ pin: "0000", vaultName: "Vault Under Test" })).rejects.toBeInstanceOf(ApiClientError);
+    await expect(apiClient.changePin("jwt-token", { confirmPin: "0000", currentPin: "0000", newPin: "1111" })).rejects.toBeInstanceOf(ApiClientError);
   });
 
   it("loads accounts with bearer authorization", async () => {
@@ -456,6 +467,46 @@ describe("apiClient", () => {
     );
   });
 
+
+  it("creates a shared vault through the backend API and preserves the invite code", async () => {
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          authenticatedVault: {
+            id: "4",
+            isAdmin: true,
+            name: "Personal",
+            vaultType: "Individual"
+          },
+          inviteCode: "MV-000040",
+          token: "jwt-token",
+          vault: {
+            id: "40",
+            isAdmin: false,
+            name: "Household",
+            vaultType: "Shared"
+          }
+        }),
+        { status: 200 }
+      )
+    );
+    globalThis.fetch = fetchMock;
+
+    const { apiClient } = await import("@/services/api/client");
+    const response = await apiClient.createSharedVault("jwt-token", { vaultName: "Household" });
+
+    expect(response.inviteCode).toBe("MV-000040");
+    expect(response.vault.vaultType).toBe("Shared");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.money-vault.test/api/vaults/shared/create",
+      expect.objectContaining({
+        body: JSON.stringify({ vaultName: "Household" }),
+        headers: expect.objectContaining({ Authorization: "Bearer jwt-token" }),
+        method: "POST"
+      })
+    );
+  });
 
   it("loads shared expenses and bills with bearer authorization", async () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = "https://api.money-vault.test";

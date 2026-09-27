@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/api/client";
 import type { OnboardingAccountKind, OnboardingDraft } from "@/stores/onboardingStore";
+import type { SettingsApiResponse } from "@/services/api/types";
 import type { AuthenticatedVault } from "@/types/domain";
 
 export interface VaultSetupStatus {
@@ -86,8 +87,8 @@ export async function saveFirstAccount(token: string, _vaultId: string, draft: O
   await apiClient.createAccount(token, payload);
 }
 
-export async function generateFirstFinancialCycle(token: string, _vaultId: string, cycleStartDay: number): Promise<void> {
-  await apiClient.updateSettings(token, {
+export async function generateFirstFinancialCycle(token: string, _vaultId: string, cycleStartDay: number): Promise<SettingsApiResponse> {
+  return apiClient.updateSettings(token, {
     cycleStartDay
   });
 }

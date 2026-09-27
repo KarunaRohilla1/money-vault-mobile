@@ -1,6 +1,5 @@
 import { adaptDashboardResponse } from "@/features/dashboard/adapter";
 import { recentActivityPrimaryText, recentActivitySecondaryText } from "@/features/dashboard/recentActivityDisplay";
-import { getSafeToSpendStatus } from "@/features/dashboard/safeToSpendStatus";
 import { getDashboardScreenState } from "@/features/dashboard/state";
 import { invalidateTransactionDependents } from "@/features/transactions/api";
 import {
@@ -89,7 +88,7 @@ describe("CUJ 2 — Daily expense updates dashboard Safe to Spend and activity",
     const before = adaptDashboardResponse(dashboardResponse());
     queryClient.setQueryData(queryKeys.dashboard.current("4"), before);
 
-    expect(getSafeToSpendStatus({ safeToSpend: before.safeToSpend }).tone).toBe("positive");
+    expect(before.safeToSpend).toBeGreaterThan(0);
     expect(before.recentActivity).toHaveLength(1);
 
     const formValues: TransactionFormValues = {
@@ -186,8 +185,5 @@ describe("CUJ 2 — Daily expense updates dashboard Safe to Spend and activity",
     );
 
     expect(tight.safeToSpend).toBeLessThan(0);
-    expect(getSafeToSpendStatus({ safeToSpend: tight.safeToSpend })).toMatchObject({
-      tone: "warning"
-    });
   });
 });

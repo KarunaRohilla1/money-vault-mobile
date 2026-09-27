@@ -44,7 +44,6 @@ function activity(overrides: Partial<PlanningActivityViewModel>): PlanningActivi
     actualEntered: false,
     completeLabel: kind === "income" ? "Received" : "Paid",
     completeStatus,
-    dueDate: "2026-07-20",
     dueDay: 20,
     expectedAmount: 1000,
     icon: "calendar-check-outline",
@@ -161,9 +160,55 @@ describe("planning activity presentation", () => {
   });
 
   it("does not mark future-cycle activities overdue", () => {
-    const future = presentActivities([activity({ dueDate: "2026-08-01", dueDay: 1 })], { ...cycle, status: "Upcoming", startMonth: 8 }, new Date(2026, 8, 1));
+    const future = presentActivities([activity({ dueDate: "2026-08-01", dueDay: 1 })], { ...cycle, status: "Upcoming", startMonth: 8 }, new Date(2026, 6, 25));
     expect(future[0]?.urgency).toBe("thisWeek");
     expect(future[0]?.dueLabel).toBe("Due on 1 Aug");
+  });
+
+  it("correctly calculates due dates and urgency for cycles crossing months (e.g. Sep 10 -> Oct 9)", () => {
+    const monthCrossingCycle: PlanningCycleApi = {
+      endDate: "2026-10-09",
+      id: 2,
+      startDate: "2026-09-10",
+      startMonth: 9,
+      startYear: 2026,
+      status: "Current",
+      vaultId: 1
+    };
+
+    // Today is Sep 19, 2026 (month 8 in 0-indexed JS Date)
+    const todaySep19 = new Date(2026, 8, 19);
+
+    const items = [
+      // Due Sep 25 (6 days away -> thisWeek)
+      activity({ dueDay: 25, id: 10, name: "SIP Investment" }),
+      // Due Oct 5 (16 days away -> later, NOT thisWeek)
+      activity({ dueDay: 5, id: 11, name: "Electricity Bill" }),
+      // Due Sep 15 (4 days in past -> overdue)
+      activity({ dueDay: 15, id: 12, name: "Rent" })
+    ];
+
+    const presentedItems = presentActivities(items, monthCrossingCycle, todaySep19);
+
+    const sip = presentedItems.find((item) => item.id === 10)!;
+    expect(sip.dueDate).toBe("2026-09-25");
+    expect(sip.urgency).toBe("thisWeek");
+    expect(sip.dueLabel).toBe("Due in 6 days");
+
+    const electricity = presentedItems.find((item) => item.id === 11)!;
+    expect(electricity.dueDate).toBe("2026-10-05");
+    expect(electricity.urgency).toBe("later");
+    expect(electricity.urgency).not.toBe("thisWeek");
+    expect(electricity.dueLabel).toBe("Due on 5 Oct");
+
+    const rent = presentedItems.find((item) => item.id === 12)!;
+    expect(rent.dueDate).toBe("2026-09-15");
+    expect(rent.urgency).toBe("overdue");
+    expect(rent.urgency).not.toBe("thisWeek");
+    expect(rent.dueLabel).toBe("Overdue");
+
+    const groups = groupActivities(sortActivities(filterActivities(presentedItems, "pending", "all"), "dueSoonest"), "dueDate", monthCrossingCycle);
+    expect(groups.map((group) => group.label)).toEqual(["OVERDUE (1)", "DUE THIS WEEK (1)", "LATER (1)"]);
   });
 
   it("sorts by due date, amount, and name", () => {

@@ -1,6 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { notifyNotificationDomainChanged } from "@/features/notifications/services/notificationEngine";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { apiClient } from "@/services/api/client";
@@ -11,7 +10,6 @@ export function invalidatePlanningDependents(vaultId: string | null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.current(vaultId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.accounts.root });
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
-  notifyNotificationDomainChanged();
 }
 
 export function usePlanningQuery(token: string | null, vaultId: string | null, cycleStart?: string | null) {
@@ -92,7 +90,7 @@ export function useDeleteIncomeTemplateMutation(token: string | null, vaultId: s
 
 export function useCloseActiveCycleMutation(token: string | null, vaultId: string | null) {
   return useMutation({
-    mutationFn: async ({ body, cycleStart }: { body?: PlanningClosePayloadApi; cycleStart?: string }) =>
+    mutationFn: async ({ body, cycleStart }: { body?: PlanningClosePayloadApi; cycleStart: string }) =>
       apiClient.closeActivePlanningCycle(token ?? "", cycleStart, body),
     onSuccess: () => invalidatePlanningDependents(vaultId)
   });

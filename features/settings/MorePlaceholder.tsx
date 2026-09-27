@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState, type RefObject } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
@@ -13,13 +13,16 @@ import {
   isSharedVault,
   moreMenuSectionsForVault,
   roleLabel,
-  switchTarget,
   type MoreRowModel
 } from "@/features/settings/moreModel";
-import { ApiClientError } from "@/services/api/client";
+import { SwitchSharedVaultSheet } from "@/features/settings/SwitchSharedVaultSheet";
+import { sharedVaultsForSwitch } from "@/features/settings/sharedVaultModel";
+import { ApiClientError, apiClient } from "@/services/api/client";
 import { logoutBackendSession } from "@/services/api/logout";
-import { activatePersonalVaultSession, activateSharedVaultSession } from "@/services/api/session";
+import { activatePersonalVaultSession, activateSharedVaultSession, sessionExtras } from "@/services/api/session";
 import type { VaultSummaryApi } from "@/services/api/types";
+import { vaultCardTitle, vaultKindLabel } from "@/lib/personIdentity";
+import { queryKeys } from "@/lib/queryKeys";
 import { showToast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
@@ -172,22 +175,31 @@ function MoreSearchBar({
 function VaultCard({
   currentVault,
   disabled,
+  displayName,
   onSwitch,
   switching
 }: {
   currentVault: VaultSummaryApi;
   disabled: boolean;
+  displayName?: string | null;
   onSwitch: () => void;
   switching: boolean;
 }) {
+  const isShared = isSharedVault(currentVault);
+  const cardTitle = vaultCardTitle(currentVault, displayName);
+  const kindLabel = vaultKindLabel(currentVault);
+
   return (
     <View className="flex-row items-center gap-4 rounded-xl border border-brand-muted bg-surface p-4">
       <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-deep">
-        <MaterialCommunityIcons name={isSharedVault(currentVault) ? "account-group" : "wallet"} size={theme.icons.lg} color={theme.colors.brand.soft} />
+        <MaterialCommunityIcons name={isShared ? "account-group" : "wallet"} size={theme.icons.lg} color={theme.colors.brand.soft} />
       </View>
       <View className="min-w-0 flex-1">
-        <Text className="font-sans text-xl font-bold text-text" numberOfLines={1}>
-          {currentVault.name}
+        <Text className="font-sans text-lg font-bold text-text" numberOfLines={1}>
+          {cardTitle}
+        </Text>
+        <Text className="mt-1 font-sans text-xs text-text-muted" numberOfLines={1}>
+          {kindLabel}
         </Text>
         <View className="mt-2 self-start rounded-md bg-brand-deep px-2 py-1">
           <Text className="font-sans text-xs font-bold text-brand-soft">{roleLabel(currentVault)}</Text>
@@ -217,34 +229,55 @@ export function MorePlaceholder() {
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const authenticatedVault = useAuthStore((state) => state.authenticatedVault);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [selectedVaultId, setSelectedVaultId] = useState<number | string | null>(null);
   const token = useAuthStore((state) => state.token);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const displayName = useAuthStore((state) => state.displayName);
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const settingsQuery = useSettingsQuery(token, vaultId);
+  const sharedVaultsQuery = useQuery({
+    enabled: Boolean(token),
+    queryFn: async () => apiClient.getSharedVaults(token ?? ""),
+    queryKey: queryKeys.vaults.shared
+  });
   const currentVault = settingsQuery.data?.currentVault;
-  const targetVault = settingsQuery.data && currentVault ? switchTarget(currentVault, settingsQuery.data.accessibleVaults) : null;
+  const sharedVaults = useMemo(() => sharedVaultsForSwitch(sharedVaultsQuery.data ?? []), [sharedVaultsQuery.data]);
+  const canSwitch = isSharedVault(currentVault) || sharedVaults.length > 0;
   const menuSections = useMemo(() => moreMenuSectionsForVault(currentVault), [currentVault]);
   const visibleSections = useMemo(() => filterMoreMenuSections(menuSections, searchQuery), [menuSections, searchQuery]);
   const showVaultCard = !searchActive && !searchQuery.trim();
   const switchMutation = useMutation({
-    mutationFn: async () => {
-      if (!token || !currentVault || !targetVault) {
+    mutationFn: async (targetVaultId?: number | string) => {
+      if (!token) {
         throw new Error("No vault available to switch.");
       }
 
-      if (isSharedVault(currentVault)) {
+      if (targetVaultId == null || String(targetVaultId) === String(authenticatedVault?.id) || targetVaultId === "personal") {
         return activatePersonalVaultSession(token);
       }
 
       return activateSharedVaultSession(token, {
-        sharedVaultId: targetVault.id
+        sharedVaultId: Number(targetVaultId)
       });
     },
     onSuccess: (response) => {
-      setAuthenticated(response.token, response.vault, response.authenticatedVault ?? response.vault);
+      setPickerVisible(false);
+      setSelectedVaultId(null);
+      setAuthenticated(response.token, response.vault, response.authenticatedVault ?? response.vault, sessionExtras(response));
       router.replace("/");
     }
   });
+
+  const handleSwitchPress = () => {
+    if (!currentVault) {
+      return;
+    }
+
+    setSelectedVaultId(null);
+    setPickerVisible(true);
+  };
   const logoutMutation = useMutation({
     mutationFn: logoutBackendSession,
     onError: () => {
@@ -310,12 +343,36 @@ export function MorePlaceholder() {
       {showVaultCard && currentVault ? (
         <VaultCard
           currentVault={currentVault}
-          disabled={!targetVault}
-          onSwitch={() => switchMutation.mutate()}
+          disabled={!canSwitch}
+          displayName={displayName}
+          onSwitch={handleSwitchPress}
           switching={switchMutation.isPending}
         />
       ) : null}
       {switchError ? <Text className="font-sans text-sm text-state-danger">{switchError}</Text> : null}
+
+      <SwitchSharedVaultSheet
+        activeVaultId={currentVault?.id ?? vaultId}
+        isSharedActive={isSharedVault(currentVault)}
+        onCancel={() => {
+          if (!switchMutation.isPending) {
+            setPickerVisible(false);
+            setSelectedVaultId(null);
+          }
+        }}
+        onConfirm={() => {
+          if (selectedVaultId == null) {
+            return;
+          }
+          switchMutation.mutate(selectedVaultId);
+        }}
+        onSelect={setSelectedVaultId}
+        personalVault={authenticatedVault ? { id: authenticatedVault.id, name: authenticatedVault.name } : null}
+        selectedVaultId={selectedVaultId}
+        switching={switchMutation.isPending}
+        vaults={sharedVaults}
+        visible={pickerVisible}
+      />
 
       {searchQuery.trim() && visibleSections.length === 0 ? (
         <View className="items-center gap-3 rounded-xl border border-surface-border bg-surface p-5">

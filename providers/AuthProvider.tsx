@@ -1,12 +1,11 @@
 import { type PropsWithChildren, useEffect } from "react";
 
 import { ApiClientError } from "@/services/api/client";
-import { clearBackendSession, restoreBackendSession } from "@/services/api/session";
+import { clearBackendSession, restoreBackendSession, sessionExtras } from "@/services/api/session";
 import { registerUnauthorizedHandler } from "@/services/api/unauthorized";
 import { useAuthStore } from "@/stores/authStore";
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const setError = useAuthStore((state) => state.setError);
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const setBooting = useAuthStore((state) => state.setBooting);
   const setSignedOut = useAuthStore((state) => state.setSignedOut);
@@ -34,7 +33,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        setAuthenticated(session.token, session.vault, session.authenticatedVault);
+        setAuthenticated(session.token, session.vault, session.authenticatedVault, sessionExtras(session));
       })
       .catch((error: unknown) => {
         if (!mounted) {
@@ -45,14 +44,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
           void clearBackendSession();
           setSignedOut();
         } else {
-          setSignedOut("Unable to restore backend session. Check your connection and try again.");
+          setSignedOut("Unable to restore your session. Check your connection and try again.");
         }
       });
 
     return () => {
       mounted = false;
     };
-  }, [setAuthenticated, setBooting, setError, setSignedOut]);
+  }, [setAuthenticated, setBooting, setSignedOut]);
 
   return <>{children}</>;
 }

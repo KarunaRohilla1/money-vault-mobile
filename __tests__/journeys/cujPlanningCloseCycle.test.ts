@@ -11,17 +11,7 @@ import {
 } from "@/features/planning/planningModel";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
-import { notifyNotificationDomainChanged } from "@/features/notifications/services/notificationEngine";
 import type { PlanningApiResponse, PlanningItemApi } from "@/services/api/types";
-
-jest.mock("@/features/notifications/services/notificationEngine", () => ({
-  notificationEngine: {
-    dispose: jest.fn(),
-    initialize: jest.fn(),
-    reevaluate: jest.fn()
-  },
-  notifyNotificationDomainChanged: jest.fn()
-}));
 
 const rent: PlanningItemApi = {
   accountId: 2,
@@ -170,7 +160,6 @@ describe("CUJ 3 — Planning recurring commitment through close cycle carry-forw
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.current("1") });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.accounts.root });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.transactions.root });
-    expect(notifyNotificationDomainChanged).toHaveBeenCalledTimes(1);
   });
 
   it("does not allow closing when an obligation is unresolved", () => {

@@ -6,11 +6,11 @@ import { PrimaryButton, SecondaryButton } from "@/components/ui";
 import { useOnboardingFlow, type OnboardingStepProps } from "@/features/onboarding/hooks/useOnboardingFlow";
 import { AccountDetailsStep } from "@/features/onboarding/steps/AccountDetailsStep";
 import { AccountTypeStep } from "@/features/onboarding/steps/AccountTypeStep";
+import { BiometricPromptStep } from "@/features/onboarding/steps/BiometricPromptStep";
 import { FinancialCycleStep } from "@/features/onboarding/steps/FinancialCycleStep";
 import { FinishStep } from "@/features/onboarding/steps/FinishStep";
 import { SavingsGoalStep } from "@/features/onboarding/steps/SavingsGoalStep";
 import { ProgressDots } from "@/features/onboarding/steps/stepUi";
-import { VaultNameStep } from "@/features/onboarding/steps/VaultNameStep";
 import { WelcomeStep } from "@/features/onboarding/steps/WelcomeStep";
 import { ONBOARDING_STEPS, type OnboardingStep } from "@/stores/onboardingStore";
 
@@ -25,22 +25,33 @@ export function OnboardingScreen() {
         <View className="flex-1 justify-center">{renderStep(flow.step, flow)}</View>
         <View className="gap-4">
           {flow.stepError ? <Text className="font-sans text-sm text-state-danger">{flow.stepError}</Text> : null}
-          <View className="flex-row gap-3">
-            {flow.step !== "welcome" ? (
-              <SecondaryButton disabled={flow.saving} onPress={flow.goBack}>
-                Back
+          {flow.step === "biometric-prompt" ? (
+            <View className="gap-3">
+              <PrimaryButton loading={flow.saving} disabled={flow.saving} onPress={() => void flow.enableFingerprintThenContinue()}>
+                Enable Fingerprint
+              </PrimaryButton>
+              <SecondaryButton disabled={flow.saving} onPress={() => void flow.goToNext()}>
+                Not Now
               </SecondaryButton>
-            ) : null}
-            {flow.step !== "finish" ? (
-              <PrimaryButton loading={flow.saving} disabled={flow.saving} onPress={() => flow.goToNext()}>
-                Continue
-              </PrimaryButton>
-            ) : (
-              <PrimaryButton loading={flow.saving} disabled={flow.saving} onPress={flow.finish}>
-                Go to Dashboard
-              </PrimaryButton>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View className="flex-row gap-3">
+              {flow.step !== "welcome" ? (
+                <SecondaryButton disabled={flow.saving} onPress={flow.goBack}>
+                  Back
+                </SecondaryButton>
+              ) : null}
+              {flow.step !== "finish" ? (
+                <PrimaryButton loading={flow.saving} disabled={flow.saving} onPress={() => flow.goToNext()}>
+                  Continue
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton loading={flow.saving} disabled={flow.saving} onPress={flow.finish}>
+                  Go to Dashboard
+                </PrimaryButton>
+              )}
+            </View>
+          )}
         </View>
       </View>
     </Screen>
@@ -51,8 +62,8 @@ function renderStep(step: OnboardingStep, props: OnboardingStepProps) {
   switch (step) {
     case "welcome":
       return <WelcomeStep />;
-    case "vault-name":
-      return <VaultNameStep {...props} />;
+    case "biometric-prompt":
+      return <BiometricPromptStep />;
     case "first-account":
       return <AccountTypeStep {...props} />;
     case "account-details":

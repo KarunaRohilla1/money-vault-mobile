@@ -3,22 +3,19 @@ import type { ReportSharedApiResponse } from "@/services/api/types";
 
 const sampleReport: ReportSharedApiResponse = {
   data: {
-    categoryImpact: [],
-    contribution: { items: [], total: 0 },
-    hero: {
-      actualSpend: 0,
-      comparisonLabel: "Matches actual spend",
-      difference: 0,
-      percentLower: 0,
-      projectedPersonalSpend: 0
+    categoryBreakdown: [],
+    fundingVsShare: [],
+    summary: {
+      comparison: null,
+      myShare: 0,
+      mySharePercent: 0,
+      previousMyShare: 0,
+      previousTotalSharedSpend: 0,
+      totalSharedSpend: 0,
+      transactionCount: 0
     },
-    settlementOverview: [],
-    settlementPreview: {
-      currentAmount: 0,
-      currentLabel: "All balances settled",
-      projectedPersonalSpend: 0
-    },
-    topExpenses: []
+    topExpenses: [],
+    trend: []
   },
   filters: {
     cycleStart: "2026-07-10",
@@ -40,16 +37,17 @@ describe("sharedReportModel", () => {
     expect(hasSharedReportData(sampleReport)).toBe(false);
   });
 
-  it("detects shared report activity from hero and expenses", () => {
+  it("detects shared report activity from summary and expenses", () => {
     expect(
       hasSharedReportData({
         ...sampleReport,
         data: {
           ...sampleReport.data,
-          hero: { ...sampleReport.data.hero, projectedPersonalSpend: 18650 },
+          summary: { ...sampleReport.data.summary, myShare: 18650, totalSharedSpend: 37300 },
           topExpenses: [{ amount: 6000, date: "2026-07-02", icon: "airplane", id: 1, name: "Goa Trip" }]
         }
       })
     ).toBe(true);
   });
 });
+

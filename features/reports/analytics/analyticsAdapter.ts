@@ -62,6 +62,7 @@ export interface AnalyticsViewModel {
   };
   filterOptions: ReportSpendingApiResponse["data"]["metadata"]["filterOptions"];
   question: string;
+  spendComparison: ReportSpendingApiResponse["data"]["spendComparison"] | null;
   summary: AnalyticsSummaryCardModel[];
   summarySection: AnalyticsSummarySectionModel;
   trend: {
@@ -168,6 +169,7 @@ export function adaptSpendingAnalytics(response: ReportSpendingApiResponse | und
     },
     filterOptions: response.data.metadata.filterOptions,
     question: response.data.metadata.question,
+    spendComparison: response.data.spendComparison ?? null,
     summary: summarySection.metrics.map((metric) => ({
       caption: metric.supportingText ?? "",
       format: metric.format,

@@ -173,9 +173,17 @@ export interface ReportSpendingMetadataApi {
   question: string;
 }
 
+export interface ReportSpendComparisonApi {
+  actualSpend: number;
+  difference: number;
+  differenceLabel: string;
+  projectedPersonalSpend: number;
+}
+
 export interface ReportSpendingDataApi {
   breakdown: ReportSpendingBreakdownApi;
   metadata: ReportSpendingMetadataApi;
+  spendComparison?: ReportSpendComparisonApi | null;
   summary: ReportSpendingSummaryMetricApi[];
   trend: ReportSpendingTrendApi;
   visualization: ReportSpendingVisualizationApi;
@@ -221,48 +229,40 @@ export interface ReportSpendingMerchantItemApi {
   rank: number;
 }
 
-export interface ReportSharedHeroApi {
-  actualSpend: number;
-  comparisonLabel: string;
-  difference: number;
-  percentLower: number;
-  projectedPersonalSpend: number;
+export interface ReportSharedSummaryApi {
+  comparison?: ReportSpendingComparisonApi | null;
+  myShare: number;
+  mySharePercent: number;
+  previousMyShare: number;
+  previousTotalSharedSpend: number;
+  totalSharedSpend: number;
+  transactionCount: number;
 }
 
-export interface ReportSharedSettlementCardApi {
-  amount: number;
-  caption: string;
-  key: string;
-  label: string;
-  tone: string;
+export interface ReportSharedParticipantFundingApi {
+  isCurrentUser: boolean;
+  name: string;
+  netDifference: number;
+  paidAmount: number;
+  paidPercent: number;
+  shareAmount: number;
+  sharePercent: number;
+  vaultId: number;
 }
 
-export interface ReportSharedCategoryImpactItemApi {
-  actualAmount: number;
-  difference: number;
+export interface ReportSharedCategoryBreakdownItemApi {
   icon: string;
   key: string;
+  myShareAmount: number;
   name: string;
-  projectedAmount: number;
-}
-
-export interface ReportSharedSettlementPreviewApi {
-  currentAmount: number;
-  currentLabel: string;
-  projectedPersonalSpend: number;
-}
-
-export interface ReportSharedContributionItemApi {
-  amount: number;
-  color: string;
-  key: string;
-  label: string;
   percent: number;
+  totalAmount: number;
 }
 
-export interface ReportSharedContributionApi {
-  items: ReportSharedContributionItemApi[];
-  total: number;
+export interface ReportSharedTrendPointApi {
+  cycle: string;
+  myShare: number;
+  totalSharedSpend: number;
 }
 
 export interface ReportSharedExpenseItemApi {
@@ -274,12 +274,11 @@ export interface ReportSharedExpenseItemApi {
 }
 
 export interface ReportSharedDataApi {
-  categoryImpact: ReportSharedCategoryImpactItemApi[];
-  contribution: ReportSharedContributionApi;
-  hero: ReportSharedHeroApi;
-  settlementOverview: ReportSharedSettlementCardApi[];
-  settlementPreview: ReportSharedSettlementPreviewApi;
+  categoryBreakdown: ReportSharedCategoryBreakdownItemApi[];
+  fundingVsShare: ReportSharedParticipantFundingApi[];
+  summary: ReportSharedSummaryApi;
   topExpenses: ReportSharedExpenseItemApi[];
+  trend: ReportSharedTrendPointApi[];
 }
 
 export interface ReportSharedApiResponse {

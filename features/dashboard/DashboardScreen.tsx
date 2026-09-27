@@ -23,7 +23,6 @@ import {
   singleLineMoneyProps
 } from "@/features/dashboard/dashboardLayout";
 import { SafeToSpendExplanation } from "@/features/dashboard/SafeToSpendExplanation";
-import { getSafeToSpendStatus } from "@/features/dashboard/safeToSpendStatus";
 import { hasSafeToSpendBreakdown } from "@/features/dashboard/safeToSpendExplanationModel";
 import {
   hasOutstandingSettlement
@@ -35,6 +34,7 @@ import { SettlementSheet } from "@/features/shared/components/SettlementSheet";
 import { useSettlementSheet } from "@/features/shared/hooks/useSettlementSheet";
 import type { CategorySpendApi, RecentActivityApi } from "@/services/api/types";
 import { formatIsoDateOnly } from "@/lib/date";
+import { personDisplayName } from "@/lib/personIdentity";
 import type { CurrencyCode } from "@/types/domain";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -167,17 +167,25 @@ function IconTile({ icon, tone = "brand" }: { icon: React.ComponentProps<typeof 
   );
 }
 
+function dashboardGreetingName(displayName: string | null, vaultName: string) {
+  // Personal vaults are named "Personal"; that is a vault type/label, not the person.
+  return personDisplayName(displayName, vaultName);
+}
+
 function DashboardHeader({
   dashboard,
+  displayName,
   inboxCount,
   locale
 }: {
   dashboard: DashboardViewModel;
+  displayName: string | null;
   inboxCount: number;
   locale: string;
 }) {
   const router = useRouter();
-  const initials = dashboard.vault.name.trim().slice(0, 2).toUpperCase() || "MV";
+  const greetingName = dashboardGreetingName(displayName, dashboard.vault.name);
+  const initials = greetingName.trim().slice(0, 2).toUpperCase() || "MV";
   const today = dashboardHeaderDateLabel(new Date(), locale);
   const cycleInfo = dashboardCycleInfoLabel(dashboard.cycle, locale);
 
@@ -194,7 +202,7 @@ function DashboardHeader({
         </Pressable>
         <View className="min-w-0 flex-1">
           <Text className={dashboardTypography.greeting} numberOfLines={1}>
-            {greetingForDate()}, {dashboard.vault.name}
+            {greetingForDate()}, {greetingName}
           </Text>
           <Text className="font-sans text-sm font-semibold leading-5 text-text" numberOfLines={1}>
             {today}
@@ -234,7 +242,6 @@ function SafeToSpendCard({
   onExplanationPress?: () => void;
 }) {
   const progress = clampPercent(dashboard.cycle.progressPercent);
-  const status = getSafeToSpendStatus({ safeToSpend: dashboard.safeToSpend });
 
   return (
     <View className={`${dashboardLayout.elevatedCardClassName} p-3.5`}>
@@ -258,11 +265,6 @@ function SafeToSpendCard({
           locale={locale}
           className={isNarrow ? "font-sans text-3xl font-bold text-text tabular-nums" : "font-sans text-4xl font-bold text-text tabular-nums"}
         />
-        <View className="flex-row items-center">
-          <Text className="min-w-0 flex-1 font-sans text-sm leading-5 text-text-muted">
-            {status.message}
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -563,6 +565,7 @@ function SafeToSpendExplanationRow({ onPress }: { onPress: () => void }) {
 function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
+  const displayName = useAuthStore((state) => state.displayName);
   const vaultId = useAuthStore((state) => state.vault?.id ?? null);
   const currencyCode = useSettingsStore((state) => state.currencyCode) as CurrencyCode;
   const locale = useSettingsStore((state) => state.locale);
@@ -589,7 +592,7 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
   return (
     <>
       <Screen contentClassName={dashboardLayout.bottomClearanceClassName}>
-        <DashboardHeader dashboard={dashboard} inboxCount={pendingInboxCount} locale={locale} />
+        <DashboardHeader dashboard={dashboard} displayName={displayName} inboxCount={pendingInboxCount} locale={locale} />
         <SafeToSpendCard
           dashboard={dashboard}
           currencyCode={currencyCode}

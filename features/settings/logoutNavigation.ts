@@ -1,7 +1,9 @@
+import type { Href } from "expo-router";
+
 interface LogoutNavigationRouter {
   canDismiss?: () => boolean;
   dismissAll: () => void;
-  replace: (href: "/sign-in") => void;
+  replace: (href: Href) => void;
 }
 
 export function resetNavigationAfterLogout(router: LogoutNavigationRouter) {
@@ -9,5 +11,5 @@ export function resetNavigationAfterLogout(router: LogoutNavigationRouter) {
     router.dismissAll();
   }
 
-  router.replace("/sign-in");
+  router.replace("/welcome" as unknown as Href);
 }

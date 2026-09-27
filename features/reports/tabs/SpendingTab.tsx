@@ -12,6 +12,7 @@ import { VisualizationSection } from "@/features/reports/analytics/components/Vi
 import { SpendingActiveFilterSummary } from "@/features/reports/components/spending/SpendingActiveFilterSummary";
 import { SpendingDimensionSelector } from "@/features/reports/components/spending/SpendingDimensionSelector";
 import { SpendingFilterButton } from "@/features/reports/components/spending/SpendingFilterButton";
+import { SpendingSpendComparisonSection } from "@/features/reports/components/spending/SpendingSpendComparisonSection";
 import { SpendingSummarySection } from "@/features/reports/components/spending/SpendingSummarySection";
 import type { CurrencyCode } from "@/types/domain";
 
@@ -73,6 +74,7 @@ function SpendingAnalyticsWorkspace({ currencyCode, locale, token, vaultId }: Sp
         <SpendingActiveFilterSummary filters={state.filters} onClear={clearFilters} />
       </View>
       <SpendingSummarySection currencyCode={currencyCode} locale={locale} summary={model.summarySection} />
+      <SpendingSpendComparisonSection comparison={model.spendComparison} currencyCode={currencyCode} locale={locale} />
       <VisualizationSection currencyCode={currencyCode} items={model.chart.items} locale={locale} onSelect={setSelectedKey} selectedKey={selected?.key ?? null} title={model.chart.title} total={model.chart.total} type={model.chart.type} />
       <TrendSection currencyCode={currencyCode} locale={locale} points={model.trend.points} title={model.trend.title} />
       <BreakdownSection currencyCode={currencyCode} locale={locale} onSelect={setSelectedKey} rows={model.breakdown.rows} title={model.breakdown.title} />

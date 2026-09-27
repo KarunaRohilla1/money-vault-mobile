@@ -2,7 +2,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
-import { notifyNotificationDomainChanged } from "@/features/notifications/services/notificationEngine";
 import { apiClient } from "@/services/api/client";
 import type { SharedSettlementPayloadApi } from "@/services/api/types";
 
@@ -16,7 +15,6 @@ export function invalidateSharedDependents(vaultId: string | null, sharedVaultId
   queryClient.invalidateQueries({ queryKey: queryKeys.shared.settlements(vaultId, sharedVaultId) });
   queryClient.invalidateQueries({ queryKey: ["shared", "settlementHistory"] });
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.root });
-  notifyNotificationDomainChanged();
 }
 
 export function useSharedDashboardQuery(token: string | null, vaultId: string | null, sharedVaultId: number | null = null) {

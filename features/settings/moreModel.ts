@@ -20,16 +20,10 @@ export const moneyRows: MoreRowModel[] = [
   { icon: "target", iconTone: "pink", id: "wishlist", route: "/wishlist", title: "Wishlist" }
 ];
 
+export const vaultPreferencesRow: MoreRowModel = { icon: "tune-vertical", iconTone: "brand", id: "vault-preferences", route: "/settings/vault-preferences", title: "Vault & Preferences" };
+export const sharedVaultRow: MoreRowModel = { icon: "account-group-outline", iconTone: "blue", id: "shared-vault", route: "/settings/shared-vault", title: "Shared Vault" };
 export const securityRow: MoreRowModel = { icon: "lock-outline", iconTone: "brand", id: "security", route: "/settings/security", title: "Security & PIN" };
 export const membersRow: MoreRowModel = { icon: "account-group-outline", iconTone: "blue", id: "members", route: "/settings/members", title: "Vault Members" };
-export const notificationsRow: MoreRowModel = { icon: "bell-outline", iconTone: "green", id: "notifications", route: "/settings/notifications", title: "Notifications" };
-export const sharedVaultNotificationsRow: MoreRowModel = {
-  action: "in-progress",
-  icon: notificationsRow.icon,
-  iconTone: notificationsRow.iconTone,
-  id: notificationsRow.id,
-  title: notificationsRow.title
-};
 
 export const settlementHistoryRow: MoreRowModel = {
   icon: "handshake-outline",
@@ -58,17 +52,14 @@ export function moneyRowsForVault(vault: VaultSummaryApi | null | undefined) {
   return [...rows.slice(0, transactionsIndex + 1), settlementHistoryRow, ...rows.slice(transactionsIndex + 1)];
 }
 
-export const preferenceRows: MoreRowModel[] = [securityRow, membersRow, notificationsRow];
+export const preferenceRows: MoreRowModel[] = [vaultPreferencesRow, sharedVaultRow, securityRow, membersRow];
 
 export function preferenceRowsForVault(vault: VaultSummaryApi | null | undefined) {
-  const rows = [securityRow];
-
   if (isSharedVault(vault)) {
-    rows.push(membersRow);
+    return [membersRow];
   }
 
-  rows.push(isSharedVault(vault) ? sharedVaultNotificationsRow : notificationsRow);
-  return rows;
+  return [vaultPreferencesRow, sharedVaultRow, securityRow];
 }
 
 export function preferenceRowsWithLogoutForVault(vault: VaultSummaryApi | null | undefined) {
@@ -105,8 +96,14 @@ export function switchTarget(currentVault: VaultSummaryApi, accessibleVaults: Va
   return isSharedVault(currentVault) ? personalVaultFor(currentVault, accessibleVaults) : firstSharedVault(accessibleVaults);
 }
 
-export function roleLabel(vault: { isAdmin: boolean } | null | undefined) {
-  return vault?.isAdmin ? "Admin" : "Member";
+export function roleLabel(vault: { isAdmin?: boolean; role?: string; vaultType?: string } | null | undefined) {
+  if (vault?.role) {
+    return vault.role.toLowerCase() === "owner" ? "Owner" : "Member";
+  }
+  if (vault?.vaultType === "Individual") {
+    return "Owner";
+  }
+  return vault?.isAdmin ? "Owner" : "Member";
 }
 
 export interface MoreMenuSection {

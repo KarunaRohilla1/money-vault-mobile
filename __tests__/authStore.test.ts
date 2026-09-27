@@ -4,9 +4,12 @@ describe("authStore", () => {
   beforeEach(() => {
     useAuthStore.setState({
       authenticatedVault: null,
+      displayName: null,
       errorMessage: null,
+      pinSet: false,
       status: "booting",
       token: null,
+      userId: null,
       vault: null
     });
   });
@@ -45,5 +48,32 @@ describe("authStore", () => {
       token: "jwt-token",
       vault: sharedVault
     });
+  });
+
+  it("preserves displayName across same-user vault switches when the response omits it", () => {
+    const personalVault = {
+      id: "1",
+      isAdmin: true,
+      name: "Personal",
+      vaultType: "Individual"
+    };
+    const sharedVault = {
+      id: "2",
+      isAdmin: false,
+      name: "Home",
+      vaultType: "Shared"
+    };
+
+    useAuthStore.getState().setAuthenticated("jwt-token", personalVault, personalVault, {
+      displayName: "Karuna",
+      pinSet: true,
+      userId: "user-1"
+    });
+    useAuthStore.getState().setAuthenticated("shared-jwt", sharedVault, personalVault, {
+      pinSet: true,
+      userId: "user-1"
+    });
+
+    expect(useAuthStore.getState().displayName).toBe("Karuna");
   });
 });

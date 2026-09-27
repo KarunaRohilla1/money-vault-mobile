@@ -4,10 +4,6 @@ import { cycleDays } from "@/features/onboarding/onboardingOptions";
 import { ACCOUNT_TYPES } from "@/services/api/accountTypes";
 import type { OnboardingDraft, OnboardingStep } from "@/stores/onboardingStore";
 
-const vaultNameSchema = z.object({
-  vaultName: z.string().trim().min(1, "Vault name is required.")
-});
-
 const firstAccountSchema = z.object({
   accountKind: z.enum(ACCOUNT_TYPES, "Choose the first account type.")
 });
@@ -37,8 +33,6 @@ const savingsSchema = z.object({
 
 export function validationMessage(step: OnboardingStep, values: OnboardingDraft) {
   switch (step) {
-    case "vault-name":
-      return vaultNameSchema.safeParse(values).error?.issues[0]?.message ?? null;
     case "first-account":
       return firstAccountSchema.safeParse(values).error?.issues[0]?.message ?? null;
     case "account-details":
@@ -48,6 +42,7 @@ export function validationMessage(step: OnboardingStep, values: OnboardingDraft)
     case "savings-goal":
       return savingsSchema.safeParse(values).error?.issues[0]?.message ?? null;
     case "welcome":
+    case "biometric-prompt":
     case "finish":
       return null;
   }

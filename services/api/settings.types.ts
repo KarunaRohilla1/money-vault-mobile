@@ -3,6 +3,7 @@ export interface VaultSummaryApi {
   isAdmin: boolean;
   name: string;
   vaultType: string;
+  role?: string;
 }
 
 export interface SettingsApiResponse {
@@ -15,5 +16,6 @@ export interface SettingsApiResponse {
 export interface SettingsUpdatePayloadApi {
   cycleStartDay?: number;
   monthlySavingsGoal?: number;
+  pin?: string;
   vaultName?: string;
 }

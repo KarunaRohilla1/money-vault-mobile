@@ -1,6 +1,10 @@
 export const SECURITY_STORAGE_KEYS = {
   autoLockTimeout: "security.autoLockTimeout",
-  biometricEnabled: "security.biometricEnabled"
+  biometricEnabled: "security.biometricEnabled",
+  biometricUserId: "security.biometricUserId",
+  pinSalt: "security.pinSalt",
+  pinUserId: "security.pinUserId",
+  pinVerifier: "security.pinVerifier"
 } as const;
 
 export type AutoLockTimeout = "immediately" | "1m" | "5m" | "15m" | "never";
@@ -26,7 +30,11 @@ export const SECURITY_MESSAGES = {
   biometricFailed: "Biometric authentication failed. Try again.",
   biometricCancelled: "Biometric authentication was cancelled.",
   secureStoreFailure: "Could not save your security preference. Try again.",
-  unexpectedError: "Something went wrong. Try again."
+  unexpectedError: "Something went wrong. Try again.",
+  pinUpdated: "Your PIN has been updated.",
+  currentPinIncorrect: "Current PIN is incorrect.",
+  pinUpdateUnavailable: "Money Vault API is unavailable. Try again.",
+  pinUpdateMissingSession: "Sign in again to change your PIN."
 } as const;
 
 export const SECURITY_COPY = {
@@ -34,12 +42,17 @@ export const SECURITY_COPY = {
   authenticationTitle: "Unlock with Fingerprint",
   autoLockDescription: "Automatically lock the app after a period of inactivity.",
   autoLockTitle: "Auto Lock",
-  changePinDescription: "Update your 4-digit PIN.",
+  changePinDescription: "Update your 4 to 6 character PIN.",
   changePinTitle: "Change PIN",
+  forgotPin: "Forgot PIN?",
   infoBody: "Your PIN and biometric authentication are stored securely on your device.\nBiometric information never leaves your device.",
   infoTitle: "Your data is always secure",
+  recoveryCodeDescription: "Create a new recovery code. Your previous code will stop working.",
+  recoveryCodeTitle: "Generate recovery code",
   screenDescription: "Manage how you sign in and keep your money safe",
-  screenTitle: "Security"
+  screenTitle: "Security",
+  unlockTitle: "Unlock",
+  useAnotherAccount: "Use another account"
 } as const;
 
 export function autoLockLabel(timeout: AutoLockTimeout) {
