@@ -1,5 +1,6 @@
 import {
   canManageSharedVaultAsOwner,
+  sharedVaultListStatusBadges,
   sharedVaultMemberCountLabel,
   sharedVaultRoleLabel,
   sharedVaultsForSwitch
@@ -17,6 +18,30 @@ describe("sharedVaultModel", () => {
     expect(sharedVaultRoleLabel("member")).toBe("Member");
     expect(canManageSharedVaultAsOwner("owner")).toBe(true);
     expect(canManageSharedVaultAsOwner("member")).toBe(false);
+  });
+
+  it("shows only relevant Shared Vault status badges", () => {
+    expect(
+      sharedVaultListStatusBadges({
+        includeInSafeToSpend: true,
+        isPrimary: false,
+        showOnDashboard: false
+      }).map((badge) => badge.label)
+    ).toEqual([]);
+    expect(
+      sharedVaultListStatusBadges({
+        includeInSafeToSpend: false,
+        isPrimary: true,
+        showOnDashboard: true
+      }).map((badge) => badge.label)
+    ).toEqual(["Safe to Spend Excluded"]);
+    expect(
+      sharedVaultListStatusBadges({
+        includeInSafeToSpend: true,
+        isPrimary: false,
+        showOnDashboard: true
+      }).map((badge) => badge.key)
+    ).toEqual([]);
   });
 
   it("sorts shared vaults for switch selection", () => {

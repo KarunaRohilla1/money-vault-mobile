@@ -46,7 +46,7 @@ export function SharedTransactionDetailScreen() {
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
   const deleteTransaction = useDeleteTransactionMutation(token, vaultId, sharedVaultId);
-  const expensesQuery = useSharedExpensesQuery(token, vaultId);
+  const expensesQuery = useSharedExpensesQuery(token, vaultId, sharedVaultId);
   const expense =
     transactionId !== null && Number.isFinite(transactionId)
       ? findSharedExpenseById(expensesQuery.data?.data?.expenses ?? [], transactionId)

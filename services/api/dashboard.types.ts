@@ -77,10 +77,24 @@ export interface SafeToSpendBreakdownApi {
   total: number;
 }
 
+export interface SharedVaultBalanceCardApi {
+  amount: number;
+  direction: string;
+  id: number;
+  label: string;
+  name: string;
+  payable: number;
+  receivable: number;
+  showOnDashboard?: boolean;
+}
+
 export interface DashboardDataApi {
   creditCardDue: number;
   cycle: FinancialCycleApi;
   expensesThisCycle: number;
+  netSavingsThisCycle?: number;
+  actualSavings?: number;
+  savingsGoalRemaining?: number;
   primaryAccount: PrimaryAccountApi;
   recentActivity: RecentActivityApi[];
   remainingCommitments: number;
@@ -88,6 +102,8 @@ export interface DashboardDataApi {
   safeToSpend: number;
   setup: SetupStatusApi;
   settlement: SettlementApi;
+  showSharedBalancesOnDashboard?: boolean;
+  sharedVaultBalances?: SharedVaultBalanceCardApi[];
   spendingByCategory: CategorySpendApi[];
   summary: JsonObject;
 }

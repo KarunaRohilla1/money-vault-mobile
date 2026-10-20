@@ -3,7 +3,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/api/client";
 import { queryClient } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
-import type { WishlistCategoryPayloadApi, WishlistCategoryReorderPayloadApi, WishlistItemPayloadApi } from "@/services/api/types";
+import type {
+  CompleteWishlistItemPayloadApi,
+  WishlistCategoryPayloadApi,
+  WishlistCategoryReorderPayloadApi,
+  WishlistItemPayloadApi
+} from "@/services/api/types";
 
 function invalidateWishlist(vaultId: string | null) {
   queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.root });
@@ -65,6 +70,21 @@ export function useUpdateWishlistItemMutation(token: string | null, vaultId: str
 export function useDeleteWishlistItemMutation(token: string | null, vaultId: string | null) {
   return useMutation({
     mutationFn: async (itemId: number) => apiClient.deleteWishlistItem(token ?? "", itemId),
+    onSuccess: () => invalidateWishlist(vaultId)
+  });
+}
+
+export function useCompleteWishlistItemMutation(token: string | null, vaultId: string | null) {
+  return useMutation({
+    mutationFn: async ({ body, itemId }: { body?: CompleteWishlistItemPayloadApi; itemId: number }) =>
+      apiClient.completeWishlistItem(token ?? "", itemId, body),
+    onSuccess: () => invalidateWishlist(vaultId)
+  });
+}
+
+export function useReopenWishlistItemMutation(token: string | null, vaultId: string | null) {
+  return useMutation({
+    mutationFn: async (itemId: number) => apiClient.reopenWishlistItem(token ?? "", itemId),
     onSuccess: () => invalidateWishlist(vaultId)
   });
 }

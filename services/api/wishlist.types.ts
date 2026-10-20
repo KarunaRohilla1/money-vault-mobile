@@ -26,15 +26,25 @@ export interface WishlistItemApi {
   priority: WishlistPriorityApi;
   progressPercent?: number;
   purchaseLink: string;
+  purchasedAmount?: number | null;
+  purchasedDate?: string | null;
   savedAmount?: number;
+  status?: "ACTIVE" | "COMPLETED" | string;
   targetDate?: string | null;
 }
 
 export interface WishlistSummaryApi {
+  completedItems?: number;
+  completedSpent?: number;
   progress?: number;
   totalCost: number;
   totalItems: number;
   totalSaved?: number;
+}
+
+export interface CompleteWishlistItemPayloadApi {
+  purchasedAmount?: number | null;
+  purchasedDate?: string | null;
 }
 
 export interface WishlistApiResponse {

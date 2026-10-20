@@ -13,7 +13,7 @@ import { useSettingsQuery } from "@/features/settings/api";
 import { useSharedExpensesQuery } from "@/features/shared/api";
 import { sharedRoutes } from "@/features/shared/routes";
 import { canManageSharedExpense, findSharedExpenseById, mapSharedExpenseToFormValues } from "@/features/shared/sharedTransactionsModel";
-import { MonthDatePicker } from "@/features/transfers/TransfersScreen";
+import { CalendarDatePicker } from "@/components/ui";
 import {
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
@@ -646,7 +646,7 @@ export function TransactionFormScreen({ returnRoute, sharedEditMode = false, tra
         />
       </BottomSheet>
       <BottomSheet visible={datePickerVisible} title="Transaction Date" onClose={() => setDatePickerVisible(false)}>
-        <MonthDatePicker
+        <CalendarDatePicker
           locale={locale}
           selectedDate={datePickerValue}
           setSelectedDate={setDatePickerValue}

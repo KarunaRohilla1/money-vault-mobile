@@ -11,11 +11,13 @@ export interface SettingsApiResponse {
   currentVault: VaultSummaryApi;
   cycleStartDay: number;
   monthlySavingsGoal: number;
+  showSharedBalancesOnDashboard?: boolean;
 }
 
 export interface SettingsUpdatePayloadApi {
   cycleStartDay?: number;
   monthlySavingsGoal?: number;
   pin?: string;
+  showSharedBalancesOnDashboard?: boolean;
   vaultName?: string;
 }

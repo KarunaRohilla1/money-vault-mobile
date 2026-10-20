@@ -6,7 +6,6 @@ import { Screen } from "@/components/layout/Screen";
 import { EmptyState, ErrorView, LoadingSkeleton } from "@/components/ui";
 import { dashboardLayout } from "@/features/dashboard/dashboardLayout";
 import { useSharedDashboardQuery } from "@/features/shared/api";
-import { isSharedVault } from "@/features/settings/moreModel";
 import { goBackOrReplace } from "@/lib/navigation";
 import type { SharedDashboardParticipantApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
@@ -39,8 +38,9 @@ export function VaultMembersScreen() {
   const vault = useAuthStore((state) => state.vault);
   const token = useAuthStore((state) => state.token);
   const vaultId = vault?.id ?? null;
-  const sharedVault = isSharedVault(vault);
-  const dashboardQuery = useSharedDashboardQuery(token, sharedVault ? vaultId : null);
+  const isSharedVault = vault?.vaultType === "Shared";
+  const sharedVaultId = isSharedVault && vaultId ? Number(vaultId) : null;
+  const dashboardQuery = useSharedDashboardQuery(token, isSharedVault ? vaultId : null, sharedVaultId);
   const participants = dashboardQuery.data?.data.data.participants ?? [];
   const vaultName = dashboardQuery.data?.data.vault.name ?? vault?.name ?? "Shared Vault";
 
@@ -59,14 +59,14 @@ export function VaultMembersScreen() {
         </View>
       </View>
 
-      {!sharedVault ? (
+      {!isSharedVault ? (
         <EmptyState icon="account-group-outline" title="Members unavailable" message="Switch to a shared vault to view its members." />
       ) : null}
 
-      {sharedVault && dashboardQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
-      {sharedVault && dashboardQuery.isError ? <ErrorView message="Vault members could not be loaded." onRetry={() => dashboardQuery.refetch()} /> : null}
+      {isSharedVault && dashboardQuery.isLoading ? <LoadingSkeleton variant="card" /> : null}
+      {isSharedVault && dashboardQuery.isError ? <ErrorView message="Vault members could not be loaded." onRetry={() => dashboardQuery.refetch()} /> : null}
 
-      {sharedVault && dashboardQuery.data ? (
+      {isSharedVault && dashboardQuery.data ? (
         <View className="gap-3">
           <Text className="font-sans text-sm font-bold uppercase text-text-muted">
             {participants.length} {participants.length === 1 ? "Member" : "Members"}

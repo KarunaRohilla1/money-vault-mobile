@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { Screen } from "@/components/layout/Screen";
@@ -27,12 +27,19 @@ import { hasSafeToSpendBreakdown } from "@/features/dashboard/safeToSpendExplana
 import {
   hasOutstandingSettlement
 } from "@/features/dashboard/settlement";
+import {
+  sharedVaultBalanceCardCanSettle,
+  sharedVaultBalanceCardRoute,
+  sharedVaultBalanceCarouselState,
+  visibleSharedVaultBalanceCards
+} from "@/features/dashboard/sharedVaultBalanceCarousel";
+import { dashboardTransactionPeriod } from "@/features/dashboard/dashboardTransactionPeriod";
 import { getDashboardScreenState } from "@/features/dashboard/state";
 import { recentActivityPrimaryText, recentActivitySecondaryText } from "@/features/dashboard/recentActivityDisplay";
 import type { DashboardViewModel } from "@/features/dashboard/types";
 import { SettlementSheet } from "@/features/shared/components/SettlementSheet";
 import { useSettlementSheet } from "@/features/shared/hooks/useSettlementSheet";
-import type { CategorySpendApi, RecentActivityApi } from "@/services/api/types";
+import type { CategorySpendApi, RecentActivityApi, SharedVaultBalanceCardApi } from "@/services/api/types";
 import { formatIsoDateOnly } from "@/lib/date";
 import { personDisplayName } from "@/lib/personIdentity";
 import type { CurrencyCode } from "@/types/domain";
@@ -298,23 +305,33 @@ function MetricCard({
   );
 }
 
-function FullWidthMetricRow({
+function SharedVaultBalanceCard({
+  card,
+  cardWidth,
   currencyCode,
-  dashboard,
   isSettling,
   locale,
+  onOpenVault,
   onSettlePress
 }: {
+  card: SharedVaultBalanceCardApi;
+  cardWidth: number;
   currencyCode: CurrencyCode;
-  dashboard: DashboardViewModel;
   isSettling: boolean;
   locale: string;
+  onOpenVault: () => void;
   onSettlePress: () => void;
 }) {
-  const isSettled = !hasOutstandingSettlement(dashboard.settlement);
+  const canSettle = sharedVaultBalanceCardCanSettle(card);
 
   return (
-    <View className="min-h-24 gap-3 rounded-lg border border-surface-border bg-surface p-3">
+    <Pressable
+      accessibilityLabel={`Open ${card.name} settlements`}
+      accessibilityRole="button"
+      className="min-h-24 gap-3 rounded-lg border border-surface-border bg-surface p-3"
+      onPress={onOpenVault}
+      style={{ width: cardWidth }}
+    >
       <View className="flex-row items-center gap-3">
         <IconTile icon="handshake-outline" />
         <View className="min-w-0 flex-1">
@@ -322,34 +339,116 @@ function FullWidthMetricRow({
             Outstanding Settlements
           </Text>
           <Text className="font-sans text-sm text-text-muted" numberOfLines={1}>
-            {isSettled ? "All Settled" : dashboard.settlement.label}
+            {card.label}
+          </Text>
+          <Text className="font-sans text-xs font-semibold text-brand-soft" numberOfLines={1}>
+            {card.name}
           </Text>
         </View>
         <View className="max-w-32 items-end">
-          <MoneyText value={dashboard.settlement.amount} currencyCode={currencyCode} locale={locale} className="font-sans text-lg font-semibold text-text tabular-nums" />
+          <MoneyText value={card.amount} currencyCode={currencyCode} locale={locale} className="font-sans text-lg font-semibold text-text tabular-nums" />
         </View>
       </View>
-      {!isSettled ? (
+      {canSettle ? (
         <SecondaryButton className="h-10 rounded-lg border-brand bg-brand-deep" disabled={isSettling} icon="check-circle-outline" onPress={onSettlePress}>
           Mark Settled
         </SecondaryButton>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function SharedVaultBalanceCarousel({
+  cardWidth,
+  cards,
+  currencyCode,
+  isSettling,
+  locale,
+  onOpenVault,
+  onSettlePress
+}: {
+  cardWidth: number;
+  cards: SharedVaultBalanceCardApi[];
+  currencyCode: CurrencyCode;
+  isSettling: boolean;
+  locale: string;
+  onOpenVault: (card: SharedVaultBalanceCardApi) => void;
+  onSettlePress: (card: SharedVaultBalanceCardApi) => void;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const state = sharedVaultBalanceCarouselState({
+    cards
+  });
+
+  if (state.kind === "hidden") {
+    return null;
+  }
+
+  if (state.kind === "empty") {
+    return (
+      <View className="min-h-24 justify-center rounded-lg border border-surface-border bg-surface p-3">
+        <Text className="font-sans text-sm text-text-muted">No shared vaults yet. Create or join one in Settings.</Text>
+      </View>
+    );
+  }
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / Math.max(cardWidth, 1));
+    setActiveIndex(Math.min(Math.max(nextIndex, 0), state.cards.length - 1));
+  };
+
+  return (
+    <View className="gap-2">
+      <ScrollView
+        horizontal
+        nestedScrollEnabled
+        onMomentumScrollEnd={handleScroll}
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+      >
+        {state.cards.map((card) => (
+          <SharedVaultBalanceCard
+            card={card}
+            cardWidth={cardWidth}
+            currencyCode={currencyCode}
+            isSettling={isSettling}
+            key={card.id}
+            locale={locale}
+            onOpenVault={() => onOpenVault(card)}
+            onSettlePress={() => onSettlePress(card)}
+          />
+        ))}
+      </ScrollView>
+      {state.cards.length > 1 ? (
+        <View className="flex-row items-center justify-center gap-1.5">
+          {state.cards.map((card, index) => (
+            <View
+              className={`h-1.5 rounded-full ${index === activeIndex ? "w-4 bg-brand-soft" : "w-1.5 bg-surface-border"}`}
+              key={`dot-${card.id}`}
+            />
+          ))}
+        </View>
       ) : null}
     </View>
   );
 }
 
 function FinancialSnapshot({
+  cardWidth,
   currencyCode,
   dashboard,
   isSettling,
   locale,
+  onOpenVault,
   onSettlePress
 }: {
+  cardWidth: number;
   currencyCode: CurrencyCode;
   dashboard: DashboardViewModel;
   isSettling: boolean;
   locale: string;
-  onSettlePress: () => void;
+  onOpenVault: (card: SharedVaultBalanceCardApi) => void;
+  onSettlePress: (card: SharedVaultBalanceCardApi) => void;
 }) {
   return (
     <View className={dashboardLayout.sectionGapClassName}>
@@ -363,7 +462,15 @@ function FinancialSnapshot({
           <MetricCard amount={dashboard.remainingCommitments} currencyCode={currencyCode} icon="calendar-month-outline" label={dashboardMetricLabels[2]} locale={locale} tone="warning" />
           <MetricCard amount={dashboard.creditCardDue} currencyCode={currencyCode} icon="credit-card-outline" label={dashboardMetricLabels[3]} locale={locale} tone="danger" />
         </View>
-        <FullWidthMetricRow currencyCode={currencyCode} dashboard={dashboard} isSettling={isSettling} locale={locale} onSettlePress={onSettlePress} />
+        <SharedVaultBalanceCarousel
+          cardWidth={cardWidth}
+          cards={dashboard.sharedVaultBalances}
+          currencyCode={currencyCode}
+          isSettling={isSettling}
+          locale={locale}
+          onOpenVault={onOpenVault}
+          onSettlePress={onSettlePress}
+        />
       </View>
     </View>
   );
@@ -411,7 +518,7 @@ function ActivityRow({ currencyCode, item, locale }: { currencyCode: CurrencyCod
 
 function RecentActivity({ currencyCode, dashboard, locale }: { currencyCode: CurrencyCode; dashboard: DashboardViewModel; locale: string }) {
   const router = useRouter();
-  const cycleMonth = dashboard.cycle.startDate.slice(0, 7);
+  const period = dashboardTransactionPeriod(dashboard.cycle);
 
   return (
     <View className={dashboardLayout.sectionGapClassName}>
@@ -421,7 +528,11 @@ function RecentActivity({ currencyCode, dashboard, locale }: { currencyCode: Cur
         onActionPress={() =>
           router.push({
             pathname: "/transactions",
-            params: { month: cycleMonth }
+            params: {
+              dateFrom: period.dateFrom,
+              dateTo: period.dateTo,
+              month: period.month
+            }
           })
         }
       />
@@ -572,18 +683,35 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
   const inbox = useInbox();
   const { width } = useWindowDimensions();
   const widthRules = dashboardWidthRules(width);
-  const shouldLoadSettlementDetails = hasOutstandingSettlement(dashboard.settlement);
+  const carouselCards = visibleSharedVaultBalanceCards(dashboard.sharedVaultBalances);
+  const [activeSettlementVaultId, setActiveSettlementVaultId] = useState<number | null>(carouselCards[0]?.id ?? null);
+  const pendingSettlementOpen = useRef(false);
+  const activeCard = carouselCards.find((card) => card.id === activeSettlementVaultId) ?? carouselCards[0] ?? null;
+  const shouldLoadSettlementDetails = activeCard ? hasOutstandingSettlement(activeCard) : false;
   const settlement = useSettlementSheet({
     currencyCode,
     enabled: shouldLoadSettlementDetails,
     locale,
+    sharedVaultId: activeCard?.id ?? null,
     token,
     vaultId
   });
+  useEffect(() => {
+    if (!pendingSettlementOpen.current) {
+      return;
+    }
+    pendingSettlementOpen.current = false;
+    settlement.openSettlementSheet();
+    // openSettlementSheet is recreated each render; run only after the selected vault id commits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSettlementVaultId]);
   const [safeToSpendExplanationVisible, setSafeToSpendExplanationVisible] = useState(false);
   const hasSafeToSpendDetails = hasSafeToSpendBreakdown(dashboard.safeToSpendBreakdown);
   const openSafeToSpendExplanation = hasSafeToSpendDetails ? () => setSafeToSpendExplanationVisible(true) : undefined;
   const pendingInboxCount = inbox.pendingCount;
+  const openSharedVault = (card: SharedVaultBalanceCardApi) => {
+    router.push(sharedVaultBalanceCardRoute(card) as never);
+  };
 
   if (__DEV__ && !hasSafeToSpendDetails) {
     console.warn("Safe to Spend breakdown is missing for the current dashboard response.");
@@ -602,11 +730,20 @@ function DashboardContent({ dashboard }: { dashboard: DashboardViewModel }) {
         />
         <NeedsAttentionCard count={pendingInboxCount} onPress={() => router.push(inboxRoutes.root)} />
         <FinancialSnapshot
+          cardWidth={Math.max(width - 40, 280)}
           dashboard={dashboard}
           currencyCode={currencyCode}
           isSettling={settlement.isSettling}
           locale={locale}
-          onSettlePress={settlement.openSettlementSheet}
+          onOpenVault={openSharedVault}
+          onSettlePress={(card) => {
+            if (activeSettlementVaultId === card.id) {
+              settlement.openSettlementSheet();
+              return;
+            }
+            pendingSettlementOpen.current = true;
+            setActiveSettlementVaultId(card.id);
+          }}
         />
         <RecentActivity dashboard={dashboard} currencyCode={currencyCode} locale={locale} />
         <SpendingByCategory

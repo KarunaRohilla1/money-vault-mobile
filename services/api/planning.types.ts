@@ -1,6 +1,7 @@
 export interface PlanningStatusApi {
-  actualAmount?: number | null;
-  notes?: string | null;
+  actualAmount?: number | null | undefined;
+  notes?: string | null | undefined;
+  paidDate?: string | null | undefined;
   status: string;
 }
 
@@ -128,9 +129,10 @@ export interface PlanningItemPayloadApi {
 }
 
 export interface PlanningStatusPayloadApi {
-  actualAmount?: number | null;
+  actualAmount?: number | null | undefined;
   month: number;
-  notes?: string;
+  notes?: string | undefined;
+  paidDate?: string | null | undefined;
   status: string;
   year: number;
 }

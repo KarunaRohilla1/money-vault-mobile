@@ -44,18 +44,18 @@ export function SharedTab({ currencyCode, cycleStart, locale, token, vaultId }: 
     );
   }
 
-  const report = query.data;
-  if (!report) {
+  const reportData = query.data?.data;
+  if (!reportData) {
     return null;
   }
 
   return (
     <View className="gap-5">
-      <SharedSummarySection currencyCode={currencyCode} locale={locale} summary={report.data.summary} />
-      <SharedFundingVsShareSection currencyCode={currencyCode} fundingVsShare={report.data.fundingVsShare} locale={locale} />
-      <SharedCategoryBreakdownSection categories={report.data.categoryBreakdown} currencyCode={currencyCode} locale={locale} />
-      <SharedTrendSection currencyCode={currencyCode} locale={locale} trend={report.data.trend} />
-      <SharedTopExpensesSection currencyCode={currencyCode} expenses={report.data.topExpenses} locale={locale} />
+      <SharedSummarySection currencyCode={currencyCode} locale={locale} summary={reportData.summary} />
+      <SharedFundingVsShareSection currencyCode={currencyCode} fundingVsShare={reportData.fundingVsShare} locale={locale} />
+      <SharedCategoryBreakdownSection categories={reportData.categoryBreakdown} currencyCode={currencyCode} locale={locale} />
+      <SharedTrendSection currencyCode={currencyCode} locale={locale} trend={reportData.trend} />
+      <SharedTopExpensesSection currencyCode={currencyCode} expenses={reportData.topExpenses} locale={locale} />
     </View>
   );
 }

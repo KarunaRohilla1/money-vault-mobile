@@ -14,6 +14,9 @@ const optionalUrl = z.string().trim().refine((value) => {
 
 const optionalImageUrl = z.string().trim().refine((value) => {
   if (!value) return true;
+  if (value.startsWith("file://") || value.startsWith("content://") || value.startsWith("ph://")) {
+    return true;
+  }
   try {
     const url = new URL(value);
     return (url.protocol === "http:" || url.protocol === "https:") && /\.(avif|gif|jpe?g|png|webp)(\?.*)?$/i.test(url.href);
@@ -45,4 +48,16 @@ export const wishlistCategorySchema = z.object({
   icon: z.string().trim().min(1),
   id: z.number().nullable(),
   name: z.string().trim().min(1, "Category name is required.")
+});
+
+export const completeWishlistItemSchema = z.object({
+  purchasedAmount: z.string().refine((value) => {
+    const amount = parseWishlistMoney(value);
+    return Number.isFinite(amount) && amount >= 0;
+  }, "Purchase amount must be a valid number."),
+  purchasedDate: z.string().trim().refine((value) => {
+    if (!value) return true;
+    const time = new Date(value).getTime();
+    return Number.isFinite(time);
+  }, "Enter a valid date.")
 });

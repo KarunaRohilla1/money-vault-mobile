@@ -8,6 +8,8 @@ import {
 import type { AuthenticatedVault } from "@/types/domain";
 import type {
   LoginResponse,
+  PrimarySharedVaultApi,
+  PrimarySharedVaultUpdateRequest,
   PinChangeRequest,
   PinSetRequest,
   ProfileUpdateRequest,
@@ -18,6 +20,8 @@ import type {
   SharedVaultMemberApi,
   SharedVaultRenameRequest,
   SharedVaultSummaryApi,
+  SharedVaultDashboardVisibilityUpdateRequest,
+  SharedVaultSafeToSpendUpdateRequest,
   CreateSharedVaultRequest,
   JoinSharedVaultRequest,
   CredentialLoginRequest,
@@ -202,6 +206,8 @@ function normalizeSharedVaultSummary(value: unknown): SharedVaultSummaryApi {
   const role = readStringField(value, ["role"]) ?? "member";
   const memberCount = readNumberField(value, ["memberCount", "member_count"]) ?? 0;
   const isAdmin = readBooleanField(value, ["isAdmin", "is_admin"]) ?? role === "owner";
+  const includeInSafeToSpend = readBooleanField(value, ["includeInSafeToSpend", "include_in_safe_to_spend"]) ?? true;
+  const showOnDashboard = readBooleanField(value, ["showOnDashboard", "show_on_dashboard"]) ?? true;
 
   if (id === undefined || !name) {
     throw new ApiClientError("The shared vault response was incomplete.", {
@@ -214,10 +220,12 @@ function normalizeSharedVaultSummary(value: unknown): SharedVaultSummaryApi {
 
   return {
     id,
+    includeInSafeToSpend,
     isAdmin,
     memberCount,
     name,
     role,
+    showOnDashboard,
     vaultType
   };
 }
@@ -270,6 +278,59 @@ function normalizeSharedVaultDetail(value: unknown): SharedVaultDetailApi {
   };
 }
 
+function normalizePrimarySharedVault(value: unknown): PrimarySharedVaultApi {
+  if (!isRecord(value)) {
+    console.error("[PrimarySharedVault] normalize error: value is not an object:", value);
+    throw new ApiClientError("The primary shared vault response was incomplete.", {
+      code: "PRIMARY_SHARED_VAULT_RESPONSE_INVALID",
+      details: { reason: "not_object", value },
+      isNetworkError: false,
+      status: null
+    });
+  }
+
+  const configured = readBooleanField(value, ["configured"]) ?? false;
+  const sharedVault = value.sharedVault ?? value.shared_vault ?? null;
+
+  if (!configured || sharedVault === null || sharedVault === undefined) {
+    return {
+      configured: false,
+      sharedVault: null
+    };
+  }
+
+  if (!isRecord(sharedVault)) {
+    console.error("[PrimarySharedVault] normalize error: sharedVault is not an object:", sharedVault);
+    throw new ApiClientError("The primary shared vault response was incomplete.", {
+      code: "PRIMARY_SHARED_VAULT_RESPONSE_INVALID",
+      details: { reason: "shared_vault_not_object", sharedVault },
+      isNetworkError: false,
+      status: null
+    });
+  }
+
+  const id = readNumberField(sharedVault, ["id"]);
+  const name = readStringField(sharedVault, ["name"]);
+
+  if (id === undefined || !name) {
+    console.error("[PrimarySharedVault] normalize error: missing id or name:", { id, name, sharedVault });
+    throw new ApiClientError("The primary shared vault response was incomplete.", {
+      code: "PRIMARY_SHARED_VAULT_RESPONSE_INVALID",
+      details: { hasId: id !== undefined, hasName: Boolean(name), sharedVault },
+      isNetworkError: false,
+      status: null
+    });
+  }
+
+  return {
+    configured: true,
+    sharedVault: {
+      id,
+      name
+    }
+  };
+}
+
 export function getSharedVaultDetail(token: string, sharedVaultId: number) {
   return request<unknown>({
     path: `/api/vaults/shared/${sharedVaultId}`,
@@ -307,6 +368,71 @@ export function deleteSharedVault(token: string, sharedVaultId: number) {
     method: "DELETE",
     path: `/api/vaults/shared/${sharedVaultId}`,
     token
+  });
+}
+
+export function getPrimarySharedVault(token: string) {
+  return request<unknown>({
+    path: "/api/vaults/personal/primary-shared-vault",
+    token
+  }).then((data) => {
+    return normalizePrimarySharedVault(data);
+  }).catch((err) => {
+    console.error("[PrimarySharedVault] GET request failed:", err);
+    throw err;
+  });
+}
+
+export function setPrimarySharedVault(token: string, body: PrimarySharedVaultUpdateRequest) {
+  return request<unknown, PrimarySharedVaultUpdateRequest>({
+    body,
+    method: "PUT",
+    path: "/api/vaults/personal/primary-shared-vault",
+    token
+  }).then((data) => {
+    return normalizePrimarySharedVault(data);
+  }).catch((err) => {
+    console.error("[PrimarySharedVault] PUT request failed:", err);
+    throw err;
+  });
+}
+
+export function setSharedVaultSafeToSpendInclusion(
+  token: string,
+  sharedVaultId: number,
+  body: SharedVaultSafeToSpendUpdateRequest
+) {
+  return request<unknown, SharedVaultSafeToSpendUpdateRequest>({
+    body,
+    method: "PUT",
+    path: `/api/vaults/personal/shared-vaults/${sharedVaultId}/safe-to-spend`,
+    token
+  }).then((data) => normalizeSharedVaultSummary(data));
+}
+
+export function setSharedVaultDashboardVisibility(
+  token: string,
+  sharedVaultId: number,
+  body: SharedVaultDashboardVisibilityUpdateRequest
+) {
+  return request<unknown, SharedVaultDashboardVisibilityUpdateRequest>({
+    body,
+    method: "PUT",
+    path: `/api/vaults/personal/shared-vaults/${sharedVaultId}/dashboard`,
+    token
+  }).then((data) => normalizeSharedVaultSummary(data));
+}
+
+export function clearPrimarySharedVault(token: string) {
+  return request<unknown>({
+    method: "DELETE",
+    path: "/api/vaults/personal/primary-shared-vault",
+    token
+  }).then((data) => {
+    return normalizePrimarySharedVault(data);
+  }).catch((err) => {
+    console.error("[PrimarySharedVault] DELETE request failed:", err);
+    throw err;
   });
 }
 

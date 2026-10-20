@@ -27,6 +27,7 @@ import {
   toApiFilters,
   toggleId,
   transactionDisplayText,
+  transactionFiltersFromRouteParams,
   type AdvancedFilters,
   type DatePreset,
   type TransactionTypeFilter
@@ -177,16 +178,16 @@ export function TransactionsScreen() {
 
 function TransactionsScreenContent({ vaultId }: { vaultId: string | null }) {
   const router = useRouter();
-  const params = useLocalSearchParams<{ month?: string }>();
+  const params = useLocalSearchParams<{ dateFrom?: string; dateTo?: string; month?: string }>();
   const token = useAuthStore((state) => state.token);
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
-  const initialMonth = typeof params.month === "string" && /^\d{4}-\d{2}$/.test(params.month) ? params.month : currentMonthKey();
-  const [month, setMonth] = useState(initialMonth);
+  const initialPeriod = transactionFiltersFromRouteParams(params);
+  const [month, setMonth] = useState(initialPeriod.month);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
   const [transactionType, setTransactionType] = useState<TransactionTypeFilter>("All");
-  const [filters, setFilters] = useState<AdvancedFilters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<AdvancedFilters>(initialPeriod.filters);
   const [draftFilters, setDraftFilters] = useState<AdvancedFilters>(EMPTY_FILTERS);
   const [draftTransactionType, setDraftTransactionType] = useState<TransactionTypeFilter>("All");
   const [filterVisible, setFilterVisible] = useState(false);

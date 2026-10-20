@@ -7,7 +7,7 @@ interface DashboardQuerySnapshot {
   data: DashboardViewModel | undefined;
   error: unknown;
   isError: boolean;
-  isLoading: boolean;
+  isLoading?: boolean;
   refetch: () => unknown;
 }
 
@@ -33,8 +33,15 @@ export function isEmptyDashboardData(dashboard: DashboardViewModel) {
 }
 
 export function getDashboardScreenState(query: DashboardQuerySnapshot): DashboardScreenState {
-  if (query.isLoading) {
-    return { kind: "loading" };
+  if (query.data) {
+    if (isEmptyDashboardData(query.data)) {
+      return { kind: "empty" };
+    }
+
+    return {
+      dashboard: query.data,
+      kind: "success"
+    };
   }
 
   if (query.isError || query.error) {
@@ -45,20 +52,5 @@ export function getDashboardScreenState(query: DashboardQuerySnapshot): Dashboar
     };
   }
 
-  if (!query.data) {
-    return {
-      kind: "error",
-      message: DASHBOARD_CONNECTION_ERROR_MESSAGE,
-      onRetry: query.refetch
-    };
-  }
-
-  if (isEmptyDashboardData(query.data)) {
-    return { kind: "empty" };
-  }
-
-  return {
-    dashboard: query.data,
-    kind: "success"
-  };
+  return { kind: "loading" };
 }

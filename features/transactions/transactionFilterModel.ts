@@ -1,3 +1,5 @@
+import { isValidIsoDate } from "@/lib/date";
+import { currentMonthKey } from "@/features/transactions/transactionHistoryModel";
 import type { AccountApi, CategoryApi, TransactionFiltersApi, TransactionHistoryItemApi } from "@/services/api/types";
 
 export type SortFilter = "Newest" | "Oldest" | "Amount High" | "Amount Low";
@@ -222,6 +224,24 @@ function firstNonEmpty(...values: (string | null | undefined)[]) {
   return values.map((value) => String(value ?? "").trim()).find((value) => value.length > 0) ?? "";
 }
 
+export function monthKeyFromParam(value: string | undefined, referenceDate = new Date()) {
+  return typeof value === "string" && /^\d{4}-\d{2}$/.test(value) ? value : currentMonthKey(referenceDate);
+}
+
+export function transactionFiltersFromRouteParams(params: { dateFrom?: string; dateTo?: string; month?: string }, referenceDate = new Date()) {
+  const dateFrom = typeof params.dateFrom === "string" && isValidIsoDate(params.dateFrom) ? params.dateFrom : "";
+  const dateTo = typeof params.dateTo === "string" && isValidIsoDate(params.dateTo) ? params.dateTo : "";
+
+  return {
+    filters: {
+      ...EMPTY_FILTERS,
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {})
+    } satisfies AdvancedFilters,
+    month: monthKeyFromParam(params.month, referenceDate)
+  };
+}
+
 export function toApiFilters(input: {
   accounts: AccountApi[];
   categories: CategoryApi[];
@@ -235,6 +255,7 @@ export function toApiFilters(input: {
   const account = input.accounts.find((item) => String(item.id) === firstAccountId)?.name;
   const category = input.categories.find((item) => String(item.id) === firstCategoryId)?.name;
   const trimmedSearch = input.search.trim();
+  const hasExplicitDateRange = Boolean(input.filters.dateFrom && input.filters.dateTo);
 
   return {
     ...(account ? { account } : {}),
@@ -243,7 +264,7 @@ export function toApiFilters(input: {
     ...(category ? { category } : {}),
     ...(input.filters.dateFrom ? { dateFrom: input.filters.dateFrom } : {}),
     ...(input.filters.dateTo ? { dateTo: input.filters.dateTo } : {}),
-    month: input.month,
+    ...(hasExplicitDateRange ? {} : { month: input.month }),
     ...(trimmedSearch ? { search: trimmedSearch } : {}),
     ...(input.filters.sharedOnly ? { sharedOnly: true } : {}),
     sortBy: input.filters.sortBy,

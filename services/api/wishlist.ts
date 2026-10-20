@@ -1,5 +1,6 @@
 import { request } from "@/services/api/core";
 import type {
+  CompleteWishlistItemPayloadApi,
   SuccessApiResponse,
   WishlistApiResponse,
   WishlistCategoryPayloadApi,
@@ -71,6 +72,23 @@ export function deleteWishlistItem(token: string, itemId: number) {
   return request<SuccessApiResponse>({
     method: "DELETE",
     path: `/api/wishlist/items/${itemId}`,
+    token
+  });
+}
+
+export function completeWishlistItem(token: string, itemId: number, body?: CompleteWishlistItemPayloadApi) {
+  return request<SuccessApiResponse, CompleteWishlistItemPayloadApi | undefined>({
+    body,
+    method: "POST",
+    path: `/api/wishlist/items/${itemId}/complete`,
+    token
+  });
+}
+
+export function reopenWishlistItem(token: string, itemId: number) {
+  return request<SuccessApiResponse>({
+    method: "POST",
+    path: `/api/wishlist/items/${itemId}/reopen`,
     token
   });
 }

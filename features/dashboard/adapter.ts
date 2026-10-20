@@ -104,6 +104,9 @@ export function adaptDashboardResponse(response: DashboardApiResponse): Dashboar
     cycleLabel: response.data.cycle.displayName,
     expensesThisCycle: response.data.expensesThisCycle,
     generatedAt: response.generatedAt,
+    netSavingsThisCycle: response.data.netSavingsThisCycle ?? Number(response.data.summary?.net_savings_this_cycle ?? response.data.summary?.actual_savings ?? 0),
+    actualSavings: response.data.actualSavings ?? Number(response.data.summary?.actual_savings ?? 0),
+    savingsGoalRemaining: response.data.savingsGoalRemaining ?? Number(response.data.summary?.savings_goal_remaining ?? 0),
     primaryAccountBalance: response.data.primaryAccount.balance,
     primaryAccountName: response.data.primaryAccount.name,
     recentActivity: response.data.recentActivity.slice(0, 5),
@@ -112,6 +115,8 @@ export function adaptDashboardResponse(response: DashboardApiResponse): Dashboar
     safeToSpendBreakdown: response.data.safeToSpendBreakdown ?? null,
     setup: response.data.setup,
     settlement: response.data.settlement,
+    sharedVaultBalances: response.data.sharedVaultBalances ?? [],
+    showSharedBalancesOnDashboard: response.data.showSharedBalancesOnDashboard !== false,
     summary: response.data.summary,
     vault: response.vault
   };

@@ -84,6 +84,12 @@ describe("dashboard screen state", () => {
     });
   });
 
+  it("shows loading while the session or dashboard query has not settled", () => {
+    expect(getDashboardScreenState({ data: undefined, error: null, isError: false, isLoading: false, refetch: retry })).toEqual({
+      kind: "loading"
+    });
+  });
+
   it("renders successful dashboard responses", () => {
     const state = getDashboardScreenState({ data: dashboard, error: null, isError: false, isLoading: false, refetch: retry });
 
@@ -134,11 +140,10 @@ describe("dashboard screen state", () => {
     expect(shouldClearDashboardSession(error)).toBe(false);
   });
 
-  it("shows an error when no dashboard data is available without a valid empty response", () => {
+  it("does not treat a pending startup query as a terminal load error", () => {
     const state = getDashboardScreenState({ data: undefined, error: null, isError: false, isLoading: false, refetch: retry });
 
-    expect(state.kind).toBe("error");
-    expect(state).toMatchObject({ message: DASHBOARD_CONNECTION_ERROR_MESSAGE });
+    expect(state.kind).toBe("loading");
   });
 
   it("calls refetch from retry", () => {

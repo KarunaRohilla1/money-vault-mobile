@@ -194,11 +194,15 @@ export async function request<TResponse, TBody extends object | undefined = unde
       requestInit.body = JSON.stringify(body);
     }
 
-    const response = await fetch(buildUrl(path), requestInit);
+    const finalUrl = buildUrl(path);
+    console.log(`[API Request] ${method} ${finalUrl} (apiBaseUrl: ${env.apiBaseUrl})`);
+
+    const response = await fetch(finalUrl, requestInit);
     const parsedBody = await parseJsonResponse(response);
 
     if (!response.ok) {
       const errorBody = readErrorBody(parsedBody);
+      console.error(`[API Error] ${method} ${finalUrl} -> ${response.status}`, errorBody);
 
       if (response.status === 401 && token && clearSessionOnUnauthorized) {
         await handleConfirmedUnauthorized();

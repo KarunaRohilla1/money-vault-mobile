@@ -78,6 +78,38 @@ describe("dashboard adapter", () => {
     expect(viewModel.primaryAccountName).toBe("Primary account");
     expect(viewModel.primaryAccountBalance).toBe(900);
     expect(viewModel.safeToSpend).toBe(300);
+    expect(viewModel.showSharedBalancesOnDashboard).toBe(true);
+    expect(viewModel.sharedVaultBalances).toEqual([]);
+  });
+
+  it("maps netSavingsThisCycle and actualSavings from response data or summary", () => {
+    const withDirectFields: DashboardApiResponse = {
+      ...baseResponse,
+      data: {
+        ...baseResponse.data,
+        netSavingsThisCycle: 300,
+        actualSavings: 300
+      }
+    };
+    const vm1 = adaptDashboardResponse(withDirectFields);
+    expect(vm1.netSavingsThisCycle).toBe(300);
+    expect(vm1.actualSavings).toBe(300);
+
+    const withSummaryFallback: DashboardApiResponse = {
+      ...baseResponse,
+      data: {
+        ...baseResponse.data,
+        summary: {
+          net_savings_this_cycle: 500,
+          actual_savings: 500,
+          savings_goal_remaining: 4500
+        }
+      }
+    };
+    const vm2 = adaptDashboardResponse(withSummaryFallback);
+    expect(vm2.netSavingsThisCycle).toBe(500);
+    expect(vm2.actualSavings).toBe(500);
+    expect(vm2.savingsGoalRemaining).toBe(4500);
   });
 
 

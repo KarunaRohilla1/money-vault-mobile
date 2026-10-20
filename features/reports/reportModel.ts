@@ -25,17 +25,23 @@ export function reportNumber(value: unknown) {
   return 0;
 }
 
-export function formatReportValue(value: number | string | null, format: ReportValueFormat, currencyCode: CurrencyCode, locale: string) {
+export function formatReportValue(value: number | string | null | undefined, format: ReportValueFormat, currencyCode: CurrencyCode, locale: string) {
   if (value === null) {
     return "None";
   }
 
-  if (format === "money" && typeof value === "number") {
-    return formatCurrency(value, currencyCode, locale);
+  if (value === undefined) {
+    return format === "money" ? formatCurrency(0, currencyCode, locale) : "None";
   }
 
-  if (format === "count" && typeof value === "number") {
-    return String(Math.trunc(value));
+  if (format === "money") {
+    const numeric = typeof value === "number" ? value : reportNumber(value);
+    return formatCurrency(Number.isFinite(numeric) ? numeric : 0, currencyCode, locale);
+  }
+
+  if (format === "count") {
+    const numeric = typeof value === "number" ? value : reportNumber(value);
+    return String(Math.trunc(Number.isFinite(numeric) ? numeric : 0));
   }
 
   return String(value);

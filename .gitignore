@@ -12,6 +12,8 @@ build-artifacts/
 .env.development
 .env.production
 .env*.local
+.env*.bak
+*.bak
 !.env.example
 !.env.development.example
 !.env.production.example

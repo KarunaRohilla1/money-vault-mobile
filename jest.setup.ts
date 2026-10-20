@@ -5,6 +5,9 @@ jest.setTimeout(10000);
 process.env.EXPO_PUBLIC_API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.money-vault.test";
 
 jest.mock("react-native", () => ({
+  Alert: {
+    alert: jest.fn()
+  },
   AppState: {
     addEventListener: jest.fn(() => ({ remove: jest.fn() })),
     currentState: "active"
@@ -15,6 +18,9 @@ jest.mock("react-native", () => ({
   Platform: {
     OS: "ios",
     select: (spec: Record<string, unknown>) => spec.ios ?? spec.default
+  },
+  Share: {
+    share: jest.fn(async () => ({ action: "sharedAction" }))
   },
   StyleSheet: {
     create: (styles: unknown) => styles
@@ -70,6 +76,22 @@ jest.mock("expo-local-authentication", () => ({
 jest.mock("expo-clipboard", () => ({
   getStringAsync: jest.fn(async () => ""),
   setStringAsync: jest.fn(async () => undefined)
+}));
+
+jest.mock("expo-image-picker", () => ({
+  PermissionStatus: {
+    DENIED: "denied",
+    GRANTED: "granted",
+    UNDETERMINED: "undetermined"
+  },
+  launchImageLibraryAsync: jest.fn(async () => ({
+    assets: [{ uri: "file:///mock/image.jpg" }],
+    canceled: false
+  })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({
+    granted: true,
+    status: "granted"
+  }))
 }));
 
 jest.mock("@react-native-community/datetimepicker", () => {

@@ -33,6 +33,7 @@ export function PlanningSheets({ state }: PlanningSheetsProps) {
         actualAmount={state.actualAmount}
         actualError={state.actualError}
         actualNotes={state.actualNotes}
+        actualPaymentDate={state.actualPaymentDate}
         currencyCode={state.currencyCode}
         cycle={planning.cycle}
         locale={state.locale}
@@ -40,6 +41,7 @@ export function PlanningSheets({ state }: PlanningSheetsProps) {
         selectedStatus={state.activityDraftStatus}
         onActualAmountChange={state.setActualAmount}
         onActualNotesChange={state.setActualNotes}
+        onActualPaymentDateChange={state.setActualPaymentDate}
         onClose={state.closeActivityActions}
         onSaveActual={state.saveActivityActual}
         onStatusChange={state.setActivityDraftStatus}

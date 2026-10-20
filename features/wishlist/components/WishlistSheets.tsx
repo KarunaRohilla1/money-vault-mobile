@@ -4,10 +4,12 @@ import { useForm } from "react-hook-form";
 import { useEffect, useMemo, useState } from "react";
 
 import { BottomSheet, CurrencyText, PrimaryButton, SecondaryButton } from "@/components/ui";
-import { PriorityBadge, formatWishlistDate } from "@/features/wishlist/components/WishlistCards";
+import { PriorityBadge, PurchaseBadge, formatWishlistDate } from "@/features/wishlist/components/WishlistCards";
+import { pickWishlistGalleryImage } from "@/features/wishlist/services/imagePicker.service";
 import type { WishlistCategoryFormValues, WishlistItemFormValues, WishlistSortKey } from "@/features/wishlist/types";
+import { isWishlistItemCompleted } from "@/features/wishlist/utils/wishlistFilters";
 import { formatWishlistMoneyInput, parseWishlistMoney } from "@/features/wishlist/utils/wishlistMoney";
-import { wishlistCategorySchema, wishlistItemSchema } from "@/features/wishlist/validation/wishlistSchemas";
+import { completeWishlistItemSchema, wishlistCategorySchema, wishlistItemSchema } from "@/features/wishlist/validation/wishlistSchemas";
 import type { WishlistCategoryApi, WishlistImageSourceApi, WishlistItemApi, WishlistPriorityApi } from "@/services/api/types";
 import { theme } from "@/theme";
 
@@ -38,9 +40,249 @@ export function SortSheet({ selected, visible, onClose, onSelect }: { selected: 
   return <BottomSheet visible={visible} title="Sort Wishlist" onClose={onClose}><View className="gap-2">{sortOptions.map((option) => <Pressable accessibilityRole="button" accessibilityState={{ selected: selected === option.value }} className={`min-h-12 flex-row items-center justify-between rounded-xl px-4 py-3 ${selected === option.value ? "bg-brand" : "bg-surface"}`} key={option.value} onPress={() => onSelect(option.value)}><Text className="font-sans text-sm font-semibold text-text">{option.label}</Text>{selected === option.value ? <MaterialCommunityIcons name="check" size={theme.icons.sm} color={theme.colors.text.DEFAULT} /> : null}</Pressable>)}</View></BottomSheet>;
 }
 
-export function WishlistDetailSheet({ currencyCode, item, locale, onClose, onDelete, onEdit }: { currencyCode: string; item: WishlistItemApi | null; locale: string; onClose: () => void; onDelete: (item: WishlistItemApi) => void; onEdit: (item: WishlistItemApi) => void }) {
+export function WishlistDetailSheet({
+  currencyCode,
+  item,
+  locale,
+  onClose,
+  onComplete,
+  onDelete,
+  onEdit,
+  onReopen
+}: {
+  currencyCode: string;
+  item: WishlistItemApi | null;
+  locale: string;
+  onClose: () => void;
+  onComplete?: ((item: WishlistItemApi) => void) | undefined;
+  onDelete: (item: WishlistItemApi) => void;
+  onEdit: (item: WishlistItemApi) => void;
+  onReopen?: ((item: WishlistItemApi) => void) | undefined;
+}) {
   if (!item) return null;
-  return <BottomSheet visible={Boolean(item)} title={item.name} presentation="fullScreen" onClose={onClose}><View className="gap-4">{item.imageUrl ? <Image source={{ uri: item.imageUrl }} className="h-72 rounded-xl bg-surface" resizeMode="cover" /> : <View className="h-56 items-center justify-center rounded-xl bg-surface"><MaterialCommunityIcons name="image-outline" size={theme.icons.lg} color={theme.colors.brand.soft} /></View>}<View className="gap-2"><PriorityBadge priority={item.priority} /><Text className="font-sans text-3xl font-bold text-text">{item.name}</Text><Text className="font-sans text-base text-text-muted">{item.category}</Text><CurrencyText value={item.estimatedCost} currencyCode={currencyCode} locale={locale} className="text-2xl font-bold text-state-success" /></View>{item.purchaseLink ? <PrimaryButton icon="open-in-new" onPress={() => Linking.openURL(item.purchaseLink)}>Open Purchase Link</PrimaryButton> : null}{item.notes ? <View className="rounded-xl bg-surface p-4"><Text className="font-sans text-sm text-text-muted">Notes</Text><Text className="mt-2 font-sans text-base text-text">{item.notes}</Text></View> : null}<Text className="font-sans text-sm text-text-muted">Added {formatWishlistDate(item.createdAt)}</Text><View className="flex-row gap-3"><SecondaryButton className="flex-1" onPress={() => onEdit(item)}>Edit</SecondaryButton><SecondaryButton className="flex-1" onPress={() => onDelete(item)}>Delete</SecondaryButton></View></View></BottomSheet>;
+  const isCompleted = isWishlistItemCompleted(item);
+  const paidAmount = item.purchasedAmount ?? item.estimatedCost;
+  const diff = item.estimatedCost - paidAmount;
+
+  return (
+    <BottomSheet visible={Boolean(item)} title={item.name} presentation="fullScreen" onClose={onClose}>
+      <View className="gap-4">
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} className="h-64 rounded-xl bg-surface" resizeMode="cover" />
+        ) : (
+          <View className="h-44 items-center justify-center rounded-xl bg-surface border border-surface-border">
+            <MaterialCommunityIcons
+              name={isCompleted ? "check-circle-outline" : "image-outline"}
+              size={theme.icons.lg}
+              color={isCompleted ? theme.colors.state.success : theme.colors.brand.soft}
+            />
+          </View>
+        )}
+
+        <View className="gap-2">
+          {isCompleted ? <PurchaseBadge date={item.purchasedDate} /> : <PriorityBadge priority={item.priority} />}
+          <Text className="font-sans text-2xl font-bold text-text">{item.name}</Text>
+          <Text className="font-sans text-sm text-text-muted">{item.category}</Text>
+        </View>
+
+        {isCompleted ? (
+          <View className="gap-2.5 rounded-xl border border-state-success/40 bg-state-success/10 p-4">
+            <View className="flex-row items-center gap-2">
+              <MaterialCommunityIcons name="check-decagram" size={theme.icons.sm} color={theme.colors.state.success} />
+              <Text className="font-sans text-sm font-bold text-state-success">Purchased</Text>
+            </View>
+            <View className="flex-row items-baseline justify-between">
+              <Text className="font-sans text-sm text-text-muted">Actual Paid</Text>
+              <CurrencyText value={paidAmount} currencyCode={currencyCode} locale={locale} className="text-xl font-bold text-state-success" />
+            </View>
+            <View className="flex-row items-baseline justify-between border-t border-state-success/20 pt-2">
+              <Text className="font-sans text-xs text-text-muted">Target Amount</Text>
+              <CurrencyText value={item.estimatedCost} currencyCode={currencyCode} locale={locale} className="text-xs font-semibold text-text-muted" />
+            </View>
+            {diff !== 0 ? (
+              <View className="flex-row items-baseline justify-between">
+                <Text className="font-sans text-xs text-text-muted">Target vs Paid</Text>
+                <Text className={`font-sans text-xs font-bold ${diff > 0 ? "text-state-success" : "text-accent-rose"}`}>
+                  {diff > 0 ? "Saved " : "Over by "}
+                  <CurrencyText value={Math.abs(diff)} currencyCode={currencyCode} locale={locale} className={`text-xs font-bold ${diff > 0 ? "text-state-success" : "text-accent-rose"}`} />
+                </Text>
+              </View>
+            ) : null}
+            <Text className="mt-1 font-sans text-xs text-text-muted">
+              Purchased {formatWishlistDate(item.purchasedDate)}
+            </Text>
+          </View>
+        ) : (
+          <View className="gap-1 rounded-xl border border-surface-border bg-surface p-4">
+            <Text className="font-sans text-xs text-text-muted">Target Amount</Text>
+            <CurrencyText value={item.estimatedCost} currencyCode={currencyCode} locale={locale} className="text-2xl font-bold text-text" />
+          </View>
+        )}
+
+        {item.purchaseLink ? (
+          <PrimaryButton icon="open-in-new" onPress={() => Linking.openURL(item.purchaseLink)}>
+            Open Purchase Link
+          </PrimaryButton>
+        ) : null}
+
+        {item.notes ? (
+          <View className="rounded-xl border border-surface-border bg-surface p-4">
+            <Text className="font-sans text-xs font-semibold uppercase text-text-muted">Notes</Text>
+            <Text className="mt-2 font-sans text-sm text-text">{item.notes}</Text>
+          </View>
+        ) : null}
+
+        <Text className="font-sans text-xs text-text-muted">
+          Added {formatWishlistDate(item.createdAt)}
+        </Text>
+
+        {!isCompleted && onComplete ? (
+          <PrimaryButton
+            icon="check-circle-outline"
+            onPress={() => onComplete(item)}
+            className="h-13 rounded-xl bg-state-success"
+          >
+            Mark as Purchased
+          </PrimaryButton>
+        ) : null}
+
+        {isCompleted && onReopen ? (
+          <SecondaryButton
+            icon="undo-variant"
+            onPress={() => onReopen(item)}
+            className="h-12 rounded-xl"
+          >
+            Move back to Active
+          </SecondaryButton>
+        ) : null}
+
+        <View className="flex-row gap-3">
+          <SecondaryButton className="flex-1" icon="pencil-outline" onPress={() => onEdit(item)}>
+            Edit
+          </SecondaryButton>
+          <SecondaryButton className="flex-1" icon="trash-can-outline" onPress={() => onDelete(item)}>
+            Delete
+          </SecondaryButton>
+        </View>
+      </View>
+    </BottomSheet>
+  );
+}
+
+export function MarkPurchasedSheet({
+  currencyCode,
+  item,
+  locale,
+  saving,
+  visible,
+  onClose,
+  onConfirm
+}: {
+  currencyCode: string;
+  item: WishlistItemApi | null;
+  locale: string;
+  saving: boolean;
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: (values: { purchasedAmount: number; purchasedDate: string }) => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!visible || !item) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAmount(formatWishlistMoneyInput(String(item.estimatedCost)));
+    setDate(new Date().toISOString().slice(0, 10));
+    setSubmitted(false);
+  }, [item, visible]);
+
+  if (!item) return null;
+
+  const parsed = completeWishlistItemSchema.safeParse({
+    purchasedAmount: amount,
+    purchasedDate: date
+  });
+  const errors = submitted && !parsed.success ? parsed.error.flatten().fieldErrors : {};
+  const enteredNumber = parseWishlistMoney(amount);
+  const diff = Number.isFinite(enteredNumber) ? item.estimatedCost - enteredNumber : 0;
+
+  function handleSubmit() {
+    setSubmitted(true);
+    const result = completeWishlistItemSchema.safeParse({
+      purchasedAmount: amount,
+      purchasedDate: date
+    });
+    if (!result.success) return;
+    onConfirm({
+      purchasedAmount: parseWishlistMoney(result.data.purchasedAmount),
+      purchasedDate: result.data.purchasedDate.trim()
+    });
+  }
+
+  return (
+    <BottomSheet visible={visible} title="Mark as Purchased" onClose={onClose}>
+      <View className="gap-4">
+        <View className="gap-1">
+          <Text className="font-sans text-base font-bold text-text">{item.name}</Text>
+          <Text className="font-sans text-xs text-text-muted">{item.category}</Text>
+        </View>
+
+        <View className="flex-row items-center justify-between rounded-xl border border-surface-border bg-surface p-3.5">
+          <Text className="font-sans text-sm text-text-muted">Target Amount</Text>
+          <CurrencyText value={item.estimatedCost} currencyCode={currencyCode} locale={locale} className="text-base font-bold text-text" />
+        </View>
+
+        <Field label="Actual Purchase Amount *" error={errors.purchasedAmount?.[0]} icon="currency-inr">
+          <TextInput
+            className="h-12 flex-1 font-sans text-base text-text"
+            inputMode="decimal"
+            keyboardType="decimal-pad"
+            onChangeText={(value) => setAmount(formatWishlistMoneyInput(value))}
+            placeholder="e.g. 19500"
+            placeholderTextColor={theme.colors.text.muted}
+            value={amount}
+          />
+        </Field>
+
+        {Number.isFinite(enteredNumber) && enteredNumber > 0 && diff !== 0 ? (
+          <View className={`rounded-xl border p-3 ${diff > 0 ? "border-state-success/30 bg-state-success/10" : "border-accent-rose/30 bg-accent-rose/10"}`}>
+            <Text className={`font-sans text-xs font-semibold ${diff > 0 ? "text-state-success" : "text-accent-rose"}`}>
+              {diff > 0
+                ? `You saved ${formatWishlistMoneyInput(String(diff))} compared to your target!`
+                : `Actual cost is ${formatWishlistMoneyInput(String(Math.abs(diff)))} higher than target.`}
+            </Text>
+          </View>
+        ) : null}
+
+        <Field label="Purchase Date (YYYY-MM-DD) *" error={errors.purchasedDate?.[0]} icon="calendar">
+          <TextInput
+            className="h-12 flex-1 font-sans text-base text-text"
+            onChangeText={setDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={theme.colors.text.muted}
+            value={date}
+          />
+        </Field>
+
+        <View className="gap-2 pt-2">
+          <PrimaryButton
+            className="h-14 rounded-xl bg-state-success"
+            disabled={saving}
+            loading={saving}
+            icon="check-circle-outline"
+            onPress={handleSubmit}
+          >
+            Confirm Purchase
+          </PrimaryButton>
+          <SecondaryButton disabled={saving} onPress={onClose}>
+            Cancel
+          </SecondaryButton>
+        </View>
+      </View>
+    </BottomSheet>
+  );
 }
 
 export function WishlistItemFormSheet({ categories, editingItem, saving, visible, onClose, onSubmit }: { categories: WishlistCategoryApi[]; editingItem: WishlistItemApi | null; saving: boolean; visible: boolean; onClose: () => void; onSubmit: (body: { category: string; categoryId?: number | null; estimatedCost: number; imageSource?: WishlistImageSourceApi | null; imageUrl?: string; name: string; notes?: string; priority: WishlistPriorityApi; purchaseLink?: string }, itemId?: number) => void }) {
@@ -76,7 +318,15 @@ export function WishlistItemFormSheet({ categories, editingItem, saving, visible
     onSubmit({ category: categoryName, categoryId: category?.id ?? null, estimatedCost: parseWishlistMoney(result.data.estimatedCost), imageSource: result.data.imageSource, imageUrl: result.data.imageUrl.trim(), name: result.data.name.trim(), notes: result.data.notes.trim(), priority: result.data.priority, purchaseLink: result.data.purchaseLink.trim() }, editingItem?.id);
   }
 
-  return <BottomSheet visible={visible} title={editingItem ? "Edit Item" : "Add Item"} presentation="fullScreen" onClose={onClose}><View className="gap-4"><Text className="font-sans text-sm text-text">Add the things you want to buy or plan for.</Text><View className="gap-3 rounded-xl border border-surface-border bg-surface p-4"><Text className="font-sans text-base font-semibold text-text">Product Image <Text className="text-text-muted">(optional)</Text></Text><View className="flex-row gap-3"><Pressable accessibilityRole="button" className="h-36 w-36 items-center justify-center rounded-xl border border-dashed border-brand-soft bg-background-muted" onPress={() => setImageUrlVisible(true)}>{values.imageUrl ? <Image source={{ uri: values.imageUrl }} className="h-full w-full rounded-xl" resizeMode="cover" /> : <><MaterialCommunityIcons name="image-outline" size={theme.icons.lg} color={theme.colors.brand.soft} /><Text className="font-sans text-sm font-semibold text-brand-soft">No Image</Text><Text className="font-sans text-xs text-text-muted">Tap to add</Text></>}</Pressable><View className="min-w-0 flex-1 gap-2"><ImageAction label="Take Photo" sublabel="Use camera" icon="camera-outline" onPress={() => undefined} /><ImageAction label="Choose from Gallery" sublabel="Select from your photos" icon="image-outline" onPress={() => undefined} /><ImageAction label="Image URL" sublabel="Paste an image link" icon="link-variant" onPress={() => setImageUrlVisible(true)} /><Text className="font-sans text-xs text-text-muted">JPG, PNG up to 5MB</Text></View></View></View><Field label="Item Name *" error={errors.name?.[0]} icon="tag-outline"><TextInput className="h-12 flex-1 font-sans text-base text-text" onChangeText={(name) => setValue("name", name)} placeholder={'e.g. MacBook Pro 14"'} placeholderTextColor={theme.colors.text.muted} value={values.name} /></Field>{categories.length > 0 ? <PickerField label="Category *" value={selectedCategory?.name ?? "Select category"} icon="folder-outline" error={errors.categoryName?.[0] ?? errors.categoryId?.[0]} onPress={() => setCategoryPickerVisible(true)} /> : <Field label="Category *" error={errors.categoryName?.[0]} icon="folder-outline"><TextInput className="h-12 flex-1 font-sans text-base text-text" onChangeText={(categoryName) => setValue("categoryName", categoryName)} placeholder="Create a category" placeholderTextColor={theme.colors.text.muted} value={values.categoryName} /></Field>}<View className="gap-3 rounded-xl border border-surface-border bg-surface p-4"><Text className="font-sans text-base font-semibold text-text">Priority *</Text><View className="flex-row gap-3">{priorityOptions.map((option) => <Pressable accessibilityRole="button" accessibilityState={{ selected: values.priority === option.value }} className={`min-h-12 flex-1 flex-row items-center justify-center gap-2 rounded-xl border ${values.priority === option.value ? prioritySelectedClass(option.value) : "border-surface-border bg-background-muted"}`} key={option.value} onPress={() => setValue("priority", option.value)}><MaterialCommunityIcons name={option.icon} size={theme.icons.sm} color={priorityColor(option.value)} /><Text className="font-sans text-sm font-semibold text-text">{option.label}</Text></Pressable>)}</View></View><Field label="Estimated Cost *" error={errors.estimatedCost?.[0]} icon="currency-inr"><TextInput className="h-12 flex-1 font-sans text-base text-text" inputMode="decimal" keyboardType="decimal-pad" onChangeText={(value) => setValue("estimatedCost", formatWishlistMoneyInput(value))} placeholder="e.g. 200000" placeholderTextColor={theme.colors.text.muted} value={values.estimatedCost} /></Field><Field label="Purchase Link" error={errors.purchaseLink?.[0]} icon="link-variant"><TextInput autoCapitalize="none" className="h-12 flex-1 font-sans text-base text-text" onChangeText={(purchaseLink) => setValue("purchaseLink", purchaseLink)} placeholder="https://..." placeholderTextColor={theme.colors.text.muted} value={values.purchaseLink} /></Field><View className="gap-3 rounded-xl border border-surface-border bg-surface p-4"><Text className="font-sans text-base font-semibold text-text">Notes <Text className="text-text-muted">(optional)</Text></Text><TextInput className="min-h-28 rounded-xl border border-surface-border bg-background-muted px-4 py-3 font-sans text-base text-text" maxLength={300} multiline onChangeText={(notes) => setValue("notes", notes)} placeholder="Add any notes about this item..." placeholderTextColor={theme.colors.text.muted} textAlignVertical="top" value={values.notes} /><Text className="self-end font-sans text-xs text-text-muted">{values.notes.length}/300</Text></View><PrimaryButton className="h-14 rounded-xl" disabled={saving} loading={saving} icon="plus-circle-outline" onPress={handleSubmit(submit)}>{editingItem ? "Save Item" : "Add Item"}</PrimaryButton></View><CategoryPickerSheet categories={categories} selectedId={values.categoryId} visible={categoryPickerVisible} onClose={() => setCategoryPickerVisible(false)} onSelect={(category) => { setValue("categoryId", category.id); setValue("categoryName", ""); setCategoryPickerVisible(false); }} /><ImageUrlSheet value={values.imageUrl} visible={imageUrlVisible} onClose={() => setImageUrlVisible(false)} onRemove={() => { setValue("imageUrl", ""); setValue("imageSource", null); setImageUrlVisible(false); }} onUse={(url) => { setValue("imageUrl", url); setValue("imageSource", "url"); setImageUrlVisible(false); }} /></BottomSheet>;
+  async function handlePickImageFromGallery() {
+    const result = await pickWishlistGalleryImage();
+    if (result.status === "success") {
+      setValue("imageUrl", result.uri);
+      setValue("imageSource", "gallery");
+    }
+  }
+
+  return <BottomSheet visible={visible} title={editingItem ? "Edit Item" : "Add Item"} presentation="fullScreen" onClose={onClose}><View className="gap-4"><Text className="font-sans text-sm text-text">Add the things you want to buy or plan for.</Text><View className="gap-3 rounded-xl border border-surface-border bg-surface p-4"><Text className="font-sans text-base font-semibold text-text">Product Image <Text className="text-text-muted">(optional)</Text></Text><View className="flex-row gap-3"><Pressable accessibilityRole="button" className="h-36 w-36 items-center justify-center rounded-xl border border-dashed border-brand-soft bg-background-muted" onPress={() => setImageUrlVisible(true)}>{values.imageUrl ? <Image source={{ uri: values.imageUrl }} className="h-full w-full rounded-xl" resizeMode="cover" /> : <><MaterialCommunityIcons name="image-outline" size={theme.icons.lg} color={theme.colors.brand.soft} /><Text className="font-sans text-sm font-semibold text-brand-soft">No Image</Text><Text className="font-sans text-xs text-text-muted">Tap to add</Text></>}</Pressable><View className="min-w-0 flex-1 gap-2"><ImageAction label="Choose from Gallery" sublabel="Select from your photos" icon="image-outline" onPress={() => void handlePickImageFromGallery()} /><ImageAction label="Image URL" sublabel="Paste an image link" icon="link-variant" onPress={() => setImageUrlVisible(true)} /><Text className="font-sans text-xs text-text-muted">JPG, PNG up to 5MB</Text></View></View></View><Field label="Item Name *" error={errors.name?.[0]} icon="tag-outline"><TextInput className="h-12 flex-1 font-sans text-base text-text" onChangeText={(name) => setValue("name", name)} placeholder={'e.g. MacBook Pro 14"'} placeholderTextColor={theme.colors.text.muted} value={values.name} /></Field>{categories.length > 0 ? <PickerField label="Category *" value={selectedCategory?.name ?? "Select category"} icon="folder-outline" error={errors.categoryName?.[0] ?? errors.categoryId?.[0]} onPress={() => setCategoryPickerVisible(true)} /> : <Field label="Category *" error={errors.categoryName?.[0]} icon="folder-outline"><TextInput className="h-12 flex-1 font-sans text-base text-text" onChangeText={(categoryName) => setValue("categoryName", categoryName)} placeholder="Create a category" placeholderTextColor={theme.colors.text.muted} value={values.categoryName} /></Field>}<View className="gap-3 rounded-xl border border-surface-border bg-surface p-4"><Text className="font-sans text-base font-semibold text-text">Priority *</Text><View className="flex-row gap-3">{priorityOptions.map((option) => <Pressable accessibilityRole="button" accessibilityState={{ selected: values.priority === option.value }} className={`min-h-12 flex-1 flex-row items-center justify-center gap-2 rounded-xl border ${values.priority === option.value ? prioritySelectedClass(option.value) : "border-surface-border bg-background-muted"}`} key={option.value} onPress={() => setValue("priority", option.value)}><MaterialCommunityIcons name={option.icon} size={theme.icons.sm} color={priorityColor(option.value)} /><Text className="font-sans text-sm font-semibold text-text">{option.label}</Text></Pressable>)}</View></View><Field label="Estimated Cost *" error={errors.estimatedCost?.[0]} icon="currency-inr"><TextInput className="h-12 flex-1 font-sans text-base text-text" inputMode="decimal" keyboardType="decimal-pad" onChangeText={(value) => setValue("estimatedCost", formatWishlistMoneyInput(value))} placeholder="e.g. 200000" placeholderTextColor={theme.colors.text.muted} value={values.estimatedCost} /></Field><Field label="Purchase Link" error={errors.purchaseLink?.[0]} icon="link-variant"><TextInput autoCapitalize="none" className="h-12 flex-1 font-sans text-base text-text" onChangeText={(purchaseLink) => setValue("purchaseLink", purchaseLink)} placeholder="https://..." placeholderTextColor={theme.colors.text.muted} value={values.purchaseLink} /></Field><View className="gap-3 rounded-xl border border-surface-border bg-surface p-4"><Text className="font-sans text-base font-semibold text-text">Notes <Text className="text-text-muted">(optional)</Text></Text><TextInput className="min-h-28 rounded-xl border border-surface-border bg-background-muted px-4 py-3 font-sans text-base text-text" maxLength={300} multiline onChangeText={(notes) => setValue("notes", notes)} placeholder="Add any notes about this item..." placeholderTextColor={theme.colors.text.muted} textAlignVertical="top" value={values.notes} /><Text className="self-end font-sans text-xs text-text-muted">{values.notes.length}/300</Text></View><PrimaryButton className="h-14 rounded-xl" disabled={saving} loading={saving} icon="plus-circle-outline" onPress={handleSubmit(submit)}>{editingItem ? "Save Item" : "Add Item"}</PrimaryButton></View><CategoryPickerSheet categories={categories} selectedId={values.categoryId} visible={categoryPickerVisible} onClose={() => setCategoryPickerVisible(false)} onSelect={(category) => { setValue("categoryId", category.id); setValue("categoryName", ""); setCategoryPickerVisible(false); }} /><ImageUrlSheet value={values.imageUrl} visible={imageUrlVisible} onClose={() => setImageUrlVisible(false)} onRemove={() => { setValue("imageUrl", ""); setValue("imageSource", null); setImageUrlVisible(false); }} onUse={(url) => { setValue("imageUrl", url); setValue("imageSource", "url"); setImageUrlVisible(false); }} /></BottomSheet>;
 }
 
 export function CategoryManagerSheet({ categories, visible, saving, onAdd, onClose, onDelete, onMove, onUpdate }: { categories: WishlistCategoryApi[]; visible: boolean; saving: boolean; onAdd: (body: { color: string; icon: string; name: string; sortOrder: number }) => void; onClose: () => void; onDelete: (category: WishlistCategoryApi) => void; onMove: (category: WishlistCategoryApi, direction: "down" | "up") => void; onUpdate: (categoryId: number, body: { color: string; icon: string; name: string; sortOrder: number }) => void }) {

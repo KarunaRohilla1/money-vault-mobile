@@ -1,26 +1,71 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, Share, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, Share, Switch, Text, TextInput, View } from "react-native";
 
 import { FormField } from "@/components/forms/FormField";
 import { Screen } from "@/components/layout/Screen";
 import { EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
 import {
+  isSharedVaultDashboardTogglePending,
+  isSharedVaultSafeToSpendTogglePending,
+  sharedVaultDashboardVisibilityMutationKey,
+  sharedVaultSafeToSpendInclusionMutationKey,
+  useSharedVaultDashboardVisibilityMutation,
+  useSharedVaultSafeToSpendInclusionMutation
+} from "@/features/settings/api";
+import { isSharedVault } from "@/features/settings/moreModel";
+import {
   canManageSharedVaultAsOwner,
   sharedVaultMemberCountLabel,
-  sharedVaultRoleLabel
+  sharedVaultRoleLabel,
+  sharedVaultsForSwitch
 } from "@/features/settings/sharedVaultModel";
+import { SwitchSharedVaultSheet } from "@/features/settings/SwitchSharedVaultSheet";
 import { goBackOrReplace } from "@/lib/navigation";
 import { queryKeys } from "@/lib/queryKeys";
 import { showToast } from "@/lib/toast";
 import { apiClient, ApiClientError } from "@/services/api/client";
-import { activatePersonalVaultSession, sessionExtras } from "@/services/api/session";
+import { activatePersonalVaultSession, activateSharedVaultSession, sessionExtras } from "@/services/api/session";
 import type { SharedVaultMemberApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { theme } from "@/theme";
+
+function PreferenceSwitchRow({
+  checked,
+  description,
+  disabled,
+  label,
+  onValueChange
+}: {
+  checked: boolean;
+  description: string;
+  disabled: boolean;
+  label: string;
+  onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <View className="flex-row items-center justify-between gap-3 py-3">
+      <View className="min-w-0 flex-1">
+        <Text className="font-sans text-sm font-semibold text-text">{label}</Text>
+        <Text className="mt-0.5 font-sans text-xs text-text-muted">{description}</Text>
+      </View>
+      <Switch
+        accessibilityLabel={label}
+        accessibilityRole="switch"
+        accessibilityState={{ checked, disabled }}
+        disabled={disabled}
+        ios_backgroundColor={theme.colors.surface.pressed}
+        onValueChange={onValueChange}
+        thumbColor={theme.colors.text.DEFAULT}
+        trackColor={{ false: theme.colors.surface.pressed, true: theme.colors.brand.DEFAULT }}
+        value={checked}
+      />
+    </View>
+  );
+}
 
 function MemberRow({
   canRemove,
@@ -62,8 +107,13 @@ export function ManageSharedVaultScreen() {
   const params = useLocalSearchParams<{ vaultId?: string }>();
   const sharedVaultId = Number(params.vaultId);
   const token = useAuthStore((state) => state.token);
-  const activeVaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const activeVault = useAuthStore((state) => state.vault);
+  const authenticatedVault = useAuthStore((state) => state.authenticatedVault);
+  const activeVaultId = activeVault?.id ?? null;
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
+  const personalVaultId = authenticatedVault?.id ?? activeVaultId;
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [selectedVaultId, setSelectedVaultId] = useState<number | string | null>(null);
 
   const [vaultName, setVaultName] = useState("");
   const [renameOpen, setRenameOpen] = useState(false);
@@ -78,8 +128,58 @@ export function ManageSharedVaultScreen() {
     queryKey: queryKeys.vaults.sharedDetail(sharedVaultId)
   });
 
+  const sharedVaultsQuery = useQuery({
+    enabled: Boolean(token),
+    queryFn: async () => apiClient.getSharedVaults(token ?? ""),
+    queryKey: queryKeys.vaults.shared
+  });
+  const vaults = useMemo(() => sharedVaultsForSwitch(sharedVaultsQuery.data ?? []), [sharedVaultsQuery.data]);
+  const vaultSummary = useMemo(
+    () => vaults.find((vault) => Number(vault.id) === sharedVaultId) ?? sharedVaultsQuery.data?.find((vault) => Number(vault.id) === sharedVaultId),
+    [sharedVaultId, sharedVaultsQuery.data, vaults]
+  );
+  const includeMutation = useSharedVaultSafeToSpendInclusionMutation(token, personalVaultId);
+  const showMutation = useSharedVaultDashboardVisibilityMutation(token, personalVaultId);
+  const pendingInclusionVaultIds = useMutationState({
+    filters: { mutationKey: sharedVaultSafeToSpendInclusionMutationKey, status: "pending" },
+    select: (mutation) => (mutation.state.variables as { sharedVaultId?: number } | undefined)?.sharedVaultId
+  });
+  const pendingShowVaultIds = useMutationState({
+    filters: { mutationKey: sharedVaultDashboardVisibilityMutationKey, status: "pending" },
+    select: (mutation) => (mutation.state.variables as { sharedVaultId?: number } | undefined)?.sharedVaultId
+  });
+  const includeDisabled = isSharedVaultSafeToSpendTogglePending(pendingInclusionVaultIds, sharedVaultId);
+  const showDisabled = isSharedVaultDashboardTogglePending(pendingShowVaultIds, sharedVaultId);
+  const included = vaultSummary?.includeInSafeToSpend !== false;
+  const shown = vaultSummary?.showOnDashboard !== false;
+  const isActiveShared = String(activeVaultId) === String(sharedVaultId) && isSharedVault(activeVault);
+
   const detail = detailQuery.data;
   const isOwner = canManageSharedVaultAsOwner(detail?.role ?? "member");
+
+  const switchMutation = useMutation({
+    mutationFn: async (targetVaultId: number | string) => {
+      if (!token) {
+        throw new Error("No authenticated session.");
+      }
+      if (String(targetVaultId) === String(authenticatedVault?.id) || targetVaultId === "personal") {
+        return activatePersonalVaultSession(token);
+      }
+      return activateSharedVaultSession(token, { sharedVaultId: Number(targetVaultId) });
+    },
+    onError: () => {
+      showToast("Vault could not be switched. Try again.");
+    },
+    onSuccess: (response) => {
+      setPickerVisible(false);
+      setSelectedVaultId(null);
+      setAuthenticated(response.token, response.vault, response.authenticatedVault ?? response.vault, sessionExtras(response));
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.effective(response.vault.id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vaults.shared });
+      showToast(`Switched to ${response.vault.name}`);
+      router.replace("/");
+    }
+  });
 
   useEffect(() => {
     if (detail?.name) {
@@ -205,8 +305,11 @@ export function ManageSharedVaultScreen() {
   return (
     <Screen
       contentClassName="gap-5 px-5 pb-28 pt-4"
-      onRefresh={() => detailQuery.refetch()}
-      refreshing={detailQuery.isRefetching}
+      onRefresh={() => {
+        void detailQuery.refetch();
+        void sharedVaultsQuery.refetch();
+      }}
+      refreshing={detailQuery.isRefetching || sharedVaultsQuery.isRefetching}
     >
       <View className="relative items-center gap-3 pt-2">
         <Pressable
@@ -252,6 +355,61 @@ export function ManageSharedVaultScreen() {
                 Edit Name
               </SecondaryButton>
             ) : null}
+            <SecondaryButton
+              className="mt-1"
+              disabled={switchMutation.isPending || isActiveShared}
+              onPress={() => {
+                if (isActiveShared) {
+                  return;
+                }
+                setSelectedVaultId(sharedVaultId);
+                setPickerVisible(true);
+              }}
+            >
+              {switchMutation.isPending ? "Switching..." : isActiveShared ? "Active" : "Switch Vault"}
+            </SecondaryButton>
+          </View>
+
+          <View className="rounded-xl border border-surface-border bg-surface px-4">
+            <Text className="pt-3 font-sans text-sm font-bold uppercase text-text-muted">Preferences</Text>
+            <PreferenceSwitchRow
+              checked={included}
+              description="Use this vault’s outstanding balance in Personal Safe to Spend."
+              disabled={includeDisabled}
+              label="Include in Safe to Spend"
+              onValueChange={(value) => {
+                if (includeDisabled) {
+                  return;
+                }
+                includeMutation.mutate(
+                  { includeInSafeToSpend: value, sharedVaultId },
+                  {
+                    onError: () => showToast("Safe to Spend inclusion could not be updated. Try again."),
+                    onSuccess: () => showToast(value ? "Included in Safe to Spend." : "Excluded from Safe to Spend.")
+                  }
+                );
+              }}
+            />
+            <View className="border-t border-surface-border">
+              <PreferenceSwitchRow
+                checked={shown}
+                description="Show this vault’s balance card on your Personal Dashboard."
+                disabled={showDisabled}
+                label="Show on Dashboard"
+                onValueChange={(value) => {
+                  if (showDisabled) {
+                    return;
+                  }
+                  showMutation.mutate(
+                    { sharedVaultId, showOnDashboard: value },
+                    {
+                      onError: () => showToast("Dashboard visibility could not be updated. Try again."),
+                      onSuccess: () => showToast(value ? "Shown on dashboard." : "Hidden from dashboard.")
+                    }
+                  );
+                }}
+              />
+            </View>
           </View>
 
           {isOwner && detail.inviteCode ? (
@@ -364,6 +522,29 @@ export function ManageSharedVaultScreen() {
           </View>
         </View>
       </Modal>
+
+      <SwitchSharedVaultSheet
+        activeVaultId={activeVaultId}
+        isSharedActive={isSharedVault(activeVault)}
+        onCancel={() => {
+          if (!switchMutation.isPending) {
+            setPickerVisible(false);
+            setSelectedVaultId(null);
+          }
+        }}
+        onConfirm={() => {
+          if (selectedVaultId == null) {
+            return;
+          }
+          switchMutation.mutate(selectedVaultId);
+        }}
+        onSelect={setSelectedVaultId}
+        personalVault={authenticatedVault ? { id: authenticatedVault.id, name: authenticatedVault.name } : null}
+        selectedVaultId={selectedVaultId}
+        switching={switchMutation.isPending}
+        vaults={vaults}
+        visible={pickerVisible}
+      />
     </Screen>
   );
 }

@@ -2,6 +2,8 @@ import type { WishlistImageSourceApi, WishlistPriorityApi } from "@/services/api
 
 export type WishlistSortKey = "recent" | "priority" | "cost_desc" | "cost_asc" | "alpha";
 
+export type WishlistTab = "active" | "history";
+
 export interface WishlistItemFormValues {
   categoryId: number | null;
   categoryName: string;
@@ -12,6 +14,11 @@ export interface WishlistItemFormValues {
   notes: string;
   priority: WishlistPriorityApi;
   purchaseLink: string;
+}
+
+export interface CompleteWishlistItemFormValues {
+  purchasedAmount: string;
+  purchasedDate: string;
 }
 
 export interface WishlistCategoryFormValues {

@@ -33,6 +33,7 @@ import {
   type PlanningActivityViewModel,
   type PlanningFormState
 } from "@/features/planning/planningModel";
+import { todayLocalIso } from "@/lib/date";
 import type { PlanningItemApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -83,6 +84,7 @@ export function usePlanningScreen() {
   const [selectedActivity, setSelectedActivity] = useState<PlanningActivityViewModel | null>(null);
   const [activityDraftStatus, setActivityDraftStatus] = useState<ActivityDraftStatus>("PENDING");
   const [actualAmount, setActualAmount] = useState("");
+  const [actualPaymentDate, setActualPaymentDate] = useState(todayLocalIso());
   const [actualNotes, setActualNotes] = useState("");
   const [actualError, setActualError] = useState<string | null>(null);
   const [closeVisible, setCloseVisible] = useState(false);
@@ -209,6 +211,7 @@ export function usePlanningScreen() {
     setSelectedActivity(activity);
     setActivityDraftStatus(draftStatusForActivity(activity));
     setActualAmount(String(activity.actualAmount));
+    setActualPaymentDate(activity.paidDate || todayLocalIso());
     setActualNotes(activity.notes ?? "");
     setActualError(null);
     setItemActionsVisible(true);
@@ -221,7 +224,7 @@ export function usePlanningScreen() {
 
     if (activityDraftStatus !== "COMPLETE") {
       const status = activityDraftStatus === "CANCELLED" ? "CANCELLED" : "PENDING";
-      const payload = statusPayloadForActivity(selectedActivity, planning.cycle, status, status === "CANCELLED" ? 0 : null);
+      const payload = statusPayloadForActivity(selectedActivity, planning.cycle, status, status === "CANCELLED" ? 0 : null, null);
 
       if (selectedActivity.kind === "income") {
         setIncomeStatus.mutate({ body: payload, templateId: selectedActivity.id }, { onSuccess: closeActivityActions });
@@ -239,7 +242,7 @@ export function usePlanningScreen() {
     }
 
     const payload = {
-      ...statusPayloadForActivity(selectedActivity, planning.cycle, selectedActivity.completeStatus, amount),
+      ...statusPayloadForActivity(selectedActivity, planning.cycle, selectedActivity.completeStatus, amount, actualPaymentDate),
       notes: actualNotes.trim()
     };
 
@@ -256,7 +259,7 @@ export function usePlanningScreen() {
       return;
     }
 
-    const payload = statusPayloadForActivity(activity, planning.cycle, status, status === "CANCELLED" ? 0 : null);
+    const payload = statusPayloadForActivity(activity, planning.cycle, status, status === "CANCELLED" ? 0 : null, null);
     if (activity.kind === "income") {
       setIncomeStatus.mutate({ body: payload, templateId: activity.id });
       return;
@@ -269,6 +272,7 @@ export function usePlanningScreen() {
     setSelectedActivity(activity);
     setActivityDraftStatus(draftStatusForActivity(activity));
     setActualAmount(String(activity.actualAmount));
+    setActualPaymentDate(activity.paidDate || todayLocalIso());
     setActualNotes(activity.notes ?? "");
     setActualError(null);
     setItemActionsVisible(true);
@@ -278,6 +282,7 @@ export function usePlanningScreen() {
     setSelectedActivity(null);
     setItemActionsVisible(false);
     setActivityDraftStatus("PENDING");
+    setActualPaymentDate(todayLocalIso());
     setActualError(null);
   }
 
@@ -329,6 +334,7 @@ export function usePlanningScreen() {
     actualAmount,
     actualError,
     actualNotes,
+    actualPaymentDate,
     activityDraftStatus,
     accountsQuery,
     activities,
@@ -378,6 +384,7 @@ export function usePlanningScreen() {
     setActivityStatus,
     setActualAmount,
     setActualNotes,
+    setActualPaymentDate,
     setActivityDraftStatus,
     setCloseItems,
     setCloseVisible,

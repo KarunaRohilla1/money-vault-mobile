@@ -59,11 +59,30 @@ export interface JoinSharedVaultRequest {
 
 export interface SharedVaultSummaryApi {
   id: number;
+  includeInSafeToSpend?: boolean;
   isAdmin: boolean;
   memberCount: number;
   name: string;
   role: "owner" | "member" | string;
+  showOnDashboard?: boolean;
   vaultType: "Shared" | string;
+}
+
+export interface SharedVaultSafeToSpendUpdateRequest {
+  includeInSafeToSpend: boolean;
+}
+
+export interface SharedVaultDashboardVisibilityUpdateRequest {
+  showOnDashboard: boolean;
+}
+
+export interface PrimarySharedVaultApi {
+  configured: boolean;
+  sharedVault: Pick<SharedVaultSummaryApi, "id" | "name"> | null;
+}
+
+export interface PrimarySharedVaultUpdateRequest {
+  sharedVaultId: number;
 }
 
 export interface SharedVaultMemberApi {

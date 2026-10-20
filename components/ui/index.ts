@@ -1,5 +1,6 @@
 export * from "./Avatar";
 export * from "./BottomSheet";
+export * from "./CalendarDatePicker";
 export * from "./CurrencyText";
 export * from "./EmptyState";
 export * from "./ErrorView";

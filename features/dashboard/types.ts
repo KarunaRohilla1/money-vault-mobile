@@ -1,5 +1,12 @@
 import type { AuthenticatedVault, JsonObject } from "@/types/domain";
-import type { CategorySpendApi, FinancialCycleApi, RecentActivityApi, SafeToSpendBreakdownApi, SettlementApi } from "@/services/api/types";
+import type {
+  CategorySpendApi,
+  FinancialCycleApi,
+  RecentActivityApi,
+  SafeToSpendBreakdownApi,
+  SettlementApi,
+  SharedVaultBalanceCardApi
+} from "@/services/api/types";
 
 export interface DashboardViewModel {
   categories: CategorySpendApi[];
@@ -8,6 +15,9 @@ export interface DashboardViewModel {
   cycleLabel: string;
   expensesThisCycle: number;
   generatedAt: string;
+  netSavingsThisCycle?: number;
+  actualSavings?: number;
+  savingsGoalRemaining?: number;
   primaryAccountBalance: number;
   primaryAccountName: string;
   recentActivity: RecentActivityApi[];
@@ -27,6 +37,8 @@ export interface DashboardViewModel {
     isComplete: boolean;
   };
   settlement: SettlementApi;
+  sharedVaultBalances: SharedVaultBalanceCardApi[];
+  showSharedBalancesOnDashboard: boolean;
   summary: JsonObject;
   vault: AuthenticatedVault;
 }

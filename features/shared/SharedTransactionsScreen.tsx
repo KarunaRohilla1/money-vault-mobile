@@ -57,11 +57,13 @@ const SharedTransactionRow = memo(function SharedTransactionRow({
 export function SharedTransactionsScreen() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
-  const vaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const vault = useAuthStore((state) => state.vault);
+  const vaultId = vault?.id ?? null;
+  const sharedVaultId = vault?.vaultType === "Shared" && vaultId ? Number(vaultId) : null;
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
   const [search, setSearch] = useState("");
-  const expensesQuery = useSharedExpensesQuery(token, vaultId);
+  const expensesQuery = useSharedExpensesQuery(token, vaultId, sharedVaultId);
   const summary = expensesQuery.data?.data?.summary;
   const filteredExpenses = useMemo(
     () => filterSharedExpenses(expensesQuery.data?.data?.expenses ?? [], search),

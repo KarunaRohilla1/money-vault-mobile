@@ -1,5 +1,10 @@
 import type { SharedVaultSummaryApi } from "@/services/api/types";
 
+export type SharedVaultStatusBadge = {
+  key: "stsExcluded";
+  label: string;
+};
+
 export function sharedVaultMemberCountLabel(count: number) {
   return `${count} ${count === 1 ? "member" : "members"}`;
 }
@@ -10,6 +15,18 @@ export function sharedVaultRoleLabel(role: string) {
 
 export function canManageSharedVaultAsOwner(role: string) {
   return role === "owner";
+}
+
+export function sharedVaultListStatusBadges(input: {
+  includeInSafeToSpend?: boolean | undefined;
+  isPrimary: boolean;
+  showOnDashboard?: boolean | undefined;
+}): SharedVaultStatusBadge[] {
+  const badges: SharedVaultStatusBadge[] = [];
+  if (input.includeInSafeToSpend === false) {
+    badges.push({ key: "stsExcluded", label: "Safe to Spend Excluded" });
+  }
+  return badges;
 }
 
 export function sharedVaultsForSwitch(

@@ -32,13 +32,28 @@ export interface SharedVaultDashboardData {
   settlementSummary: SharedSettlementSummary | null;
 }
 
-export function useSharedVaultDashboard(): SharedVaultDashboardData {
+export function resolveSharedVaultId(
+  explicitSharedVaultId?: number | null,
+  activeVault?: { id?: string | number | null; vaultType?: string | null } | null
+): number | null {
+  if (explicitSharedVaultId !== undefined) {
+    return explicitSharedVaultId;
+  }
+  if (activeVault?.vaultType === "Shared" && activeVault.id) {
+    return Number(activeVault.id);
+  }
+  return null;
+}
+
+export function useSharedVaultDashboard(explicitSharedVaultId?: number | null): SharedVaultDashboardData {
   const token = useAuthStore((state) => state.token);
-  const vaultId = useAuthStore((state) => state.vault?.id ?? null);
+  const vault = useAuthStore((state) => state.vault);
+  const vaultId = vault?.id ?? null;
+  const sharedVaultId = resolveSharedVaultId(explicitSharedVaultId, vault);
   const currencyCode = useSettingsStore((state) => state.currencyCode);
   const locale = useSettingsStore((state) => state.locale);
-  const dashboardQuery = useSharedDashboardQuery(token, vaultId);
-  const expensesQuery = useSharedExpensesQuery(token, vaultId);
+  const dashboardQuery = useSharedDashboardQuery(token, vaultId, sharedVaultId);
+  const expensesQuery = useSharedExpensesQuery(token, vaultId, sharedVaultId);
 
   const dashboard = dashboardQuery.data?.data?.data;
   const expenses = expensesQuery.data?.data?.expenses;

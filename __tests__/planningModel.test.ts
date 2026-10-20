@@ -248,5 +248,34 @@ describe("planning model", () => {
       status: "RECEIVED",
       year: 2026
     });
+
+    expect(statusPayloadForActivity(activity, planning.cycle, activity.completeStatus, activity.actualAmount, "2026-07-15")).toEqual({
+      actualAmount: 3000,
+      month: 7,
+      paidDate: "2026-07-15",
+      status: "RECEIVED",
+      year: 2026
+    });
+  });
+
+  it("preserves paidDate when building planning activities", () => {
+    const customPlanning: PlanningApiResponse = {
+      ...planning,
+      commitments: [
+        {
+          ...commitmentItem,
+          status: {
+            actualAmount: 1250,
+            notes: "Paid on time",
+            paidDate: "2026-07-04",
+            status: "PAID"
+          }
+        }
+      ]
+    };
+
+    const activities = buildPlanningActivities(customPlanning);
+    const commitment = activities.find((a) => a.kind === "commitment");
+    expect(commitment?.paidDate).toBe("2026-07-04");
   });
 });

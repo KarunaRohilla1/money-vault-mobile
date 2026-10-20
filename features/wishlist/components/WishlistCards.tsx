@@ -20,39 +20,218 @@ export function WishlistSummaryCard({ caption, icon, label, tone, value }: { cap
   );
 }
 
+export function WishlistCompactSummary({
+  activeCost,
+  activeCount,
+  currencyCode,
+  historyCount,
+  historySpent,
+  locale,
+  tab
+}: {
+  activeCost: number;
+  activeCount: number;
+  currencyCode: string;
+  historyCount: number;
+  historySpent: number;
+  locale: string;
+  tab: "active" | "history";
+}) {
+  return (
+    <View className="flex-row items-center justify-between rounded-xl border border-surface-border bg-surface px-4 py-3">
+      {tab === "active" ? (
+        <>
+          <View className="min-w-0 flex-1 items-start justify-center gap-0.5">
+            <View className="flex-row items-center gap-1.5">
+              <MaterialCommunityIcons name="shopping-outline" size={14} color={theme.colors.brand.soft} />
+              <Text className="font-sans text-[11px] font-medium text-text-muted">Pending Items</Text>
+            </View>
+            <Text className="font-sans text-sm font-bold text-text">
+              {activeCount} {activeCount === 1 ? "item" : "items"}
+            </Text>
+          </View>
+
+          <View className="mx-3 h-7 w-px bg-surface-border" />
+
+          <View className="min-w-0 flex-1 items-end justify-center gap-0.5">
+            <View className="flex-row items-center gap-1.5">
+              <MaterialCommunityIcons name="wallet-outline" size={14} color={theme.colors.brand.soft} />
+              <Text className="font-sans text-[11px] font-medium text-text-muted">Target Total</Text>
+            </View>
+            <CurrencyText
+              value={activeCost}
+              currencyCode={currencyCode}
+              locale={locale}
+              className="text-sm font-bold text-brand-soft"
+            />
+          </View>
+        </>
+      ) : (
+        <>
+          <View className="min-w-0 flex-1 items-start justify-center gap-0.5">
+            <View className="flex-row items-center gap-1.5">
+              <MaterialCommunityIcons name="check-circle-outline" size={14} color={theme.colors.state.success} />
+              <Text className="font-sans text-[11px] font-medium text-text-muted">Purchased Items</Text>
+            </View>
+            <Text className="font-sans text-sm font-bold text-state-success">
+              {historyCount} {historyCount === 1 ? "item" : "items"}
+            </Text>
+          </View>
+
+          <View className="mx-3 h-7 w-px bg-surface-border" />
+
+          <View className="min-w-0 flex-1 items-end justify-center gap-0.5">
+            <View className="flex-row items-center gap-1.5">
+              <MaterialCommunityIcons name="cash-check" size={14} color={theme.colors.state.success} />
+              <Text className="font-sans text-[11px] font-medium text-text-muted">Total Spent</Text>
+            </View>
+            <CurrencyText
+              value={historySpent}
+              currencyCode={currencyCode}
+              locale={locale}
+              className="text-sm font-bold text-state-success"
+            />
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
 export function CategoryChip({ icon, label, selected, onPress }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; selected: boolean; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} className={`min-h-11 flex-row items-center gap-2 rounded-xl border px-4 ${selected ? "border-brand bg-brand" : "border-surface-border bg-surface"}`} onPress={onPress}>
-      <MaterialCommunityIcons name={icon} size={theme.icons.sm} color={selected ? theme.colors.text.DEFAULT : theme.colors.text.muted} />
-      <Text className={`font-sans text-sm font-semibold ${selected ? "text-text" : "text-text-muted"}`}>{label}</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`min-h-8 flex-row items-center gap-1.5 rounded-full border px-3 py-1 ${
+        selected ? "border-brand bg-brand" : "border-surface-border bg-surface"
+      }`}
+      onPress={onPress}
+    >
+      <MaterialCommunityIcons name={icon} size={theme.icons.xs} color={selected ? theme.colors.text.DEFAULT : theme.colors.text.muted} />
+      <Text className={`font-sans text-xs font-semibold ${selected ? "text-text" : "text-text-muted"}`}>{label}</Text>
     </Pressable>
   );
 }
 
-export function WishlistItemCard({ currencyCode, item, locale, onDelete, onEdit, onPress }: { currencyCode: string; item: WishlistItemApi; locale: string; onDelete: () => void; onEdit: () => void; onPress: () => void }) {
+export function WishlistItemCard({
+  currencyCode,
+  item,
+  locale,
+  onComplete,
+  onDelete,
+  onEdit,
+  onPress
+}: {
+  currencyCode: string;
+  item: WishlistItemApi;
+  locale: string;
+  onComplete?: ((item: WishlistItemApi) => void) | undefined;
+  onDelete: () => void;
+  onEdit: () => void;
+  onPress: () => void;
+}) {
+  const isCompleted = (item.status ?? "ACTIVE").toUpperCase() === "COMPLETED";
+
   return (
-    <Pressable accessibilityLabel={`${item.name}, ${item.category}, ${priorityLabel(item.priority)}, estimated cost ${item.estimatedCost}`} accessibilityRole="button" className="flex-row items-center gap-3 rounded-xl bg-surface p-3" onLongPress={onDelete} onPress={onPress}>
-      <Pressable accessibilityLabel={`Edit ${item.name}`} accessibilityRole="button" className="h-24 w-24 overflow-hidden rounded-xl bg-background-muted" onPress={onEdit}>
-        {item.imageUrl ? <Image source={{ uri: item.imageUrl }} className="h-full w-full" resizeMode="cover" /> : <View className="h-full w-full items-center justify-center"><MaterialCommunityIcons name="image-outline" size={theme.icons.lg} color={theme.colors.brand.soft} /></View>}
-      </Pressable>
-      <View className="min-w-0 flex-1 gap-1">
-        <PriorityBadge priority={item.priority} />
-        <Text className="font-sans text-lg font-bold text-text">{item.name}</Text>
-        <Text className="font-sans text-sm text-text-muted">{item.category}</Text>
-        <Text className="font-sans text-xs text-text-muted">Added {formatWishlistDate(item.createdAt)}</Text>
+    <Pressable
+      accessibilityLabel={`${item.name}, ${item.category}, ${isCompleted ? "Purchased" : priorityLabel(item.priority)}, target ${item.estimatedCost}${isCompleted && item.purchasedAmount != null ? `, paid ${item.purchasedAmount}` : ""}`}
+      accessibilityRole="button"
+      className={`rounded-xl border p-3 ${isCompleted ? "border-state-success/30 bg-surface/90" : "border-surface-border bg-surface"}`}
+      onLongPress={onDelete}
+      onPress={onPress}
+    >
+      <View className="flex-row items-center gap-3">
+        <Pressable
+          accessibilityLabel={`Edit ${item.name}`}
+          accessibilityRole="button"
+          className="h-16 w-16 overflow-hidden rounded-xl bg-background-muted"
+          onPress={onEdit}
+        >
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} className="h-full w-full" resizeMode="cover" />
+          ) : (
+            <View className="h-full w-full items-center justify-center">
+              <MaterialCommunityIcons
+                name={isCompleted ? "check-circle-outline" : "image-outline"}
+                size={theme.icons.md}
+                color={isCompleted ? theme.colors.state.success : theme.colors.brand.soft}
+              />
+            </View>
+          )}
+        </Pressable>
+        <View className="min-w-0 flex-1 gap-0.5">
+          {isCompleted ? <PurchaseBadge date={item.purchasedDate} /> : <PriorityBadge priority={item.priority} />}
+          <Text className="font-sans text-sm font-bold text-text" numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
+            {item.category}
+          </Text>
+        </View>
+        <View className="items-end gap-0.5">
+          {isCompleted ? (
+            <>
+              <CurrencyText
+                value={item.purchasedAmount ?? item.estimatedCost}
+                currencyCode={currencyCode}
+                locale={locale}
+                className="text-sm font-bold text-state-success"
+              />
+              <Text className="font-sans text-[11px] text-text-muted">
+                Target: <CurrencyText value={item.estimatedCost} currencyCode={currencyCode} locale={locale} className="text-[11px] text-text-muted" />
+              </Text>
+            </>
+          ) : (
+            <>
+              <CurrencyText
+                value={item.estimatedCost}
+                currencyCode={currencyCode}
+                locale={locale}
+                className="text-sm font-bold text-text"
+              />
+              <Text className="font-sans text-[11px] text-text-muted">Target</Text>
+            </>
+          )}
+          <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.muted} />
+        </View>
       </View>
-      <View className="items-end gap-2">
-        <CurrencyText value={item.estimatedCost} currencyCode={currencyCode} locale={locale} className="text-lg font-semibold" />
-        <MaterialCommunityIcons name="chevron-right" size={theme.icons.md} color={theme.colors.text.muted} />
-      </View>
+
+      {onComplete && !isCompleted ? (
+        <View className="mt-2 flex-row items-center justify-end border-t border-surface-border/50 pt-2">
+          <Pressable
+            accessibilityLabel={`Mark ${item.name} as purchased`}
+            accessibilityRole="button"
+            className="flex-row items-center gap-1 rounded-lg border border-state-success/40 bg-state-success/10 px-2.5 py-1"
+            onPress={(e) => {
+              e.stopPropagation();
+              onComplete(item);
+            }}
+          >
+            <MaterialCommunityIcons name="check-circle-outline" size={theme.icons.xs} color={theme.colors.state.success} />
+            <Text className="font-sans text-xs font-bold text-state-success">Mark as Purchased</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Pressable>
+  );
+}
+
+export function PurchaseBadge({ date }: { date?: string | null | undefined }) {
+  return (
+    <View className="self-start flex-row items-center gap-1 rounded-full border border-state-success/30 bg-state-success/10 px-2 py-0.5">
+      <MaterialCommunityIcons name="check-circle" size={theme.icons.xs} color={theme.colors.state.success} />
+      <Text className="font-sans text-xs font-bold text-state-success">
+        Purchased
+      </Text>
+    </View>
   );
 }
 
 export function PriorityBadge({ priority }: { priority: WishlistPriorityApi }) {
   const color = priorityColor(priority);
   return (
-    <View className={`self-start flex-row items-center gap-1 rounded-full border px-2 py-1 ${priorityClass(priority)}`}>
+    <View className={`self-start flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${priorityClass(priority)}`}>
       <MaterialCommunityIcons name={priorityIcon(priority)} size={theme.icons.xs} color={color} />
       <Text className={`font-sans text-xs font-bold ${priorityTextClass(priority)}`}>{priorityLabel(priority)}</Text>
     </View>

@@ -1,3 +1,4 @@
+import { formatReportValue, reportNumber } from "@/features/reports/reportModel";
 import { hasSharedReportData } from "@/features/reports/sharedReportModel";
 import type { ReportSharedApiResponse } from "@/services/api/types";
 
@@ -37,6 +38,13 @@ describe("sharedReportModel", () => {
     expect(hasSharedReportData(sampleReport)).toBe(false);
   });
 
+  it("safely handles null or undefined report objects", () => {
+    expect(hasSharedReportData(undefined)).toBe(false);
+    expect(hasSharedReportData(null)).toBe(false);
+    expect(hasSharedReportData({} as any)).toBe(false);
+    expect(hasSharedReportData({ data: {} } as any)).toBe(false);
+  });
+
   it("detects shared report activity from summary and expenses", () => {
     expect(
       hasSharedReportData({
@@ -49,5 +57,50 @@ describe("sharedReportModel", () => {
       })
     ).toBe(true);
   });
+
+  it("detects shared report activity from fundingVsShare", () => {
+    expect(
+      hasSharedReportData({
+        ...sampleReport,
+        data: {
+          ...sampleReport.data,
+          fundingVsShare: [
+            {
+              isCurrentUser: true,
+              name: "Karuna",
+              netDifference: 0,
+              paidAmount: 100,
+              paidPercent: 50,
+              shareAmount: 100,
+              sharePercent: 50,
+              vaultId: 1
+            }
+          ]
+        }
+      })
+    ).toBe(true);
+  });
 });
 
+describe("formatReportValue edge cases", () => {
+  it("formats undefined and null safely", () => {
+    expect(formatReportValue(undefined, "money", "INR", "en-IN")).toBe("₹0");
+    expect(formatReportValue(null, "money", "INR", "en-IN")).toBe("None");
+    expect(formatReportValue(undefined, "count", "INR", "en-IN")).toBe("None");
+  });
+
+  it("handles non-finite and string numbers safely", () => {
+    expect(formatReportValue(NaN, "money", "INR", "en-IN")).toBe("₹0");
+    expect(formatReportValue(Infinity, "money", "INR", "en-IN")).toBe("₹0");
+    expect(formatReportValue("1500", "money", "INR", "en-IN")).toBe("₹1,500");
+  });
+
+  it("safely extracts numbers using reportNumber", () => {
+    expect(reportNumber(undefined)).toBe(0);
+    expect(reportNumber(null)).toBe(0);
+    expect(reportNumber(NaN)).toBe(0);
+    expect(reportNumber("invalid")).toBe(0);
+    expect(reportNumber(250)).toBe(250);
+    expect(reportNumber("250.50")).toBe(250.5);
+  });
+});

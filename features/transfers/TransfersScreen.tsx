@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Pressable, Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
-import { BottomSheet, EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { BottomSheet, CalendarDatePicker as MonthDatePicker, EmptyState, ErrorView, LoadingSkeleton, PrimaryButton, SecondaryButton } from "@/components/ui";
+
 import { useAccountsQuery } from "@/features/accounts/api";
 import {
   useCreateTransferMutation,
@@ -22,13 +23,15 @@ import {
   type TransferFormValues
 } from "@/features/transfers/transferModel";
 import { formatCurrency } from "@/lib/format";
-import { addMonthsToIsoDate, daysInMonth, formatIsoDateOnly, isoDateFromParts, isoDateParts, todayLocalIso } from "@/lib/date";
+import { formatIsoDateOnly, todayLocalIso } from "@/lib/date";
 import { toAppError } from "@/lib/errors";
 import type { AccountApi, TransferApi } from "@/services/api/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { accountTypeIcon } from "@/services/api/accountTypes";
 import { theme } from "@/theme";
+
+export { MonthDatePicker };
 
 type FlowMode = "compose" | "review" | "success";
 type AccountPickerTarget = "from" | "to" | null;
@@ -207,141 +210,8 @@ export function FilterAccountField({
   );
 }
 
-export function MonthDatePicker({
-  locale,
-  onCancel,
-  onConfirm,
-  selectedDate,
-  setSelectedDate
-}: {
-  locale: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-  selectedDate: string;
-  setSelectedDate: (date: string) => void;
-}) {
-  const [pickerMode, setPickerMode] = useState<"days" | "months" | "years">("days");
-  const parts = isoDateParts(selectedDate) ?? isoDateParts(todayLocalIso());
-  const days = parts ? Array.from({ length: daysInMonth(parts.year, parts.month) }, (_value, index) => index + 1) : [];
-  const monthTitle = parts ? formatIsoDateOnly(isoDateFromParts(parts.year, parts.month, 1), locale, { month: "long" }) : "Month";
-  const yearTitle = parts ? String(parts.year) : "Year";
-  const monthOptions = Array.from({ length: 12 }, (_value, index) => index + 1);
-  const yearOptions = parts ? Array.from({ length: 21 }, (_value, index) => parts.year - 10 + index) : [];
 
-  return (
-    <View className="gap-4">
-      <View className="flex-row items-center justify-between">
-        <Pressable
-          accessibilityLabel="Previous month"
-          accessibilityRole="button"
-          className="h-10 w-10 items-center justify-center rounded-md border border-surface-border bg-surface"
-          onPress={() => setSelectedDate(addMonthsToIsoDate(selectedDate, -1))}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
-        </Pressable>
-        <View className="flex-row items-center gap-2">
-          <Pressable accessibilityLabel="Select month" accessibilityRole="button" onPress={() => setPickerMode("months")}>
-            <Text className="font-sans text-base font-semibold text-brand-soft">{monthTitle}</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Select year" accessibilityRole="button" onPress={() => setPickerMode("years")}>
-            <Text className="font-sans text-base font-semibold text-brand-soft">{yearTitle}</Text>
-          </Pressable>
-        </View>
-        <Pressable
-          accessibilityLabel="Next month"
-          accessibilityRole="button"
-          className="h-10 w-10 items-center justify-center rounded-md border border-surface-border bg-surface"
-          onPress={() => setSelectedDate(addMonthsToIsoDate(selectedDate, 1))}
-        >
-          <MaterialCommunityIcons name="chevron-right" size={theme.icons.sm} color={theme.colors.text.DEFAULT} />
-        </Pressable>
-      </View>
-      {pickerMode === "months" && parts ? (
-        <View className="flex-row flex-wrap gap-2">
-          {monthOptions.map((month) => {
-            const isSelected = month === parts.month;
-            const date = isoDateFromParts(parts.year, month, Math.min(parts.day, daysInMonth(parts.year, month)));
 
-            return (
-              <Pressable
-                key={month}
-                accessibilityLabel={`Choose ${formatIsoDateOnly(isoDateFromParts(parts.year, month, 1), locale, { month: "long" })}`}
-                accessibilityRole="button"
-                className={isSelected ? "min-h-10 min-w-[30%] flex-1 items-center justify-center rounded-md bg-brand px-3" : "min-h-10 min-w-[30%] flex-1 items-center justify-center rounded-md border border-surface-border bg-background px-3"}
-                onPress={() => {
-                  setSelectedDate(date);
-                  setPickerMode("days");
-                }}
-              >
-                <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
-                  {formatIsoDateOnly(isoDateFromParts(parts.year, month, 1), locale, { month: "short" })}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-      {pickerMode === "years" && parts ? (
-        <View className="flex-row flex-wrap gap-2">
-          {yearOptions.map((year) => {
-            const isSelected = year === parts.year;
-            const date = isoDateFromParts(year, parts.month, Math.min(parts.day, daysInMonth(year, parts.month)));
-
-            return (
-              <Pressable
-                key={year}
-                accessibilityLabel={`Choose ${year}`}
-                accessibilityRole="button"
-                className={isSelected ? "h-10 min-w-[22%] flex-1 items-center justify-center rounded-md bg-brand px-2" : "h-10 min-w-[22%] flex-1 items-center justify-center rounded-md border border-surface-border bg-background px-2"}
-                onPress={() => {
-                  setSelectedDate(date);
-                  setPickerMode("days");
-                }}
-              >
-                <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
-                  {year}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-      {pickerMode === "days" ? (
-        <View className="flex-row flex-wrap gap-2">
-          {parts
-            ? days.map((day) => {
-                const date = isoDateFromParts(parts.year, parts.month, day);
-                const isSelected = date === selectedDate;
-
-                return (
-                  <Pressable
-                    key={date}
-                    accessibilityLabel={`Choose ${formatDate(date, locale)}`}
-                    accessibilityRole="button"
-                    className={isSelected ? "h-10 w-10 items-center justify-center rounded-full bg-brand" : "h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-background"}
-                    onPress={() => setSelectedDate(date)}
-                  >
-                    <Text className={isSelected ? "font-sans text-sm font-semibold text-text-inverse" : "font-sans text-sm font-semibold text-text"}>
-                      {day}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            : null}
-        </View>
-      ) : null}
-      <SecondaryButton onPress={() => setSelectedDate(todayLocalIso())}>Today</SecondaryButton>
-      <View className="flex-row gap-2">
-        <PrimaryButton className="flex-1" onPress={onConfirm}>
-          Select Date
-        </PrimaryButton>
-        <SecondaryButton className="flex-1" onPress={onCancel}>
-          Cancel
-        </SecondaryButton>
-      </View>
-    </View>
-  );
-}
 
 function AmountInput({
   amount,

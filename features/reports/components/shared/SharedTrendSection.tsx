@@ -1,18 +1,21 @@
 import { Text, View } from "react-native";
 
-import { formatReportValue } from "@/features/reports/reportModel";
-import { cn } from "@/lib/cn";
+import { formatReportValue, reportNumber } from "@/features/reports/reportModel";
 import type { ReportSharedTrendPointApi } from "@/services/api/types";
 import type { CurrencyCode } from "@/types/domain";
 
 interface SharedTrendSectionProps {
   currencyCode: CurrencyCode;
   locale: string;
-  trend: ReportSharedTrendPointApi[];
+  trend?: ReportSharedTrendPointApi[] | null;
 }
 
-export function SharedTrendSection({ currencyCode, locale, trend }: SharedTrendSectionProps) {
-  const max = Math.max(1, ...trend.map((point) => Math.max(point.totalSharedSpend, point.myShare)));
+export function SharedTrendSection({ currencyCode, locale, trend = [] }: SharedTrendSectionProps) {
+  const points = Array.isArray(trend) ? trend.filter(Boolean) : [];
+  const max = Math.max(
+    1,
+    ...points.map((point) => Math.max(reportNumber(point?.totalSharedSpend), reportNumber(point?.myShare)))
+  );
 
   return (
     <View className="gap-4 rounded-xl border border-surface-border bg-surface p-4">
@@ -36,7 +39,7 @@ export function SharedTrendSection({ currencyCode, locale, trend }: SharedTrendS
         </View>
       </View>
 
-      {trend.length === 0 ? (
+      {points.length === 0 ? (
         <Text className="py-8 text-center font-sans text-sm text-text-muted">No trend data available.</Text>
       ) : (
         <View
@@ -44,12 +47,15 @@ export function SharedTrendSection({ currencyCode, locale, trend }: SharedTrendS
           className="gap-3"
         >
           <View className="h-40 flex-row items-end justify-between border-b border-surface-border px-1 pb-1 pt-4">
-            {trend.map((point, index) => {
-              const totalHeight = Math.max(3, (point.totalSharedSpend / max) * 128);
-              const myShareHeight = Math.max(3, (point.myShare / max) * 128);
+            {points.map((point, index) => {
+              const totalSharedSpend = Math.max(0, reportNumber(point?.totalSharedSpend));
+              const myShare = Math.max(0, reportNumber(point?.myShare));
+              const totalHeight = max > 0 && totalSharedSpend > 0 ? Math.max(3, (totalSharedSpend / max) * 128) : 0;
+              const myShareHeight = max > 0 && myShare > 0 ? Math.max(3, (myShare / max) * 128) : 0;
+              const safeKey = `${point?.cycle || "cycle"}-${index}`;
 
               return (
-                <View className="flex-1 items-center gap-1 px-1" key={`${point.cycle}-${index}`}>
+                <View className="flex-1 items-center gap-1 px-1" key={safeKey}>
                   <View className="h-32 w-full flex-row items-end justify-center gap-1">
                     {/* Total Shared Spend Bar */}
                     <View
@@ -70,10 +76,10 @@ export function SharedTrendSection({ currencyCode, locale, trend }: SharedTrendS
           {/* Cycle Range Labels */}
           <View className="flex-row justify-between px-1">
             <Text className="font-sans text-[11px] text-text-muted">
-              {trend[0]?.cycle ?? ""}
+              {points[0]?.cycle ?? ""}
             </Text>
             <Text className="font-sans text-[11px] text-text-muted">
-              {trend[trend.length - 1]?.cycle ?? ""}
+              {points[points.length - 1]?.cycle ?? ""}
             </Text>
           </View>
         </View>

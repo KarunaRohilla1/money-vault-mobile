@@ -1,13 +1,16 @@
 import type { WishlistItemApi } from "@/services/api/types";
 
-const headers = ["Item Name", "Category", "Priority", "Estimated Cost", "Purchase Link", "Notes", "Date Added"];
+const headers = ["Item Name", "Category", "Priority", "Status", "Target Amount", "Purchased Amount", "Purchased Date", "Purchase Link", "Notes", "Date Added"];
 
 export function wishlistItemsToCsv(items: WishlistItemApi[]) {
   const rows = items.map((item) => [
     item.name,
     item.category,
     item.priority,
+    item.status ?? "ACTIVE",
     String(item.estimatedCost),
+    item.purchasedAmount != null ? String(item.purchasedAmount) : "",
+    item.purchasedDate ?? "",
     item.purchaseLink ?? "",
     item.notes ?? "",
     item.createdAt ?? ""

@@ -77,6 +77,7 @@ export const queryKeys = {
   vaults: {
     all: ["vaults"] as const,
     detail: (vaultId: string) => ["vaults", "detail", vaultId] as const,
+    primaryShared: (vaultId: string | null) => ["vaults", "primaryShared", vaultId ?? "anonymous"] as const,
     shared: ["vaults", "shared"] as const,
     sharedDetail: (vaultId: string | number | null) => ["vaults", "shared", "detail", vaultId == null ? "none" : String(vaultId)] as const
   },

@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 
-import { formatReportValue } from "@/features/reports/reportModel";
+import { formatReportValue, reportNumber } from "@/features/reports/reportModel";
 import type { ReportSharedSummaryApi } from "@/services/api/types";
 import { theme } from "@/theme";
 import type { CurrencyCode } from "@/types/domain";
@@ -9,10 +9,15 @@ import type { CurrencyCode } from "@/types/domain";
 interface SharedSummarySectionProps {
   currencyCode: CurrencyCode;
   locale: string;
-  summary: ReportSharedSummaryApi;
+  summary?: ReportSharedSummaryApi | null;
 }
 
 export function SharedSummarySection({ currencyCode, locale, summary }: SharedSummarySectionProps) {
+  const totalSharedSpend = Math.max(0, reportNumber(summary?.totalSharedSpend));
+  const myShare = Math.max(0, reportNumber(summary?.myShare));
+  const mySharePercent = Math.max(0, reportNumber(summary?.mySharePercent));
+  const transactionCount = Math.max(0, Math.trunc(reportNumber(summary?.transactionCount)));
+
   return (
     <View className="gap-3">
       <View className="gap-1">
@@ -33,10 +38,10 @@ export function SharedSummarySection({ currencyCode, locale, summary }: SharedSu
           </View>
           <View className="gap-1">
             <Text adjustsFontSizeToFit className="font-sans text-2xl font-bold text-text tabular-nums" minimumFontScale={0.72} numberOfLines={1}>
-              {formatReportValue(summary.totalSharedSpend, "money", currencyCode, locale)}
+              {formatReportValue(totalSharedSpend, "money", currencyCode, locale)}
             </Text>
             <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
-              {summary.transactionCount} {summary.transactionCount === 1 ? "shared transaction" : "shared transactions"}
+              {transactionCount} {transactionCount === 1 ? "shared transaction" : "shared transactions"}
             </Text>
           </View>
         </View>
@@ -53,10 +58,10 @@ export function SharedSummarySection({ currencyCode, locale, summary }: SharedSu
           </View>
           <View className="gap-1">
             <Text adjustsFontSizeToFit className="font-sans text-2xl font-bold text-text tabular-nums" minimumFontScale={0.72} numberOfLines={1}>
-              {formatReportValue(summary.myShare, "money", currencyCode, locale)}
+              {formatReportValue(myShare, "money", currencyCode, locale)}
             </Text>
             <Text className="font-sans text-xs text-text-muted" numberOfLines={1}>
-              {summary.mySharePercent}% of shared total
+              {mySharePercent}% of shared total
             </Text>
           </View>
         </View>
@@ -64,4 +69,3 @@ export function SharedSummarySection({ currencyCode, locale, summary }: SharedSu
     </View>
   );
 }
-

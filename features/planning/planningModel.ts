@@ -18,6 +18,7 @@ export interface PlanningActivityViewModel {
   kind: PlanningActivityKind;
   name: string;
   notes: string | null;
+  paidDate?: string | null;
   status: string;
   statusLabel: string;
   timelineLabel?: string;
@@ -262,10 +263,17 @@ export function closeActionStatus(action: Exclude<CloseAction, null>, kind: Plan
   return "CARRIED_FORWARD";
 }
 
-export function statusPayloadForActivity(activity: PlanningActivityViewModel, cycle: PlanningApiResponse["cycle"], status: string, amount: number | null): PlanningStatusPayloadApi {
+export function statusPayloadForActivity(
+  activity: PlanningActivityViewModel,
+  cycle: PlanningApiResponse["cycle"],
+  status: string,
+  amount: number | null,
+  paidDate?: string | null
+): PlanningStatusPayloadApi {
   return {
     actualAmount: amount,
     month: cycle.startMonth,
+    paidDate: paidDate !== undefined ? (paidDate ?? undefined) : undefined,
     status,
     year: cycle.startYear
   };
@@ -358,6 +366,7 @@ function buildBackendActivity(item: PlanningActivityApi): PlanningActivityViewMo
     kind: item.kind,
     name: item.name,
     notes: item.status.notes ?? null,
+    paidDate: item.status.paidDate ?? null,
     status: item.status.status,
     statusLabel: item.statusLabel,
     timelineLabel: item.timelineLabel
@@ -380,6 +389,7 @@ function buildActivity(item: PlanningItemApi, kind: PlanningActivityKind): Plann
     kind,
     name: item.name,
     notes: item.status.notes ?? null,
+    paidDate: item.status.paidDate ?? null,
     status: item.status.status,
     statusLabel: statusLabel(item.status.status, kind)
   };

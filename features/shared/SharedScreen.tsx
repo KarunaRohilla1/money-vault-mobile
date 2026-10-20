@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
@@ -21,11 +21,14 @@ import type { CurrencyCode } from "@/types/domain";
 
 export function SharedScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ sharedVaultId?: string }>();
   const token = useAuthStore((state) => state.token);
   const vault = useAuthStore((state) => state.vault);
   const vaultId = vault?.id ?? null;
-  const sharedVaultId = vault?.vaultType === "Shared" && vaultId ? Number(vaultId) : null;
-  const dashboard = useSharedVaultDashboard();
+  const routeSharedVaultId =
+    params.sharedVaultId && Number.isFinite(Number(params.sharedVaultId)) ? Number(params.sharedVaultId) : null;
+  const sharedVaultId = routeSharedVaultId ?? (vault?.vaultType === "Shared" && vaultId ? Number(vaultId) : null);
+  const dashboard = useSharedVaultDashboard(sharedVaultId);
   const shouldLoadSettlementDetails =
     Boolean(dashboard.settlementSummary) &&
     hasOutstandingSettlement({

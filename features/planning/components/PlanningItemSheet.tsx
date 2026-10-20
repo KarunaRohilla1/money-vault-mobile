@@ -2,8 +2,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
-import { BottomSheet, CurrencyText, PrimaryButton } from "@/components/ui";
+import { BottomSheet, CalendarDatePicker, CurrencyText, PrimaryButton } from "@/components/ui";
 import { activityDueDate, parseLocalIsoDate, type PlanningActivityViewModel } from "@/features/planning/planningModel";
+import { formatIsoDateOnly } from "@/lib/date";
 import { theme } from "@/theme";
 
 interface PlanningItemSheetProps {
@@ -11,6 +12,7 @@ interface PlanningItemSheetProps {
   actualAmount: string;
   actualError: string | null;
   actualNotes: string;
+  actualPaymentDate: string;
   currencyCode: string;
   cycle: { startMonth: number; startYear: number; startDate?: string; endDate?: string };
   locale: string;
@@ -18,17 +20,40 @@ interface PlanningItemSheetProps {
   selectedStatus: "COMPLETE" | "PENDING" | "CANCELLED";
   onActualAmountChange: (value: string) => void;
   onActualNotesChange: (value: string) => void;
+  onActualPaymentDateChange: (value: string) => void;
   onClose: () => void;
   onSaveActual: () => void;
   onStatusChange: (status: "COMPLETE" | "PENDING" | "CANCELLED") => void;
   visible: boolean;
 }
 
-export function PlanningItemSheet({ activity, actualAmount, actualError, actualNotes, currencyCode, cycle, locale, saving = false, selectedStatus, onActualAmountChange, onActualNotesChange, onClose, onSaveActual, onStatusChange, visible }: PlanningItemSheetProps) {
+export function PlanningItemSheet({
+  activity,
+  actualAmount,
+  actualError,
+  actualNotes,
+  actualPaymentDate,
+  currencyCode,
+  cycle,
+  locale,
+  saving = false,
+  selectedStatus,
+  onActualAmountChange,
+  onActualNotesChange,
+  onActualPaymentDateChange,
+  onClose,
+  onSaveActual,
+  onStatusChange,
+  visible
+}: PlanningItemSheetProps) {
   const completeLabel = activity?.kind === "income" ? "Received" : "Paid";
   const dueDateLabel = activity ? dueDateForActivity(activity, cycle, locale) : "";
+  const paymentDateLabel = actualPaymentDate
+    ? formatIsoDateOnly(actualPaymentDate, locale, { day: "numeric", month: "short", year: "numeric" })
+    : dueDateLabel;
   const currencySymbol = currencySymbolFor(currencyCode, locale);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const isComplete = selectedStatus === "COMPLETE";
   const isCancelled = selectedStatus === "CANCELLED";
   const isPending = selectedStatus === "PENDING";
@@ -114,8 +139,52 @@ export function PlanningItemSheet({ activity, actualAmount, actualError, actualN
               <StatusPill active={isComplete} icon="check" label={completeLabel} tone="success" onPress={() => onStatusChange("COMPLETE")} />
               <StatusPill active={isCancelled} icon="close-circle-outline" label="Cancelled" tone="danger" onPress={() => onStatusChange("CANCELLED")} />
             </View>
-            <StatusMessage activity={activity} dueDateLabel={dueDateLabel} isCancelled={isCancelled} isComplete={isComplete} />
+            <StatusMessage activity={activity} dueDateLabel={dueDateLabel} paymentDateLabel={paymentDateLabel} isCancelled={isCancelled} isComplete={isComplete} />
           </View>
+
+          {isComplete ? (
+            <View className="gap-3">
+              <View className="flex-row items-center justify-between">
+                <Text className="font-sans text-lg font-semibold text-text">
+                  {activity.kind === "income" ? "Received Date" : "Payment Date"}
+                </Text>
+                {datePickerOpen ? (
+                  <Pressable accessibilityRole="button" onPress={() => setDatePickerOpen(false)}>
+                    <Text className="font-sans text-sm font-semibold text-brand-soft">Done</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Choose payment date"
+                className="flex-row items-center justify-between rounded-xl border border-surface-border bg-surface px-4 py-3.5"
+                onPress={() => setDatePickerOpen((open) => !open)}
+              >
+                <View className="flex-row items-center gap-3">
+                  <MaterialCommunityIcons name="calendar-month-outline" size={theme.icons.sm} color={theme.colors.brand.soft} />
+                  <Text className="font-sans text-sm font-semibold text-text">{paymentDateLabel}</Text>
+                </View>
+                <MaterialCommunityIcons
+                  name={datePickerOpen ? "chevron-up" : "chevron-down"}
+                  size={theme.icons.sm}
+                  color={theme.colors.text.muted}
+                />
+              </Pressable>
+
+              {datePickerOpen ? (
+                <View className="rounded-xl border border-surface-border bg-surface p-3">
+                  <CalendarDatePicker
+                    locale={locale}
+                    selectedDate={actualPaymentDate}
+                    setSelectedDate={onActualPaymentDateChange}
+                    onCancel={() => setDatePickerOpen(false)}
+                    onConfirm={() => setDatePickerOpen(false)}
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
 
           <View className="gap-3">
             <Pressable accessibilityRole="button" className="flex-row items-center justify-between" onPress={() => setNotesExpanded((expanded) => !expanded)}>
@@ -183,14 +252,14 @@ function StatusPill({ active, icon, label, onPress, tone }: { active: boolean; i
   );
 }
 
-function StatusMessage({ activity, dueDateLabel, isCancelled, isComplete }: { activity: PlanningActivityViewModel; dueDateLabel: string; isCancelled: boolean; isComplete: boolean }) {
+function StatusMessage({ activity, dueDateLabel, isCancelled, isComplete, paymentDateLabel }: { activity: PlanningActivityViewModel; dueDateLabel: string; isCancelled: boolean; isComplete: boolean; paymentDateLabel: string }) {
   const completeLabel = activity.kind === "income" ? "received" : "paid";
 
   if (isComplete) {
     return (
       <View className="flex-row items-start gap-3 rounded-xl border border-state-success/25 bg-state-success/10 px-4 py-4">
         <MaterialCommunityIcons name="check-circle-outline" size={theme.icons.sm} color={theme.colors.state.success} />
-        <Text className="min-w-0 flex-1 font-sans text-sm font-semibold text-state-success">This activity will be marked as {completeLabel} on {dueDateLabel}.</Text>
+        <Text className="min-w-0 flex-1 font-sans text-sm font-semibold text-state-success">This activity will be marked as {completeLabel} on {paymentDateLabel}.</Text>
       </View>
     );
   }
